@@ -32,8 +32,8 @@ COPY backend/ .
 # Create logs directory
 RUN mkdir -p logs
 
-# Set entrypoint
-RUN chmod +x entrypoint.sh
+# Fix Windows line endings (CRLF -> LF) and set permissions
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 EXPOSE 8096
 
