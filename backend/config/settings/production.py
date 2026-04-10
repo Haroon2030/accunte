@@ -35,7 +35,7 @@ DATABASES = {
 # Security Settings
 # ══════════════════════════════════════════════════════════════════════════════
 
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = False  # Handled by reverse proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
