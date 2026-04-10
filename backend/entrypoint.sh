@@ -15,15 +15,20 @@ except Exception as e:
 echo "=== Faking migrations (tables already exist) ==="
 python manage.py migrate --fake --noinput
 
-echo "=== Creating superuser ==="
+echo "=== Creating/resetting superuser ==="
 python manage.py shell -c "
 from django.contrib.auth import get_user_model
 User = get_user_model()
-if not User.objects.filter(username='admin').exists():
+user = User.objects.filter(username='admin').first()
+if user:
+    user.set_password('123456')
+    user.is_staff = True
+    user.is_superuser = True
+    user.save()
+    print('Superuser password reset successfully')
+else:
     User.objects.create_superuser('admin', 'admin@admin.com', '123456')
     print('Superuser created successfully')
-else:
-    print('Superuser already exists')
 "
 
 echo "=== Collecting static files ==="
