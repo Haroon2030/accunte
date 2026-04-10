@@ -37,25 +37,21 @@ DATABASES = {
 
 SECURE_SSL_REDIRECT = False  # Handled by reverse proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = False  # Set to True when using HTTPS
+CSRF_COOKIE_SECURE = False  # Set to True when using HTTPS
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+# SECURE_HSTS_SECONDS = 31536000  # Enable when using HTTPS
+# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+# SECURE_HSTS_PRELOAD = True
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CORS - Specific origins in production
+# CORS - Allow credentials
 # ══════════════════════════════════════════════════════════════════════════════
 
-CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    cast=lambda v: [s.strip() for s in v.split(',')],
-    default='https://yourdomain.com'
-)
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Logging
