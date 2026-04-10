@@ -12,8 +12,8 @@ except Exception as e:
     print(f'No migration table yet: {e}')
 "
 
-echo "=== Running migrations ==="
-python manage.py migrate --noinput
+echo "=== Faking migrations (tables already exist) ==="
+python manage.py migrate --fake --noinput
 
 echo "=== Creating superuser ==="
 python manage.py shell -c "
