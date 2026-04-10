@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.sqlite3
+.env
+backend/.env
+venv/
+env/
+node_modules/
+.git/
+frontend/
+media/
+*.log
