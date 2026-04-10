@@ -2,7 +2,15 @@
 set -e
 
 echo "=== Running migrations ==="
-python manage.py migrate --noinput
+# Use --fake-initial to handle previously faked migrations
+python manage.py migrate --fake-initial --noinput
+
+# Ensure core app tables exist
+python manage.py migrate core --noinput 2>/dev/null || {
+    echo "Fixing core migrations..."
+    python manage.py migrate core zero --fake --noinput
+    python manage.py migrate core --noinput
+}
 
 echo "=== Ensuring superuser exists ==="
 python manage.py shell -c "
