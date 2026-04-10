@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -157,6 +158,12 @@ def current_user(request):
     })
 
 
+@login_required(login_url='/login')
 def admin_frontend(request, **kwargs):
     """عرض واجهة React"""
+    return render(request, 'admin/frontend.html')
+
+
+def login_frontend(request, **kwargs):
+    """صفحة تسجيل الدخول - متاحة للجميع"""
     return render(request, 'admin/frontend.html')
