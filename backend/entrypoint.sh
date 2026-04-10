@@ -1,16 +1,24 @@
 #!/bin/bash
 set -e
 
-echo "=== Running migrations ==="
-# Use --fake-initial to handle previously faked migrations
-python manage.py migrate --fake-initial --noinput
+echo "=== Checking and fixing migrations ==="
+# Check if core_role table exists, if not - reset and reapply migrations
+python manage.py shell -c "
+from django.db import connection
+cursor = connection.cursor()
+try:
+    cursor.execute('SELECT 1 FROM core_role LIMIT 1')
+    print('core_role table exists')
+except:
+    print('core_role table missing - resetting migrations')
+    # Delete migration records for core app
+    cursor.execute(\"DELETE FROM django_migrations WHERE app='core'\")
+    connection.commit()
+    print('Migration records cleared for core app')
+"
 
-# Ensure core app tables exist
-python manage.py migrate core --noinput 2>/dev/null || {
-    echo "Fixing core migrations..."
-    python manage.py migrate core zero --fake --noinput
-    python manage.py migrate core --noinput
-}
+echo "=== Running migrations ==="
+python manage.py migrate --noinput
 
 echo "=== Ensuring superuser exists ==="
 python manage.py shell -c "
