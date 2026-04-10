@@ -1,6 +1,17 @@
 #!/bin/bash
 set -e
 
+echo "=== Fixing migration history ==="
+python manage.py shell -c "
+from django.db import connection
+cursor = connection.cursor()
+try:
+    cursor.execute('DELETE FROM django_migrations')
+    print('Cleared migration history')
+except Exception as e:
+    print(f'No migration table yet: {e}')
+"
+
 echo "=== Running migrations ==="
 python manage.py migrate --noinput
 
