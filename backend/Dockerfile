@@ -19,12 +19,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Collect static files
-RUN python manage.py collectstatic --noinput 2>/dev/null || true
-
 # Create logs directory
 RUN mkdir -p logs
 
-EXPOSE 8000
+# Copy and set entrypoint
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
+EXPOSE 8096
+
+ENTRYPOINT ["./entrypoint.sh"]
