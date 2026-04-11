@@ -6,23 +6,34 @@ echo "=== Starting Application ==="
 # Wait for database
 sleep 3
 
-echo "=== Clearing all migration records ==="
+echo "=== Dropping ALL tables and starting fresh ==="
 python manage.py shell << 'PYEOF'
 from django.db import connection
 cursor = connection.cursor()
 
-try:
-    # Clear ALL migration records to start fresh
-    cursor.execute("DELETE FROM django_migrations")
+# Get all tables
+cursor.execute("SHOW TABLES")
+tables = cursor.fetchall()
+
+if tables:
+    # Disable foreign key checks
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+    
+    for table in tables:
+        table_name = table[0]
+        print(f"Dropping table: {table_name}")
+        cursor.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+    
+    # Re-enable foreign key checks
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
     connection.commit()
-    print("Cleared all migration records")
-except Exception as e:
-    print(f"Note: {e}")
+    print("All tables dropped!")
+else:
+    print("No tables to drop")
 PYEOF
 
-echo "=== Running migrations ==="
-# Use --fake-initial to fake migrations for existing tables and create missing ones
-python manage.py migrate --fake-initial --noinput
+echo "=== Running fresh migrations ==="
+python manage.py migrate --noinput
 
 echo "=== Creating superuser ==="
 python manage.py shell << 'EOF'
