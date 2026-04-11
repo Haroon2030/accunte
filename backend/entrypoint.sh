@@ -6,12 +6,53 @@ echo "=== Starting Application ==="
 # Wait for database
 sleep 3
 
-echo "=== Running migrations ==="
-# Use --fake-initial to handle tables that already exist
-python manage.py migrate --fake-initial --noinput || {
-    echo "Migration error, trying --fake..."
-    python manage.py migrate --fake --noinput
-}
+echo "=== Fixing database schema ==="
+python manage.py shell << 'PYEOF'
+from django.db import connection
+cursor = connection.cursor()
+
+def column_exists(table, column):
+    cursor.execute(f"SHOW COLUMNS FROM {table} LIKE '{column}'")
+    return cursor.fetchone() is not None
+
+def add_column(table, column, definition):
+    if not column_exists(table, column):
+        print(f"Adding {table}.{column}...")
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+        return True
+    return False
+
+try:
+    # Fix core_userprofile table
+    print("Checking core_userprofile...")
+    add_column("core_userprofile", "branch_id", "bigint NULL")
+    add_column("core_userprofile", "role_id", "bigint NULL")
+    add_column("core_userprofile", "phone", "varchar(20) DEFAULT ''")
+    add_column("core_userprofile", "department", "varchar(100) DEFAULT ''")
+    add_column("core_userprofile", "position", "varchar(100) DEFAULT ''")
+    add_column("core_userprofile", "avatar", "varchar(100) DEFAULT ''")
+    add_column("core_userprofile", "is_protected", "tinyint(1) DEFAULT 0")
+    
+    # Fix core_role table
+    print("Checking core_role...")
+    add_column("core_role", "role_type", "varchar(20) DEFAULT 'branch_employee'")
+    add_column("core_role", "is_system_role", "tinyint(1) DEFAULT 0")
+    
+    connection.commit()
+    print("Schema fixes completed!")
+    
+    # Clear core migration records
+    cursor.execute("DELETE FROM django_migrations WHERE app='core'")
+    connection.commit()
+    print("Cleared core migration records")
+    
+except Exception as e:
+    print(f"Error: {e}")
+    connection.rollback()
+PYEOF
+
+# Fake all migrations since we fixed schema manually
+python manage.py migrate --fake --noinput
 
 echo "=== Creating superuser ==="
 python manage.py shell << 'EOF'
