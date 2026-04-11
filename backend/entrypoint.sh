@@ -1,46 +1,47 @@
 #!/bin/bash
 set -e
 
-echo "=== Fixing migration state ==="
-# Mark all migrations as applied (fake) since database already has the columns
-python manage.py migrate --fake --noinput
+echo "=== Starting Application ==="
 
-echo "=== Ensuring superuser exists ==="
-python manage.py shell -c "
+# Wait for database
+sleep 3
+
+echo "=== Running migrations ==="
+# Use --fake-initial to handle tables that already exist
+python manage.py migrate --fake-initial --noinput || {
+    echo "Migration error, trying --fake..."
+    python manage.py migrate --fake --noinput
+}
+
+echo "=== Creating superuser ==="
+python manage.py shell << 'EOF'
 from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(username='admin').exists():
     User.objects.create_superuser('admin', 'admin@admin.com', '123456')
-    print('Superuser created successfully')
+    print('Superuser created')
 else:
-    print('Superuser already exists')
-"
+    print('Superuser exists')
+EOF
 
 echo "=== Creating default roles ==="
-python manage.py shell -c "
+python manage.py shell << 'EOF'
 from apps.core.models import Role
 
-default_roles = [
-    {'name': 'مدير النظام', 'role_type': 'admin', 'description': 'صلاحيات كاملة على النظام'},
-    {'name': 'مدير', 'role_type': 'manager', 'description': 'إدارة الطلبات والموافقات'},
-    {'name': 'مدقق', 'role_type': 'auditor', 'description': 'مراجعة وتدقيق الطلبات'},
-    {'name': 'موظف فرع', 'role_type': 'branch_employee', 'description': 'إنشاء طلبات الدفع'},
+roles = [
+    {'name': 'مدير النظام', 'role_type': 'admin', 'description': 'صلاحيات كاملة'},
+    {'name': 'مدير', 'role_type': 'manager', 'description': 'إدارة الطلبات'},
+    {'name': 'مدقق', 'role_type': 'auditor', 'description': 'مراجعة الطلبات'},
+    {'name': 'موظف فرع', 'role_type': 'branch_employee', 'description': 'إنشاء طلبات'},
 ]
 
-for role_data in default_roles:
-    role, created = Role.objects.get_or_create(
-        name=role_data['name'],
-        defaults={
-            'role_type': role_data['role_type'],
-            'description': role_data['description'],
-            'is_system_role': True
-        }
+for r in roles:
+    obj, created = Role.objects.get_or_create(
+        name=r['name'],
+        defaults={'role_type': r['role_type'], 'description': r['description'], 'is_system_role': True}
     )
-    if created:
-        print(f'Created role: {role.name}')
-    else:
-        print(f'Role exists: {role.name}')
-"
+    print(f"{'Created' if created else 'Exists'}: {r['name']}")
+EOF
 
 echo "=== Collecting static files ==="
 python manage.py collectstatic --noinput
