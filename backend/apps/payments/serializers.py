@@ -58,13 +58,13 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
 class PaymentRequestListSerializer(serializers.ModelSerializer):
     """Serializer مختصر لقائمة طلبات الدفع"""
-    branch_name = serializers.CharField(source='branch.name', read_only=True)
-    bank_name = serializers.CharField(source='bank.name', read_only=True)
-    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    branch_name = serializers.CharField(source='branch.name', read_only=True, default='')
+    bank_name = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
     status_display = serializers.CharField(read_only=True)
     items_count = serializers.IntegerField(read_only=True)
     total_amount = serializers.DecimalField(
-        max_digits=14, decimal_places=2, read_only=True
+        max_digits=14, decimal_places=2, read_only=True, default=0
     )
     
     class Meta:
@@ -75,12 +75,18 @@ class PaymentRequestListSerializer(serializers.ModelSerializer):
             'items_count', 'created_by_name',
             'created_at', 'updated_at'
         ]
+    
+    def get_bank_name(self, obj):
+        return obj.bank.name if obj.bank else ''
+    
+    def get_created_by_name(self, obj):
+        return obj.created_by.username if obj.created_by else ''
 
 
 class PaymentRequestDetailSerializer(serializers.ModelSerializer):
     """Serializer تفصيلي لطلب الدفع"""
-    branch_name = serializers.CharField(source='branch.name', read_only=True)
-    bank_name = serializers.CharField(source='bank.name', read_only=True)
+    branch_name = serializers.CharField(source='branch.name', read_only=True, default='')
+    bank_name = serializers.SerializerMethodField()
     created_by = UserSerializer(read_only=True)
     proposed_by = UserSerializer(read_only=True)
     first_approved_by = UserSerializer(read_only=True)
@@ -105,6 +111,9 @@ class PaymentRequestDetailSerializer(serializers.ModelSerializer):
             'proposed_at', 'first_approved_at', 'audited_at', 'final_approved_at',
             'items', 'audit_logs', 'available_transitions'
         ]
+    
+    def get_bank_name(self, obj):
+        return obj.bank.name if obj.bank else ''
     
     def get_available_transitions(self, obj):
         request = self.context.get('request')
