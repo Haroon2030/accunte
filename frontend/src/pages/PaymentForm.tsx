@@ -32,6 +32,7 @@ export default function PaymentForm() {
   // Form state
   const [branch, setBranch] = useState<number | null>(null)
   const [bank, setBank] = useState<number | null>(null)
+  const [costCenter, setCostCenter] = useState<{ id: number; name: string } | null>(null)
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<PaymentItem[]>([
     { supplier: null, current_balance: 0, amount: 0, proposed_amount: 0 }
@@ -48,6 +49,22 @@ export default function PaymentForm() {
   // Mutations
   const [createPayment, { isLoading: creating }] = useCreatePaymentMutation()
   const [updatePayment, { isLoading: updating }] = useUpdatePaymentMutation()
+
+  // Auto-select cost center when branch changes
+  useEffect(() => {
+    if (branch && branchesData?.results) {
+      const selectedBranch = branchesData.results.find(b => b.id === branch)
+      if (selectedBranch && (selectedBranch as any).cost_center) {
+        const ccId = (selectedBranch as any).cost_center
+        const cc = costCentersData?.results?.find(c => c.id === ccId)
+        if (cc) {
+          setCostCenter({ id: cc.id, name: cc.name })
+        }
+      } else {
+        setCostCenter(null)
+      }
+    }
+  }, [branch, branchesData, costCentersData])
 
   // Load existing payment data
   useEffect(() => {
@@ -235,7 +252,7 @@ export default function PaymentForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                البنك
+                البنك المحول منه
               </label>
               <select
                 value={bank || ''}
@@ -244,20 +261,18 @@ export default function PaymentForm() {
               >
                 <option value="">اختر البنك</option>
                 {banksData?.results?.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name} - {b.analytical_number}</option>
+                  <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                ملاحظات
+                مركز التكلفة <span className="text-xs text-blue-500">(تعبئة تلقائية)</span>
               </label>
-              <Input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="ملاحظات إضافية..."
-              />
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                {costCenter ? costCenter.name : 'يتم تحديده تلقائياً...'}
+              </div>
             </div>
           </div>
         </Card>
@@ -279,7 +294,6 @@ export default function PaymentForm() {
                   <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">#</th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">رقم المورد</th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">اسم المورد</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">مركز التكلفة</th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">الدفعة المرفوعة</th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">دفعة المشتريات</th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">اقتراح السداد</th>
@@ -326,22 +340,6 @@ export default function PaymentForm() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <select
-                        value={item.cost_center || ''}
-                        onChange={(e) => {
-                          const cc = costCentersData?.results?.find(c => c.id === Number(e.target.value))
-                          updateItem(index, 'cost_center', e.target.value ? Number(e.target.value) : null)
-                          if (cc) updateItem(index, 'cost_center_name', cc.name)
-                        }}
-                        className="w-36 px-2 py-1 border border-gray-300 rounded text-sm"
-                      >
-                        <option value="">اختر...</option>
-                        {costCentersData?.results?.map((cc) => (
-                          <option key={cc.id} value={cc.id}>{cc.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
                       <Input
                         type="number"
                         value={item.current_balance}
@@ -380,7 +378,7 @@ export default function PaymentForm() {
               </tbody>
               <tfoot>
                 <tr className="bg-gray-100 font-semibold">
-                  <td colSpan={4} className="px-4 py-3 text-left">الإجمالي ({items.length} بند)</td>
+                  <td colSpan={3} className="px-4 py-3 text-left">الإجمالي ({items.length} بند)</td>
                   <td className="px-4 py-3 text-left">{totalAmount.toLocaleString()}</td>
                   <td className="px-4 py-3 text-left">{totalAmount.toLocaleString()}</td>
                   <td className="px-4 py-3 text-left">{totalProposed.toLocaleString()}</td>
