@@ -81,10 +81,8 @@ class PaymentRequestListSerializer(serializers.ModelSerializer):
     bank_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
     status_display = serializers.CharField(read_only=True)
-    items_count = serializers.IntegerField(read_only=True)
-    total_amount = serializers.DecimalField(
-        max_digits=14, decimal_places=2, read_only=True, default=0
-    )
+    items_count = serializers.SerializerMethodField()
+    total_amount = serializers.SerializerMethodField()
     
     class Meta:
         model = PaymentRequest
@@ -100,6 +98,12 @@ class PaymentRequestListSerializer(serializers.ModelSerializer):
     
     def get_created_by_name(self, obj):
         return obj.created_by.username if obj.created_by else ''
+    
+    def get_items_count(self, obj):
+        return obj.items_count
+    
+    def get_total_amount(self, obj):
+        return str(obj.total_amount)
 
 
 class PaymentRequestDetailSerializer(serializers.ModelSerializer):

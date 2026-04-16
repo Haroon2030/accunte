@@ -48,10 +48,7 @@ class PaymentRequestViewSet(viewsets.ModelViewSet):
         """
         queryset = PaymentRequest.objects.select_related(
             'branch', 'bank', 'created_by'
-        ).prefetch_related('items').annotate(
-            items_count=Count('items', distinct=True),
-            total_amount=Sum('items__amount')
-        )
+        ).prefetch_related('items')
         
         user = self.request.user
         
