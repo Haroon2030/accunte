@@ -161,10 +161,22 @@ export const api = createApi({
       }),
       providesTags: ['Payments'],
     }),
-    createPayment: builder.mutation<PaymentRequest, Partial<PaymentRequest>>({
+    getPayment: builder.query<PaymentRequest, number>({
+      query: (id) => `/payments/${id}/`,
+      providesTags: ['Payments'],
+    }),
+    createPayment: builder.mutation<PaymentRequest, any>({
       query: (data) => ({
         url: '/payments/',
         method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Payments'],
+    }),
+    updatePayment: builder.mutation<PaymentRequest, { id: number; data: any }>({
+      query: ({ id, data }) => ({
+        url: `/payments/${id}/`,
+        method: 'PATCH',
         body: data,
       }),
       invalidatesTags: ['Payments'],
@@ -286,6 +298,8 @@ export const {
   useUpdateCostCenterMutation,
   useDeleteCostCenterMutation,
   useGetPaymentsQuery,
+  useGetPaymentQuery,
   useCreatePaymentMutation,
+  useUpdatePaymentMutation,
   useDeletePaymentMutation,
 } = api

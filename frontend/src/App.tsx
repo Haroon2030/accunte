@@ -8,7 +8,6 @@ import Banks from './pages/Banks'
 import CostCenters from './pages/CostCenters'
 import Payments from './pages/Payments'
 import PaymentForm from './pages/PaymentForm'
-import PaymentDetails from './pages/PaymentDetails'
 import Settings from './pages/Settings'
 
 function App() {
@@ -23,7 +22,7 @@ function App() {
         <Route path="cost-centers" element={<CostCenters />} />
         <Route path="payments" element={<Payments />} />
         <Route path="payments/new" element={<PaymentForm />} />
-        <Route path="payments/:id" element={<PaymentDetails />} />
+        <Route path="payments/:id" element={<PaymentForm />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
