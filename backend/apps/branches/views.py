@@ -4,6 +4,7 @@
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count
 
@@ -20,6 +21,7 @@ class BranchViewSet(viewsets.ModelViewSet):
         payments_count=Count('payment_requests', distinct=True)
     )
     serializer_class = BranchSerializer
+    permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'cost_center']
     search_fields = ['name', 'code', 'address']
