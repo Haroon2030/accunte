@@ -78,6 +78,23 @@ export default function PaymentForm() {
     return null
   }
 
+  // Auto-assign cost center when cost centers are loaded
+  useEffect(() => {
+    if (costCentersData?.results && costCentersData.results.length > 0 && !isEditing) {
+      const defaultCC = costCentersData.results[0]
+      setItems(prevItems => prevItems.map(item => {
+        if (!item.cost_center) {
+          return {
+            ...item,
+            cost_center: defaultCC.id,
+            cost_center_name: defaultCC.name
+          }
+        }
+        return item
+      }))
+    }
+  }, [costCentersData, isEditing])
+
   // Add new item
   const addItem = () => {
     const defaultCC = getDefaultCostCenter()
