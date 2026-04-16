@@ -1,23 +1,7 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowRight, Edit, Printer, FileText } from 'lucide-react'
-import { Button, Card } from '../components/ui'
+import { Button } from '../components/ui'
 import { useGetPaymentQuery } from '../store/api'
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-800',
-  pending: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  paid: 'bg-blue-100 text-blue-800',
-}
-
-const statusLabels: Record<string, string> = {
-  draft: 'مسودة',
-  pending: 'قيد المراجعة',
-  approved: 'معتمد',
-  rejected: 'مرفوض',
-  paid: 'مدفوع',
-}
 
 export default function PaymentDetails() {
   const { id } = useParams()
