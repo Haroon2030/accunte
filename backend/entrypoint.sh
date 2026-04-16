@@ -3,39 +3,14 @@ set -e
 
 echo "=== Starting Application ==="
 
-# Wait for database
-sleep 3
+# Wait for database to be ready
+echo "Waiting for database..."
+sleep 5
 
-echo "=== Dropping ALL tables and starting fresh ==="
-python manage.py shell << 'PYEOF'
-from django.db import connection
-cursor = connection.cursor()
-
-# Get all tables
-cursor.execute("SHOW TABLES")
-tables = cursor.fetchall()
-
-if tables:
-    # Disable foreign key checks
-    cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
-    
-    for table in tables:
-        table_name = table[0]
-        print(f"Dropping table: {table_name}")
-        cursor.execute(f"DROP TABLE IF EXISTS `{table_name}`")
-    
-    # Re-enable foreign key checks
-    cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
-    connection.commit()
-    print("All tables dropped!")
-else:
-    print("No tables to drop")
-PYEOF
-
-echo "=== Running fresh migrations ==="
+echo "=== Running migrations ==="
 python manage.py migrate --noinput
 
-echo "=== Creating superuser ==="
+echo "=== Creating superuser if not exists ==="
 python manage.py shell << 'EOF'
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -46,7 +21,7 @@ else:
     print('Superuser exists')
 EOF
 
-echo "=== Creating default roles ==="
+echo "=== Creating default roles if not exist ==="
 python manage.py shell << 'EOF'
 from apps.core.models import Role
 
