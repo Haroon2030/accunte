@@ -9,7 +9,7 @@ interface AuthState {
 }
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: '/api',
+  baseUrl: '/api/v1',
   prepareHeaders: (headers, { getState }) => {
     const state = getState() as { auth: AuthState }
     const token = state.auth.tokens?.access
