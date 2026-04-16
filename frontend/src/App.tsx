@@ -23,8 +23,8 @@ function App() {
         <Route path="cost-centers" element={<CostCenters />} />
         <Route path="payments" element={<Payments />} />
         <Route path="payments/new" element={<PaymentForm />} />
-        <Route path="payments/:id" element={<PaymentForm />} />
-        <Route path="payments/:id/details" element={<PaymentDetails />} />
+        <Route path="payments/:id" element={<PaymentDetails />} />
+        <Route path="payments/:id/edit" element={<PaymentForm />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -67,7 +67,7 @@ export default function PaymentDetails() {
             <Printer className="w-4 h-4 ml-2" />
             طباعة
           </Button>
-          <Link to={"/payments/" + id}>
+          <Link to={"/payments/" + id + "/edit"}>
             <Button>
               <Edit className="w-4 h-4 ml-2" />
               تعديل

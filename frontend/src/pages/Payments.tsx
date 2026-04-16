@@ -91,14 +91,14 @@ export default function Payments() {
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
                         <Link
-                          to={`/payments/${payment.id}/details`}
+                          to={`/payments/${payment.id}`}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="عرض التفاصيل"
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
                         <Link
-                          to={`/payments/${payment.id}`}
+                          to={`/payments/${payment.id}/edit`}
                           className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           title="تعديل"
                         >
