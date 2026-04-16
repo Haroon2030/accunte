@@ -1,6 +1,22 @@
 version: "3.8"
 
 services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: accounts_db
+      MYSQL_USER: accounts_user
+      MYSQL_PASSWORD: accounts_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -13,7 +29,11 @@ services:
       - DJANGO_ENV=production
     volumes:
       - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
     restart: always
 
 volumes:
   media_data:
+  mysql_data:
