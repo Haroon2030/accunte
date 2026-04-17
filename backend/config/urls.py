@@ -52,7 +52,9 @@ urlpatterns = [
     path('reports/', admin_frontend),
 ]
 
-# Serve static and media files in development
+# Serve static and media files
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Serve /assets/ from frontend static files
+    urlpatterns += static('/assets/', document_root=settings.STATIC_ROOT / 'frontend' / 'assets')
