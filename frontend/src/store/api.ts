@@ -33,6 +33,23 @@ export const api = createApi({
       }),
       providesTags: ['Suppliers'],
     }),
+    getAllSuppliers: builder.query<Supplier[], void>({
+      async queryFn(_arg, _queryApi, _extraOptions, fetchWithBQ) {
+        let allSuppliers: Supplier[] = []
+        let page = 1
+        let hasMore = true
+        while (hasMore) {
+          const result = await fetchWithBQ({ url: '/suppliers/', params: { page } })
+          if (result.error) return { error: result.error }
+          const data = result.data as { results: Supplier[]; count: number }
+          allSuppliers = [...allSuppliers, ...data.results]
+          hasMore = allSuppliers.length < data.count
+          page++
+        }
+        return { data: allSuppliers }
+      },
+      providesTags: ['Suppliers'],
+    }),
     createSupplier: builder.mutation<Supplier, Partial<Supplier>>({
       query: (data) => ({
         url: '/suppliers/',
@@ -282,6 +299,7 @@ export interface PaymentItem {
 
 export const {
   useGetSuppliersQuery,
+  useGetAllSuppliersQuery,
   useCreateSupplierMutation,
   useUpdateSupplierMutation,
   useDeleteSupplierMutation,

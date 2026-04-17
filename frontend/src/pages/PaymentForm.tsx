@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Save, ArrowRight } from 'lucide-react'
+import { Plus, Trash2, Save, ArrowRight, Search, ChevronDown } from 'lucide-react'
 import { Button, Card, Input } from '../components/ui'
 import {
   useGetBranchesQuery,
   useGetBanksQuery,
   useGetCostCentersQuery,
-  useGetSuppliersQuery,
+  useGetAllSuppliersQuery,
   useGetPaymentQuery,
   useCreatePaymentMutation,
   useUpdatePaymentMutation,
@@ -37,13 +37,15 @@ export default function PaymentForm() {
   const [items, setItems] = useState<PaymentItem[]>([
     { supplier: null, current_balance: 0, amount: 0, proposed_amount: 0 }
   ])
-  const [supplierSearch, setSupplierSearch] = useState('')
+  const [supplierSearch, setSupplierSearch] = useState<Record<number, string>>({})
+  const [activeSupplierDropdown, setActiveSupplierDropdown] = useState<number | null>(null)
+  const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({})
 
   // Queries
   const { data: branchesData } = useGetBranchesQuery({ page: 1 })
   const { data: banksData } = useGetBanksQuery({ page: 1 })
   const { data: costCentersData } = useGetCostCentersQuery({ page: 1 })
-  const { data: suppliersData } = useGetSuppliersQuery({ page: 1, search: supplierSearch })
+  const { data: allSuppliers = [] } = useGetAllSuppliersQuery()
   const { data: paymentData, isLoading: paymentLoading } = useGetPaymentQuery(Number(id), { skip: !id })
 
   // Mutations
@@ -151,7 +153,32 @@ export default function PaymentForm() {
       cost_center_name: defaultCC?.name
     }
     setItems(newItems)
-    setSupplierSearch('')
+    setSupplierSearch(prev => ({ ...prev, [index]: '' }))
+    setActiveSupplierDropdown(null)
+  }
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (activeSupplierDropdown !== null) {
+        const ref = dropdownRefs.current[activeSupplierDropdown]
+        if (ref && !ref.contains(e.target as Node)) {
+          setActiveSupplierDropdown(null)
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [activeSupplierDropdown])
+
+  // Filtered suppliers per row
+  const getFilteredSuppliers = (index: number) => {
+    const search = (supplierSearch[index] || '').toLowerCase()
+    if (!search) return allSuppliers
+    return allSuppliers.filter(s =>
+      s.name.toLowerCase().includes(search) ||
+      s.code?.toLowerCase().includes(search)
+    )
   }
 
   // Calculate totals
@@ -307,35 +334,77 @@ export default function PaymentForm() {
                     <td className="px-4 py-3">
                       <Input
                         value={item.supplier || ''}
-                        onChange={(e) => updateItem(index, 'supplier', e.target.value ? Number(e.target.value) : null)}
+                        onChange={(e) => {
+                          const val = e.target.value ? Number(e.target.value) : null
+                          updateItem(index, 'supplier', val)
+                          // Try to find supplier by id
+                          if (val) {
+                            const found = allSuppliers.find(s => s.id === val)
+                            if (found) {
+                              selectSupplier(index, found)
+                            }
+                          }
+                        }}
                         placeholder="-"
                         className="w-24"
                       />
                     </td>
-                    <td className="px-4 py-3 relative">
-                      <Input
-                        value={item.supplier_name || supplierSearch}
-                        onChange={(e) => {
-                          if (!item.supplier) {
-                            setSupplierSearch(e.target.value)
-                          }
-                        }}
-                        placeholder="اختر المورد..."
-                        className="w-48"
-                      />
-                      {supplierSearch && suppliersData?.results && (
-                        <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                          {suppliersData.results.map((supplier) => (
-                            <button
-                              key={supplier.id}
-                              type="button"
-                              onClick={() => selectSupplier(index, supplier)}
-                              className="w-full px-4 py-2 text-right hover:bg-gray-100 border-b last:border-b-0"
-                            >
-                              <div className="font-medium">{supplier.name}</div>
-                              <div className="text-xs text-gray-500">{supplier.code}</div>
-                            </button>
-                          ))}
+                    <td className="px-4 py-3 relative" ref={el => { dropdownRefs.current[index] = el }}>
+                      <div className="relative">
+                        <div 
+                          className="flex items-center gap-1 cursor-pointer"
+                          onClick={() => setActiveSupplierDropdown(activeSupplierDropdown === index ? null : index)}
+                        >
+                          <div className="relative flex-1">
+                            <Input
+                              value={item.supplier_name || ''}
+                              readOnly
+                              placeholder="اختر المورد..."
+                              className="w-52 cursor-pointer pr-8"
+                            />
+                            <Search className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2" />
+                          </div>
+                          <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${activeSupplierDropdown === index ? 'rotate-180' : ''}`} />
+                        </div>
+                      </div>
+                      {activeSupplierDropdown === index && (
+                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden" style={{ width: '280px' }}>
+                          {/* حقل البحث */}
+                          <div className="sticky top-0 bg-white p-2 border-b">
+                            <div className="relative">
+                              <Input
+                                value={supplierSearch[index] || ''}
+                                onChange={(e) => setSupplierSearch(prev => ({ ...prev, [index]: e.target.value }))}
+                                placeholder="ابحث بالاسم أو الكود..."
+                                className="w-full pr-8"
+                                autoFocus
+                              />
+                              <Search className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2" />
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 text-center">
+                              {getFilteredSuppliers(index).length} مورد
+                            </div>
+                          </div>
+                          {/* قائمة الموردين - 8 صفوف فقط */}
+                          <div className="overflow-y-auto" style={{ maxHeight: '320px' }}>
+                            {getFilteredSuppliers(index).length === 0 ? (
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">لا توجد نتائج</div>
+                            ) : (
+                              getFilteredSuppliers(index).map((supplier) => (
+                                <button
+                                  key={supplier.id}
+                                  type="button"
+                                  onClick={() => selectSupplier(index, supplier)}
+                                  className={`w-full px-4 py-2 text-right hover:bg-primary-50 border-b last:border-b-0 transition-colors ${
+                                    item.supplier === supplier.id ? 'bg-primary-100 text-primary-700 font-medium' : ''
+                                  }`}
+                                >
+                                  <div className="text-sm">{supplier.name}</div>
+                                  <div className="text-xs text-gray-500">{supplier.code}</div>
+                                </button>
+                              ))
+                            )}
+                          </div>
                         </div>
                       )}
                     </td>
