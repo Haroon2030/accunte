@@ -100,71 +100,71 @@ export default function Banks() {
       </Card>
 
       {/* Table */}
-      <Card className="overflow-hidden">
+      <div className="modern-table-container">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-emerald-200 border-t-emerald-600"></div>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+            <table className="modern-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">#</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">اسم البنك</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">الكود</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">الفرع</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">رقم الحساب</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">IBAN</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">الحالة</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">إجراءات</th>
+                  <th>#</th>
+                  <th>اسم البنك</th>
+                  <th>الكود</th>
+                  <th>الفرع</th>
+                  <th>رقم الحساب</th>
+                  <th>IBAN</th>
+                  <th>الحالة</th>
+                  <th>إجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody>
                 {data?.results?.map((bank: any, index: number) => (
-                  <tr key={bank.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-600">{index + 1}</td>
-                    <td className="px-6 py-4">
+                  <tr key={bank.id}>
+                    <td><span className="table-row-number">{index + 1}</span></td>
+                    <td>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                          <Landmark className="w-5 h-5 text-emerald-600" />
+                        <div className="table-icon-box emerald">
+                          <Landmark className="w-5 h-5" />
                         </div>
-                        <span className="font-medium">{bank.name}</span>
+                        <span className="font-semibold text-slate-800">{bank.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm">{bank.code}</td>
-                    <td className="px-6 py-4 text-sm">{bank.branch_name || '-'}</td>
-                    <td className="px-6 py-4">
+                    <td><span className="code-text">{bank.code}</span></td>
+                    <td className="text-slate-600">{bank.branch_name || '-'}</td>
+                    <td>
                       {bank.account_number ? (
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm">{bank.account_number}</span>
-                          <button onClick={() => copyToClipboard(bank.account_number)} className="text-gray-400 hover:text-gray-600">
+                          <span className="code-text text-xs">{bank.account_number}</span>
+                          <button onClick={() => copyToClipboard(bank.account_number)} className="action-btn copy p-1.5">
                             <Copy className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                      ) : '-'}
+                      ) : <span className="text-slate-400">-</span>}
                     </td>
-                    <td className="px-6 py-4">
+                    <td>
                       {bank.iban ? (
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs">{bank.iban}</span>
-                          <button onClick={() => copyToClipboard(bank.iban)} className="text-gray-400 hover:text-gray-600">
+                          <span className="code-text text-xs">{bank.iban}</span>
+                          <button onClick={() => copyToClipboard(bank.iban)} className="action-btn copy p-1.5">
                             <Copy className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                      ) : '-'}
+                      ) : <span className="text-slate-400">-</span>}
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${bank.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    <td>
+                      <span className={`status-badge ${bank.is_active ? 'active' : 'inactive'}`}>
                         {bank.is_active ? 'نشط' : 'غير نشط'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleEdit(bank)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                    <td>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleEdit(bank)} className="action-btn edit">
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(bank.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                        <button onClick={() => handleDelete(bank.id)} className="action-btn delete">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -174,21 +174,21 @@ export default function Banks() {
               </tbody>
             </table>
             {(!data?.results || data.results.length === 0) && (
-              <div className="text-center py-12 text-gray-500">
-                <Landmark className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                <p>لا توجد حسابات بنكية</p>
+              <div className="table-empty-state">
+                <Landmark className="icon" />
+                <p className="text">لا توجد حسابات بنكية</p>
               </div>
             )}
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Pagination */}
       {data && data.count > 10 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={!data.previous} onClick={() => setPage(p => p - 1)}>السابق</Button>
-          <span className="text-sm text-gray-600">صفحة {page}</span>
-          <Button variant="outline" size="sm" disabled={!data.next} onClick={() => setPage(p => p + 1)}>التالي</Button>
+        <div className="modern-pagination">
+          <Button variant="outline" size="sm" className="page-btn" disabled={!data.previous} onClick={() => setPage(p => p - 1)}>السابق</Button>
+          <span className="page-info">صفحة {page}</span>
+          <Button variant="outline" size="sm" className="page-btn" disabled={!data.next} onClick={() => setPage(p => p + 1)}>التالي</Button>
         </div>
       )}
 

@@ -81,51 +81,55 @@ export default function Branches() {
       </Card>
 
       {/* Table */}
-      <Card className="overflow-hidden">
+      <div className="modern-table-container">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary-200 border-t-primary-600"></div>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+            <table className="modern-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">#</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">اسم الفرع</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">الكود</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">مركز التكلفة</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">عدد البنوك</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">الحالة</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-700">إجراءات</th>
+                  <th>#</th>
+                  <th>اسم الفرع</th>
+                  <th>الكود</th>
+                  <th>مركز التكلفة</th>
+                  <th>عدد البنوك</th>
+                  <th>الحالة</th>
+                  <th>إجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody>
                 {data?.results?.map((branch: any, index: number) => (
-                  <tr key={branch.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-600">{index + 1}</td>
-                    <td className="px-6 py-4">
+                  <tr key={branch.id}>
+                    <td><span className="table-row-number">{index + 1}</span></td>
+                    <td>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-primary-600" />
+                        <div className="table-icon-box primary">
+                          <Building2 className="w-5 h-5" />
                         </div>
-                        <span className="font-medium">{branch.name}</span>
+                        <span className="font-semibold text-slate-800">{branch.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm">{branch.code}</td>
-                    <td className="px-6 py-4 text-sm">{branch.cost_center_name || '-'}</td>
-                    <td className="px-6 py-4 text-sm">{branch.banks_count || 0}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${branch.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    <td><span className="code-text">{branch.code}</span></td>
+                    <td className="text-slate-600">{branch.cost_center_name || '-'}</td>
+                    <td>
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-semibold text-sm">
+                        {branch.banks_count || 0}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${branch.is_active ? 'active' : 'inactive'}`}>
                         {branch.is_active ? 'نشط' : 'غير نشط'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleEdit(branch)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                    <td>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleEdit(branch)} className="action-btn edit">
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(branch.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                        <button onClick={() => handleDelete(branch.id)} className="action-btn delete">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -135,21 +139,21 @@ export default function Branches() {
               </tbody>
             </table>
             {(!data?.results || data.results.length === 0) && (
-              <div className="text-center py-12 text-gray-500">
-                <Building2 className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                <p>لا توجد فروع</p>
+              <div className="table-empty-state">
+                <Building2 className="icon" />
+                <p className="text">لا توجد فروع</p>
               </div>
             )}
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Pagination */}
       {data && data.count > 10 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={!data.previous} onClick={() => setPage(p => p - 1)}>السابق</Button>
-          <span className="text-sm text-gray-600">صفحة {page}</span>
-          <Button variant="outline" size="sm" disabled={!data.next} onClick={() => setPage(p => p + 1)}>التالي</Button>
+        <div className="modern-pagination">
+          <Button variant="outline" size="sm" className="page-btn" disabled={!data.previous} onClick={() => setPage(p => p - 1)}>السابق</Button>
+          <span className="page-info">صفحة {page}</span>
+          <Button variant="outline" size="sm" className="page-btn" disabled={!data.next} onClick={() => setPage(p => p + 1)}>التالي</Button>
         </div>
       )}
 
