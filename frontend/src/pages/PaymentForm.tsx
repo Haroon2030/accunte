@@ -450,19 +450,19 @@ export default function PaymentForm() {
                       </button>
                     </td>
                     <td className="px-3 py-3">
-                      <Input
+                      <input
                         type="number"
                         value={item.current_balance}
                         onChange={(e) => updateItem(index, 'current_balance', Number(e.target.value))}
-                        className="w-32 text-left"
+                        className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm text-left focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                     </td>
                     <td className="px-3 py-3">
-                      <Input
+                      <input
                         type="number"
                         value={item.amount}
                         onChange={(e) => updateItem(index, 'amount', Number(e.target.value))}
-                        className="w-32 text-left"
+                        className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm text-left focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                     </td>
                     <td className="px-3 py-3">
@@ -499,11 +499,11 @@ export default function PaymentForm() {
                       </select>
                     </td>
                     <td className="px-3 py-3">
-                      <Input
+                      <input
                         type="number"
                         value={item.proposed_amount}
                         onChange={(e) => updateItem(index, 'proposed_amount', Number(e.target.value))}
-                        className="w-32 text-left"
+                        className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm text-left focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                     </td>
                     <td className="px-3 py-3">
