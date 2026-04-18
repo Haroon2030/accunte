@@ -192,6 +192,12 @@ export const api = createApi({
       }),
       invalidatesTags: ['Payments'],
     }),
+    
+    // Dashboard
+    getDashboard: builder.query<DashboardStats, void>({
+      query: () => '/dashboard/',
+      providesTags: ['Payments', 'Branches', 'Suppliers', 'Banks'],
+    }),
   }),
 })
 
@@ -284,6 +290,37 @@ export interface PaymentItem {
   approved_amount?: number
 }
 
+export interface DashboardStats {
+  branches_count: number
+  suppliers_count: number
+  banks_count: number
+  total_payments: number
+  pending_payments: number
+  approved_payments: number
+  rejected_payments: number
+  today_payments: number
+  this_month_total: number
+  status_distribution: {
+    status: string
+    label: string
+    count: number
+    color: string
+  }[]
+  monthly_payments: {
+    month: string
+    month_name: string
+    total: number
+    count: number
+  }[]
+  top_suppliers: {
+    name: string
+    code: string
+    total: number
+    count: number
+  }[]
+  recent_payments: PaymentRequest[]
+}
+
 export const {
   useGetSuppliersQuery,
   useGetAllSuppliersQuery,
@@ -307,4 +344,5 @@ export const {
   useCreatePaymentMutation,
   useUpdatePaymentMutation,
   useDeletePaymentMutation,
+  useGetDashboardQuery,
 } = api
