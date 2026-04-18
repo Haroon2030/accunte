@@ -418,24 +418,28 @@ export default function Users() {
               </select>
             </div>
             
-            {/* Show branch selector only for branch_employee role */}
-            {selectedRoleType === 'branch_employee' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">الفرع</label>
-                <select
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-gray-900"
-                  value={formData.branch || ''}
-                  onChange={(e) => updateField('branch', e.target.value ? Number(e.target.value) : null)}
-                >
-                  <option value="">-- اختر الفرع --</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.code} - {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {/* Branch selector - always visible */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                الفرع
+                {selectedRoleType === 'branch_employee' && <span className="text-danger-500 mr-1">*</span>}
+              </label>
+              <select
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-gray-900"
+                value={formData.branch || ''}
+                onChange={(e) => updateField('branch', e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">-- اختر الفرع --</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.code} - {branch.name}
+                  </option>
+                ))}
+              </select>
+              {selectedRoleType === 'branch_employee' && (
+                <p className="text-xs text-gray-500 mt-1">مطلوب لموظفي الفروع</p>
+              )}
+            </div>
           </div>
           
           {/* Active status toggle */}
