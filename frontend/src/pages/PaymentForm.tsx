@@ -36,7 +36,8 @@ export default function PaymentForm() {
   // Form state
   const [branch, setBranch] = useState<number | null>(null)
   const [bank, setBank] = useState<number | null>(null)
-  const [costCenter, setCostCenter] = useState<{ id: number; name: string } | null>(null)
+  const [analyticalAccount, setAnalyticalAccount] = useState('')
+  const [supplierAccountNumber, setSupplierAccountNumber] = useState('')
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<PaymentItem[]>([
     { supplier: null, current_balance: 0, amount: 0, sultan_approval: 'جاري المعالجة', auditor_status: 'جاري المعالجة', financial_manager_approval: 'جاري المعالجة', proposed_amount: 0, abu_alaa_approval: 'جاري المعالجة' }
@@ -59,27 +60,13 @@ export default function PaymentForm() {
   const [createPayment, { isLoading: creating }] = useCreatePaymentMutation()
   const [updatePayment, { isLoading: updating }] = useUpdatePaymentMutation()
 
-  // Auto-select cost center when branch changes
-  useEffect(() => {
-    if (branch && branchesData?.results) {
-      const selectedBranch = branchesData.results.find(b => b.id === branch)
-      if (selectedBranch && (selectedBranch as any).cost_center) {
-        const ccId = (selectedBranch as any).cost_center
-        const cc = costCentersData?.results?.find(c => c.id === ccId)
-        if (cc) {
-          setCostCenter({ id: cc.id, name: cc.name })
-        }
-      } else {
-        setCostCenter(null)
-      }
-    }
-  }, [branch, branchesData, costCentersData])
-
   // Load existing payment data
   useEffect(() => {
     if (paymentData && isEditing) {
       setBranch(paymentData.branch || null)
       setBank(paymentData.bank || null)
+      setAnalyticalAccount((paymentData as any).analytical_account || '')
+      setSupplierAccountNumber((paymentData as any).supplier_account || '')
       setNotes(paymentData.notes || '')
       if (paymentData.items && paymentData.items.length > 0) {
         setItems(paymentData.items.map(item => ({
@@ -213,6 +200,8 @@ export default function PaymentForm() {
     const payload = {
       branch,
       bank: bank || undefined,
+      analytical_account: analyticalAccount,
+      supplier_account: supplierAccountNumber,
       notes,
       items: items.map(item => ({
         supplier: item.supplier,
@@ -270,7 +259,7 @@ export default function PaymentForm() {
         {/* Main Info */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold mb-4">معلومات الطلب</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 الفرع <span className="text-red-500">*</span>
@@ -306,11 +295,26 @@ export default function PaymentForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                مركز التكلفة <span className="text-xs text-blue-500">(تعبئة تلقائية)</span>
+                الحساب التحليلي
               </label>
-              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
-                {costCenter ? costCenter.name : 'يتم تحديده تلقائياً...'}
-              </div>
+              <Input
+                value={analyticalAccount}
+                onChange={(e) => setAnalyticalAccount(e.target.value)}
+                placeholder="أدخل الحساب التحليلي"
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                رقم حساب المورد
+              </label>
+              <Input
+                value={supplierAccountNumber}
+                onChange={(e) => setSupplierAccountNumber(e.target.value)}
+                placeholder="أدخل رقم حساب المورد"
+                className="w-full"
+              />
             </div>
           </div>
         </Card>
