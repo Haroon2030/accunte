@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Eye, Edit, RefreshCw } from 'lucide-react'
+import { Plus, Eye, Edit, RefreshCw, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
+import toast from 'react-hot-toast'
 import { Button, Card } from '../components/ui'
 import { useGetPaymentsQuery } from '../store/api'
 
@@ -24,6 +27,57 @@ export default function Payments() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const { data, isLoading, refetch } = useGetPaymentsQuery({ page })
+  const { data: allPaymentsData } = useGetPaymentsQuery({ page: 1, page_size: 10000 })
+
+  // Export to Excel function
+  const exportToExcel = () => {
+    const allPayments = allPaymentsData?.results || data?.results || []
+    
+    if (allPayments.length === 0) {
+      toast.error('لا توجد بيانات للتصدير')
+      return
+    }
+
+    // Prepare data for export
+    const exportData = allPayments.map((payment: any, index: number) => ({
+      '#': index + 1,
+      'رقم الطلب': payment.id,
+      'الفرع': payment.branch_name || payment.branch,
+      'المستخدم': payment.created_by_name || 'admin',
+      'الحالة': statusLabels[payment.status] || payment.status,
+      'تاريخ الإنشاء': new Date(payment.created_at).toLocaleDateString('ar-SA'),
+    }))
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(exportData)
+
+    // Set RTL direction
+    ws['!dir'] = 'rtl'
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 5 },   // #
+      { wch: 12 },  // رقم الطلب
+      { wch: 25 },  // الفرع
+      { wch: 15 },  // المستخدم
+      { wch: 15 },  // الحالة
+      { wch: 15 },  // تاريخ الإنشاء
+    ]
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'طلبات الدفع')
+
+    // Generate Excel file
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    
+    // Save file with date
+    const today = new Date().toLocaleDateString('ar-SA').replace(/\//g, '-')
+    saveAs(dataBlob, `طلبات_الدفع_${today}.xlsx`)
+    
+    toast.success('تم تصدير البيانات بنجاح')
+  }
 
   return (
     <div className="space-y-6">
@@ -34,6 +88,10 @@ export default function Payments() {
           <p className="text-gray-500 mt-1">إدارة طلبات الدفع للموردين</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToExcel}>
+            <Download className="w-4 h-4 ml-2" />
+            تصدير Excel
+          </Button>
           <Button variant="outline" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4 ml-2" />
             تحديث

@@ -158,10 +158,10 @@ export const api = createApi({
     }),
 
     // Payments
-    getPayments: builder.query<{ results: PaymentRequest[]; count: number }, { page?: number; status?: string; branch?: number }>({
-      query: ({ page = 1, status, branch }) => ({
+    getPayments: builder.query<{ results: PaymentRequest[]; count: number }, { page?: number; status?: string; branch?: number; page_size?: number }>({
+      query: ({ page = 1, status, branch, page_size }) => ({
         url: '/payments/',
-        params: { page, status, branch },
+        params: { page, status, branch, page_size },
       }),
       providesTags: ['Payments'],
     }),
