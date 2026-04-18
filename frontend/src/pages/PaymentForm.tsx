@@ -418,7 +418,7 @@ export default function PaymentForm() {
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">#</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">رقم المورد</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اسم المورد</th>
-                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">الدفعة المرفوعة</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">رصيد المورد</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">دفعة المشتريات</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اعتماد سلطان</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">حالة المدقق</th>
