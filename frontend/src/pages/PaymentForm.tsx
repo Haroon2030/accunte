@@ -539,12 +539,12 @@ export default function PaymentForm() {
               <tfoot>
                 <tr className="bg-gray-100 font-semibold">
                   <td colSpan={3} className="px-3 py-3 text-right">الإجمالي ({items.length} بند)</td>
-                  <td className="px-3 py-3 text-left">{totalAmount.toLocaleString()}</td>
-                  <td className="px-3 py-3 text-left">{totalAmount.toLocaleString()}</td>
+                  <td className="px-3 py-3 text-left">{totalAmount.toLocaleString()} ريال</td>
+                  <td className="px-3 py-3 text-left">{totalAmount.toLocaleString()} ريال</td>
                   <td className="px-3 py-3"></td>
                   <td className="px-3 py-3"></td>
                   <td className="px-3 py-3"></td>
-                  <td className="px-3 py-3 text-left">{totalProposed.toLocaleString()}</td>
+                  <td className="px-3 py-3 text-left">{totalProposed.toLocaleString()} ريال</td>
                   <td className="px-3 py-3"></td>
                   <td></td>
                 </tr>
