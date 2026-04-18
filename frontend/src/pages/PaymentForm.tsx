@@ -272,7 +272,41 @@ export default function PaymentForm() {
               </label>
               <select
                 value={branch || ''}
-                onChange={(e) => setBranch(e.target.value ? Number(e.target.value) : null)}
+                onChange={(e) => {
+                  const branchId = e.target.value ? Number(e.target.value) : null
+                  setBranch(branchId)
+                  
+                  // Auto-fill bank and cost center when branch is selected
+                  if (branchId && branchesData?.results) {
+                    const selectedBranch = branchesData.results.find(b => b.id === branchId)
+                    if (selectedBranch) {
+                      // Auto-set cost center from branch
+                      if (selectedBranch.cost_center) {
+                        setCostCenter(selectedBranch.cost_center)
+                      }
+                      
+                      // Auto-set bank that belongs to this branch
+                      if (banksData?.results) {
+                        const branchBank = banksData.results.find((b: any) => b.branch === branchId)
+                        if (branchBank) {
+                          setBank(branchBank.id)
+                          if (branchBank.account_number) {
+                            setBankAccountNumber(branchBank.account_number)
+                          }
+                          if (branchBank.analytical_number) {
+                            setAnalyticalAccount(branchBank.analytical_number)
+                          }
+                        }
+                      }
+                    }
+                  } else {
+                    // Clear if no branch selected
+                    setBank(null)
+                    setCostCenter(null)
+                    setBankAccountNumber('')
+                    setAnalyticalAccount('')
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 required
               >
