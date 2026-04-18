@@ -41,7 +41,7 @@ body {
 }
 
 .modern-table {
-  @apply border-collapse mx-auto;
+  @apply w-full border-collapse;
   table-layout: auto;
 }
 
