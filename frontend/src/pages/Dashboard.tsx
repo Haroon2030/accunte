@@ -16,10 +16,6 @@ import { useGetDashboardQuery } from '@/store/api'
 export default function Dashboard() {
   const { data, isLoading, isError, refetch } = useGetDashboardQuery()
 
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('ar-SA').format(num)
-  }
-
   const formatCurrency = (num: number) => {
     return new Intl.NumberFormat('ar-SA', {
       style: 'decimal',
@@ -253,18 +249,18 @@ export default function Dashboard() {
         <Card>
           <CardContent className="p-5">
             <h3 className="font-semibold text-gray-800 mb-4">المدفوعات الشهرية (آخر 6 أشهر)</h3>
-            <div className="flex items-end justify-between gap-2 h-48">
+            <div className="flex items-end justify-center gap-4 h-48">
               {data.monthly_payments.map((month) => {
                 const maxTotal = Math.max(...data.monthly_payments.map(m => m.total)) || 1
-                const height = (month.total / maxTotal) * 100
+                const height = Math.max((month.total / maxTotal) * 100, 20)
                 return (
-                  <div key={month.month} className="flex-1 flex flex-col items-center">
-                    <div className="text-xs text-gray-500 mb-1">{formatNumber(month.total)}</div>
+                  <div key={month.month} className="flex flex-col items-center" style={{ width: '80px' }}>
+                    <div className="text-sm font-semibold text-primary-600 mb-2">{formatCurrency(month.total)}</div>
                     <div 
-                      className="w-full bg-gradient-to-t from-primary-500 to-primary-400 rounded-t-lg transition-all duration-500 hover:from-primary-600 hover:to-primary-500"
-                      style={{ height: `${Math.max(height, 5)}%` }}
+                      className="w-16 bg-gradient-to-t from-primary-500 to-primary-400 rounded-t-lg transition-all duration-500 hover:from-primary-600 hover:to-primary-500 shadow-md"
+                      style={{ height: `${height}%`, minHeight: '40px' }}
                     />
-                    <div className="text-xs text-gray-500 mt-2 truncate w-full text-center">
+                    <div className="text-sm text-gray-600 mt-2 font-medium">
                       {month.month.split('-')[1]}/{month.month.split('-')[0].slice(2)}
                     </div>
                   </div>
