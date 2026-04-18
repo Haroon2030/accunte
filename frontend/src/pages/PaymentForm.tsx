@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Save, ArrowRight, Search, X, User, Building2 } from 'lucide-react'
 import { Button, Card, Input } from '../components/ui'
 import {
-  useGetBranchesQuery,
+  useGetAllBranchesQuery,
   useGetBanksQuery,
   useGetCostCentersQuery,
   useGetAllSuppliersQuery,
@@ -52,9 +52,9 @@ export default function PaymentForm() {
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Queries
-  const { data: branchesData } = useGetBranchesQuery({ page: 1 })
-  const { data: banksData } = useGetBanksQuery({ page: 1 })
-  const { data: costCentersData } = useGetCostCentersQuery({ page: 1 })
+  const { data: branchesData = [] } = useGetAllBranchesQuery()
+  const { data: banksData } = useGetBanksQuery({ page: 1, page_size: 1000 })
+  const { data: costCentersData } = useGetCostCentersQuery({ page: 1, page_size: 1000 })
   const { data: allSuppliers = [] } = useGetAllSuppliersQuery()
   const { data: paymentData, isLoading: paymentLoading } = useGetPaymentQuery(Number(id), { skip: !id })
 
@@ -278,8 +278,8 @@ export default function PaymentForm() {
                   setBranch(branchId)
                   
                   // Auto-fill bank and cost center when branch is selected
-                  if (branchId && branchesData?.results) {
-                    const selectedBranch = branchesData.results.find(b => b.id === branchId)
+                  if (branchId && branchesData) {
+                    const selectedBranch = branchesData.find(b => b.id === branchId)
                     if (selectedBranch) {
                       // Auto-set cost center from branch
                       if (selectedBranch.cost_center) {
@@ -312,7 +312,7 @@ export default function PaymentForm() {
                 required
               >
                 <option value="">اختر الفرع</option>
-                {branchesData?.results?.map((b) => (
+                {branchesData?.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>

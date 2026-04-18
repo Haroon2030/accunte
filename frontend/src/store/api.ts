@@ -94,10 +94,10 @@ export const api = createApi({
     }),
 
     // Banks
-    getBanks: builder.query<{ results: Bank[]; count: number; next?: string | null; previous?: string | null }, { page?: number; search?: string }>({
-      query: ({ page = 1, search }) => ({
+    getBanks: builder.query<{ results: Bank[]; count: number; next?: string | null; previous?: string | null }, { page?: number; search?: string; page_size?: number }>({
+      query: ({ page = 1, search, page_size }) => ({
         url: '/banks/',
-        params: { page, search },
+        params: { page, search, page_size },
       }),
       providesTags: ['Banks'],
     }),
@@ -126,10 +126,10 @@ export const api = createApi({
     }),
 
     // Cost Centers
-    getCostCenters: builder.query<{ results: CostCenter[]; count: number; next?: string | null; previous?: string | null }, { page?: number; search?: string }>({
-      query: ({ page = 1, search }) => ({
+    getCostCenters: builder.query<{ results: CostCenter[]; count: number; next?: string | null; previous?: string | null }, { page?: number; search?: string; page_size?: number }>({
+      query: ({ page = 1, search, page_size }) => ({
         url: '/cost-centers/',
-        params: { page, search },
+        params: { page, search, page_size },
       }),
       providesTags: ['CostCenters'],
     }),
