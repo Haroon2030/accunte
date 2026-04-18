@@ -286,6 +286,9 @@ export default function PaymentForm() {
                         setCostCenter(selectedBranch.cost_center)
                       }
                       
+                      // Auto-set supplier account number (fixed value)
+                      setSupplierAccountNumber('21101001')
+                      
                       // Auto-set bank that belongs to this branch
                       if (banksData?.results) {
                         const branchBank = banksData.results.find((b: any) => b.branch === branchId)
@@ -306,6 +309,7 @@ export default function PaymentForm() {
                     setCostCenter(null)
                     setBankAccountNumber('')
                     setAnalyticalAccount('')
+                    setSupplierAccountNumber('')
                   }
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -366,9 +370,8 @@ export default function PaymentForm() {
               </label>
               <Input
                 value={supplierAccountNumber}
-                onChange={(e) => setSupplierAccountNumber(e.target.value)}
-                placeholder="أدخل رقم حساب المورد"
-                className="w-full"
+                readOnly
+                className="w-full bg-gray-50"
               />
             </div>
 
