@@ -37,11 +37,11 @@ body {
 
 /* Modern Table Styles */
 .modern-table-container {
-  @apply rounded-2xl shadow-lg overflow-hidden border border-gray-100 bg-white;
+  @apply rounded-2xl shadow-lg overflow-hidden border border-gray-100 bg-white w-fit;
 }
 
 .modern-table {
-  @apply w-full border-collapse;
+  @apply border-collapse;
   table-layout: auto;
 }
 
