@@ -553,59 +553,53 @@ export default function PaymentForm() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/50 transition-opacity"
+            className="fixed inset-0 bg-black/40 transition-opacity"
             onClick={() => setSupplierModalOpen(false)}
           />
           
           {/* Modal */}
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl transform transition-all">
+            <div className="relative w-full max-w-md bg-white rounded-xl shadow-xl transform transition-all">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-l from-primary-600 to-primary-700 rounded-t-2xl">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <Building2 className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">اختيار المورد</h3>
-                    <p className="text-primary-100 text-sm">ابحث واختر المورد المطلوب</p>
-                  </div>
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-primary-600 rounded-t-xl">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-white" />
+                  <h3 className="text-base font-semibold text-white">اختيار المورد</h3>
                 </div>
                 <button
                   onClick={() => setSupplierModalOpen(false)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  className="p-1 hover:bg-white/20 rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5 text-white" />
+                  <X className="w-4 h-4 text-white" />
                 </button>
               </div>
 
               {/* Search */}
-              <div className="p-4 border-b bg-gray-50">
+              <div className="p-3 border-b">
                 <div className="relative">
-                  <Search className="w-5 h-5 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
                   <input
                     ref={searchInputRef}
                     type="text"
                     value={supplierSearchQuery}
                     onChange={(e) => setSupplierSearchQuery(e.target.value)}
                     placeholder="ابحث بالاسم أو الكود..."
-                    className="w-full pr-12 pl-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-100 transition-all text-lg"
+                    className="w-full pr-10 pl-3 py-2 border border-gray-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all text-sm"
                     autoFocus
                   />
                 </div>
-                <div className="flex items-center justify-between mt-3 text-sm text-gray-500">
-                  <span>إجمالي الموردين: {allSuppliers.length.toLocaleString()}</span>
-                  <span>نتائج البحث: {getFilteredSuppliers().length}</span>
+                <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                  <span>الإجمالي: {allSuppliers.length.toLocaleString()}</span>
+                  <span>النتائج: {getFilteredSuppliers().length}</span>
                 </div>
               </div>
 
               {/* Results */}
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-64 overflow-y-auto">
                 {getFilteredSuppliers().length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                    <Search className="w-12 h-12 text-gray-300 mb-3" />
-                    <p className="text-lg font-medium">لا توجد نتائج</p>
-                    <p className="text-sm">جرب البحث بكلمات أخرى</p>
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                    <Search className="w-8 h-8 text-gray-300 mb-2" />
+                    <p className="text-sm font-medium">لا توجد نتائج</p>
                   </div>
                 ) : (
                   <div className="divide-y">
@@ -614,28 +608,20 @@ export default function PaymentForm() {
                         key={supplier.id}
                         type="button"
                         onClick={() => selectSupplier(supplier)}
-                        className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-primary-50 transition-colors text-right ${
+                        className={`w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-50 transition-colors text-right ${
                           supplierModalIndex !== null && items[supplierModalIndex]?.supplier === supplier.id
-                            ? 'bg-primary-100 border-r-4 border-primary-600'
+                            ? 'bg-primary-50 border-r-2 border-primary-600'
                             : ''
                         }`}
                       >
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl flex items-center justify-center shrink-0">
-                          <User className="w-6 h-6 text-primary-600" />
+                        <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center shrink-0">
+                          <User className="w-4 h-4 text-primary-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-gray-900 truncate">{supplier.name}</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-600">
-                              كود: {supplier.code}
-                            </span>
-                            <span className="px-2 py-0.5 bg-primary-100 rounded text-xs text-primary-700">
-                              #{supplier.id}
-                            </span>
+                          <div className="font-medium text-gray-900 text-sm truncate">{supplier.name}</div>
+                          <div className="text-xs text-gray-500">
+                            كود: {supplier.code}
                           </div>
-                        </div>
-                        <div className="text-primary-600">
-                          <ArrowRight className="w-5 h-5 rotate-180" />
                         </div>
                       </button>
                     ))}
@@ -644,16 +630,14 @@ export default function PaymentForm() {
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t bg-gray-50 rounded-b-2xl flex items-center justify-between">
-                <p className="text-sm text-gray-500">
-                  اضغط على المورد لاختياره
-                </p>
-                <Button
-                  variant="outline"
+              <div className="px-4 py-2.5 border-t bg-gray-50 rounded-b-xl">
+                <button
+                  type="button"
                   onClick={() => setSupplierModalOpen(false)}
+                  className="w-full py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
                 >
                   إلغاء
-                </Button>
+                </button>
               </div>
             </div>
           </div>
