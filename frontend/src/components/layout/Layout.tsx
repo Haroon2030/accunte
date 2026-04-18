@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+import { RootState } from '@/store'
 import {
   LayoutDashboard,
   FileText,
@@ -28,6 +30,17 @@ const navigation = [
 export default function Layout() {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const user = useSelector((state: RootState) => state.auth.user)
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (!user) return 'مستخدم'
+    if (user.first_name && user.last_name) {
+      return `${user.first_name} ${user.last_name}`
+    }
+    if (user.first_name) return user.first_name
+    return user.username
+  }
 
   const getCurrentPageTitle = () => {
     const current = navigation.find(item => 
@@ -121,8 +134,8 @@ export default function Layout() {
               </button>
               <div className="flex items-center gap-3 pr-3 border-r border-gray-200">
                 <div className="text-left hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900">أحمد محمد</p>
-                  <p className="text-xs text-gray-500">مدير النظام</p>
+                  <p className="text-sm font-medium text-gray-900">{getUserDisplayName()}</p>
+                  <p className="text-xs text-gray-500">{user?.is_staff ? 'مدير النظام' : 'مستخدم'}</p>
                 </div>
                 <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
                   <User className="w-5 h-5 text-primary-600" />
