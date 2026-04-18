@@ -181,7 +181,7 @@ export default function Branches() {
                 <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} required />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">مركز التكلفة</label>
+                <label className="block text-sm font-medium mb-1">مركز التكلفة </label>
                 <select
                   value={formData.cost_center}
                   onChange={(e) => setFormData({ ...formData, cost_center: e.target.value })}
