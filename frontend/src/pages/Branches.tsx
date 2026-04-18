@@ -30,8 +30,21 @@ export default function Branches() {
       setEditingBranch(null)
       setFormData({ name: '', code: '', address: '', phone: '' })
       refetch()
-    } catch (error) {
-      toast.error('حدث خطأ')
+    } catch (error: any) {
+      // Show specific error message
+      const errorData = error?.data
+      if (errorData?.code) {
+        toast.error(`الكود: ${errorData.code[0]}`)
+      } else if (errorData?.name) {
+        toast.error(`الاسم: ${errorData.name[0]}`)
+      } else if (errorData?.detail) {
+        toast.error(errorData.detail)
+      } else if (errorData?.non_field_errors) {
+        toast.error(errorData.non_field_errors[0])
+      } else {
+        toast.error('حدث خطأ أثناء الحفظ')
+      }
+      console.error('Submit error:', error)
     }
   }
 
