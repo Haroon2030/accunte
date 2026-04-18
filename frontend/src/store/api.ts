@@ -62,10 +62,10 @@ export const api = createApi({
     }),
 
     // Branches
-    getBranches: builder.query<{ results: Branch[]; count: number }, { page?: number }>({
-      query: ({ page = 1 }) => ({
+    getBranches: builder.query<{ results: Branch[]; count: number; next?: string | null; previous?: string | null }, { page?: number; search?: string }>({
+      query: ({ page = 1, search }) => ({
         url: '/branches/',
-        params: { page },
+        params: { page, search },
       }),
       providesTags: ['Branches'],
     }),
@@ -94,10 +94,10 @@ export const api = createApi({
     }),
 
     // Banks
-    getBanks: builder.query<{ results: Bank[]; count: number }, { page?: number }>({
-      query: ({ page = 1 }) => ({
+    getBanks: builder.query<{ results: Bank[]; count: number; next?: string | null; previous?: string | null }, { page?: number; search?: string }>({
+      query: ({ page = 1, search }) => ({
         url: '/banks/',
-        params: { page },
+        params: { page, search },
       }),
       providesTags: ['Banks'],
     }),
@@ -126,10 +126,10 @@ export const api = createApi({
     }),
 
     // Cost Centers
-    getCostCenters: builder.query<{ results: CostCenter[]; count: number }, { page?: number }>({
-      query: ({ page = 1 }) => ({
+    getCostCenters: builder.query<{ results: CostCenter[]; count: number; next?: string | null; previous?: string | null }, { page?: number; search?: string }>({
+      query: ({ page = 1, search }) => ({
         url: '/cost-centers/',
-        params: { page },
+        params: { page, search },
       }),
       providesTags: ['CostCenters'],
     }),
