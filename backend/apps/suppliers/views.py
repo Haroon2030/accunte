@@ -38,6 +38,13 @@ class SupplierViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
+    def all(self, request):
+        """جلب جميع الموردين دفعة واحدة للقوائم المنسدلة"""
+        queryset = self.queryset.filter(is_active=True).only('id', 'name', 'code').order_by('name')
+        serializer = SupplierListSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
     def search(self, request):
         """بحث سريع عن مورد"""
         q = request.query_params.get('q', '')
