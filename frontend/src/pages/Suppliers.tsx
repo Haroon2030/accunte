@@ -19,7 +19,8 @@ const initialFormState = {
 
 export default function Suppliers() {
   const [search, setSearch] = useState('')
-  const { data, isLoading, isError, error } = useGetSuppliersQuery({ page: 1, search })
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isError, error } = useGetSuppliersQuery({ page, search })
   const [createSupplier, { isLoading: isCreating }] = useCreateSupplierMutation()
   const [updateSupplier, { isLoading: isUpdating }] = useUpdateSupplierMutation()
   const [deleteSupplier, { isLoading: isDeleting }] = useDeleteSupplierMutation()
@@ -174,7 +175,7 @@ export default function Suppliers() {
             type="search"
             placeholder="بحث عن مورد..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             searchMode
             className="w-full sm:w-80"
           />
@@ -186,62 +187,65 @@ export default function Suppliers() {
       </Card>
 
       {/* Suppliers Table */}
-      <Card>
-        <CardContent className="p-0">
+      <div className="modern-table-container">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
+            <table className="modern-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الكود</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">اسم المورد</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الحالة</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">إجراءات</th>
+                  <th>#</th>
+                  <th>الكود</th>
+                  <th>اسم المورد</th>
+                  <th>الحالة</th>
+                  <th>إجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {suppliers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                      <UsersIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p className="font-medium">لا يوجد موردين</p>
-                      <p className="text-sm mt-1">ابدأ بإضافة مورد جديد</p>
+                    <td colSpan={5}>
+                      <div className="table-empty-state">
+                        <UsersIcon className="icon" />
+                        <p className="text">لا يوجد موردين</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
-                  suppliers.map((supplier) => (
-                    <tr key={supplier.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <span className="font-mono text-primary-600">{supplier.code}</span>
+                  suppliers.map((supplier, index) => (
+                    <tr key={supplier.id}>
+                      <td><span className="table-row-number">{(page - 1) * 8 + index + 1}</span></td>
+                      <td><span className="code-text">{supplier.code}</span></td>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <div className="table-icon-box primary">
+                            <UsersIcon className="w-5 h-5" />
+                          </div>
+                          <span className="font-semibold text-slate-800">{supplier.name}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-gray-900">{supplier.name}</p>
+                      <td>
+                        <span className={`status-badge ${supplier.is_active ? 'active' : 'inactive'}`}>
+                          {supplier.is_active ? 'نشط' : 'غير نشط'}
+                        </span>
                       </td>
-                      <td className="px-6 py-4">
-                        {supplier.is_active ? (
-                          <Badge variant="success" withDot>نشط</Badge>
-                        ) : (
-                          <Badge variant="gray" withDot>غير نشط</Badge>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                      <td>
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(supplier)}
-                            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                            className="action-btn edit"
                             title="عرض"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleEdit(supplier)}
-                            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                            className="action-btn edit"
                             title="تعديل"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(supplier)}
-                            className="p-2 text-gray-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
+                            className="action-btn delete"
                             title="حذف"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -254,8 +258,16 @@ export default function Suppliers() {
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+      </div>
+
+      {/* Pagination */}
+      {data && data.count > 0 && (
+        <div className="modern-pagination">
+          <Button variant="outline" size="sm" className="page-btn" disabled={!data.previous} onClick={() => setPage(p => p - 1)}>السابق</Button>
+          <span className="page-info">صفحة {page} من {Math.ceil(data.count / 8)}</span>
+          <Button variant="outline" size="sm" className="page-btn" disabled={!data.next} onClick={() => setPage(p => p + 1)}>التالي</Button>
+        </div>
+      )}
 
       {/* Add/Edit Form Modal - SIMPLIFIED: Only code and name */}
       <Modal

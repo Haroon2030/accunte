@@ -149,10 +149,10 @@ export default function Branches() {
       </div>
 
       {/* Pagination */}
-      {data && data.count > 10 && (
+      {data && data.count > 0 && (
         <div className="modern-pagination">
           <Button variant="outline" size="sm" className="page-btn" disabled={!data.previous} onClick={() => setPage(p => p - 1)}>السابق</Button>
-          <span className="page-info">صفحة {page}</span>
+          <span className="page-info">صفحة {page} من {Math.ceil(data.count / 8)}</span>
           <Button variant="outline" size="sm" className="page-btn" disabled={!data.next} onClick={() => setPage(p => p + 1)}>التالي</Button>
         </div>
       )}

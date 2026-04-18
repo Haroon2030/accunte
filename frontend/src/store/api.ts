@@ -26,7 +26,7 @@ export const api = createApi({
   tagTypes: ['Suppliers', 'Branches', 'Banks', 'CostCenters', 'Payments'],
   endpoints: (builder) => ({
     // Suppliers
-    getSuppliers: builder.query<{ results: Supplier[]; count: number }, { page?: number; search?: string }>({
+    getSuppliers: builder.query<{ results: Supplier[]; count: number; next: string | null; previous: string | null }, { page?: number; search?: string }>({
       query: ({ page = 1, search }) => ({
         url: '/suppliers/',
         params: { page, search },
