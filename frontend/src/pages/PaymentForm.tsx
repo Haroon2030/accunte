@@ -36,8 +36,10 @@ export default function PaymentForm() {
   // Form state
   const [branch, setBranch] = useState<number | null>(null)
   const [bank, setBank] = useState<number | null>(null)
+  const [bankAccountNumber, setBankAccountNumber] = useState('')
   const [analyticalAccount, setAnalyticalAccount] = useState('')
   const [supplierAccountNumber, setSupplierAccountNumber] = useState('')
+  const [costCenter, setCostCenter] = useState<number | null>(null)
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<PaymentItem[]>([
     { supplier: null, current_balance: 0, amount: 0, sultan_approval: 'جاري المعالجة', auditor_status: 'جاري المعالجة', financial_manager_approval: 'جاري المعالجة', proposed_amount: 0, abu_alaa_approval: 'جاري المعالجة' }
@@ -65,8 +67,10 @@ export default function PaymentForm() {
     if (paymentData && isEditing) {
       setBranch(paymentData.branch || null)
       setBank(paymentData.bank || null)
+      setBankAccountNumber((paymentData as any).bank_account_number || '')
       setAnalyticalAccount((paymentData as any).analytical_account || '')
       setSupplierAccountNumber((paymentData as any).supplier_account || '')
+      setCostCenter((paymentData as any).cost_center || null)
       setNotes(paymentData.notes || '')
       if (paymentData.items && paymentData.items.length > 0) {
         setItems(paymentData.items.map(item => ({
@@ -200,8 +204,10 @@ export default function PaymentForm() {
     const payload = {
       branch,
       bank: bank || undefined,
+      bank_account_number: bankAccountNumber,
       analytical_account: analyticalAccount,
       supplier_account: supplierAccountNumber,
+      cost_center: costCenter || undefined,
       notes,
       items: items.map(item => ({
         supplier: item.supplier,
@@ -287,12 +293,26 @@ export default function PaymentForm() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 <option value="">اختر البنك</option>
-                {banksData?.results?.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
+                {banksData?.results?.map((b: any) => (
+                  <option key={b.id} value={b.id}>{b.name} - {b.branch_name} ({b.code})</option>
                 ))}
               </select>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                رقم حساب البنك
+              </label>
+              <Input
+                value={bankAccountNumber}
+                onChange={(e) => setBankAccountNumber(e.target.value)}
+                placeholder="أدخل رقم حساب البنك"
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 الحساب التحليلي
@@ -313,6 +333,34 @@ export default function PaymentForm() {
                 value={supplierAccountNumber}
                 onChange={(e) => setSupplierAccountNumber(e.target.value)}
                 placeholder="أدخل رقم حساب المورد"
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                مركز التكلفة
+              </label>
+              <select
+                value={costCenter || ''}
+                onChange={(e) => setCostCenter(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">اختر مركز التكلفة</option>
+                {costCentersData?.results?.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ملاحظات
+              </label>
+              <Input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="ملاحظات إضافية"
                 className="w-full"
               />
             </div>
