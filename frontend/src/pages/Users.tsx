@@ -125,14 +125,23 @@ export default function Users() {
     }
     try {
       const submitData: any = {
-        username: formData.username,
         email: formData.email,
         first_name: formData.first_name,
         last_name: formData.last_name,
         is_active: formData.is_active,
-        role: formData.role,
-        branch: formData.branch,
       }
+      
+      // Add role only if selected
+      if (formData.role) {
+        submitData.role = formData.role
+      }
+      
+      // Add branch only if selected (optional)
+      if (formData.branch) {
+        submitData.branch = formData.branch
+      }
+      
+      // Add password only if provided
       if (formData.password) {
         submitData.password = formData.password
       }
@@ -141,6 +150,8 @@ export default function Users() {
         await updateUser({ id: selectedUser.id, data: submitData }).unwrap()
         toast.success('تم تحديث بيانات المستخدم بنجاح')
       } else {
+        // Only include username for new users
+        submitData.username = formData.username
         await createUser(submitData).unwrap()
         toast.success('تم إضافة المستخدم بنجاح')
       }
