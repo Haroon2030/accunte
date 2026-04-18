@@ -26,10 +26,10 @@ export const api = createApi({
   tagTypes: ['Suppliers', 'Branches', 'Banks', 'CostCenters', 'Payments', 'Users', 'Roles'],
   endpoints: (builder) => ({
     // Suppliers
-    getSuppliers: builder.query<{ results: Supplier[]; count: number; next: string | null; previous: string | null }, { page?: number; search?: string }>({
-      query: ({ page = 1, search }) => ({
+    getSuppliers: builder.query<{ results: Supplier[]; count: number; next: string | null; previous: string | null }, { page?: number; search?: string; page_size?: number }>({
+      query: ({ page = 1, search, page_size }) => ({
         url: '/suppliers/',
-        params: { page, search },
+        params: { page, search, page_size },
       }),
       providesTags: ['Suppliers'],
     }),

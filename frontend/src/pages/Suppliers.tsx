@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { Plus, Eye, Edit2, Trash2, Users as UsersIcon, CheckCircle } from 'lucide-react'
+import { Plus, Eye, Edit2, Trash2, Users as UsersIcon, CheckCircle, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 import { Card, CardContent, Button, Input, Badge, Modal } from '@/components/ui'
 import {
   useGetSuppliersQuery,
@@ -122,6 +124,60 @@ export default function Suppliers() {
 
   const isSaving = isCreating || isUpdating
 
+  // Export to Excel function - fetch all suppliers for export
+  const { data: allSuppliersData } = useGetSuppliersQuery({ page: 1, search: '', page_size: 10000 })
+  
+  const exportToExcel = () => {
+    const allSuppliers = allSuppliersData?.results || suppliers
+    
+    if (allSuppliers.length === 0) {
+      toast.error('لا توجد بيانات للتصدير')
+      return
+    }
+
+    // Prepare data for export
+    const exportData = allSuppliers.map((supplier: Supplier, index: number) => ({
+      '#': index + 1,
+      'الكود': supplier.code,
+      'اسم المورد': supplier.name,
+      'الحالة': supplier.is_active ? 'نشط' : 'غير نشط',
+      'عدد الطلبات': supplier.payments_count || 0,
+      'إجمالي المدفوعات': supplier.total_payments || 0,
+      'تاريخ الإنشاء': new Date(supplier.created_at).toLocaleDateString('ar-SA'),
+    }))
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(exportData)
+
+    // Set RTL direction
+    ws['!dir'] = 'rtl'
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 5 },   // #
+      { wch: 15 },  // الكود
+      { wch: 35 },  // اسم المورد
+      { wch: 12 },  // الحالة
+      { wch: 12 },  // عدد الطلبات
+      { wch: 18 },  // إجمالي المدفوعات
+      { wch: 15 },  // تاريخ الإنشاء
+    ]
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'الموردين')
+
+    // Generate Excel file
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    
+    // Save file with date
+    const today = new Date().toLocaleDateString('ar-SA').replace(/\//g, '-')
+    saveAs(dataBlob, `الموردين_${today}.xlsx`)
+    
+    toast.success('تم تصدير البيانات بنجاح')
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -179,10 +235,16 @@ export default function Suppliers() {
             searchMode
             className="w-full sm:w-80"
           />
-          <Button onClick={handleAdd}>
-            <Plus className="w-5 h-5" />
-            <span className="mr-2">إضافة مورد</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportToExcel}>
+              <Download className="w-5 h-5" />
+              <span className="mr-2">تصدير Excel</span>
+            </Button>
+            <Button onClick={handleAdd}>
+              <Plus className="w-5 h-5" />
+              <span className="mr-2">إضافة مورد</span>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
