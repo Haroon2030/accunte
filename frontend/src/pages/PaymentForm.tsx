@@ -184,6 +184,7 @@ export default function PaymentForm() {
   }
 
   // Calculate totals
+  const totalBalance = items.reduce((sum, item) => sum + (item.current_balance || 0), 0)
   const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0)
   const totalProposed = items.reduce((sum, item) => sum + (item.proposed_amount || 0), 0)
 
@@ -539,7 +540,7 @@ export default function PaymentForm() {
               <tfoot>
                 <tr className="bg-gray-100 font-semibold">
                   <td colSpan={3} className="px-3 py-3 text-right">الإجمالي ({items.length} بند)</td>
-                  <td className="px-3 py-3 text-left">{totalAmount.toLocaleString()} ريال</td>
+                  <td className="px-3 py-3 text-left">{totalBalance.toLocaleString()} ريال</td>
                   <td className="px-3 py-3 text-left">{totalAmount.toLocaleString()} ريال</td>
                   <td className="px-3 py-3"></td>
                   <td className="px-3 py-3"></td>
