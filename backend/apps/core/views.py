@@ -107,7 +107,7 @@ class RoleViewSet(viewsets.ModelViewSet):
 
 class UserViewSet(viewsets.ModelViewSet):
     """ViewSet للمستخدمين"""
-    queryset = User.objects.all()
+    queryset = User.objects.select_related('profile', 'profile__role', 'profile__branch').all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]  # TODO: تغيير للإنتاج
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -116,11 +116,18 @@ class UserViewSet(viewsets.ModelViewSet):
     ordering_fields = ['username', 'date_joined', 'last_login']
     ordering = ['username']
     
+    @action(detail=False, methods=['get'])
+    def roles(self, request):
+        """الحصول على قائمة الأدوار المتاحة"""
+        roles = Role.objects.filter(is_active=True)
+        return Response(RoleListSerializer(roles, many=True).data)
+    
     @action(detail=True, methods=['post'])
     def assign_role(self, request, pk=None):
         """تعيين دور للمستخدم"""
         user = self.get_object()
         role_id = request.data.get('role_id')
+        branch_id = request.data.get('branch_id')
         profile, _ = UserProfile.objects.get_or_create(user=user)
         
         if role_id:
@@ -135,6 +142,19 @@ class UserViewSet(viewsets.ModelViewSet):
         else:
             profile.role = None
         
+        if branch_id:
+            from apps.branches.models import Branch
+            try:
+                branch = Branch.objects.get(id=branch_id)
+                profile.branch = branch
+            except Branch.DoesNotExist:
+                return Response(
+                    {'error': 'الفرع غير موجود'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            profile.branch = None
+        
         profile.save()
         return Response(UserSerializer(user).data)
 
@@ -144,6 +164,20 @@ class UserViewSet(viewsets.ModelViewSet):
 def current_user(request):
     """الحصول على معلومات المستخدم الحالي"""
     user = request.user
+    
+    # Get profile info
+    profile_data = {}
+    if hasattr(user, 'profile'):
+        profile = user.profile
+        profile_data = {
+            'role': profile.role.id if profile.role else None,
+            'role_name': profile.role.name if profile.role else None,
+            'role_type': profile.role.role_type if profile.role else None,
+            'branch': profile.branch.id if profile.branch else None,
+            'branch_name': profile.branch.name if profile.branch else None,
+            'can_see_all_branches': profile.can_see_all_branches(),
+        }
+    
     return Response({
         'id': user.id,
         'username': user.username,
@@ -154,6 +188,7 @@ def current_user(request):
         'is_staff': user.is_staff,
         'is_superuser': user.is_superuser,
         'permissions': list(user.get_all_permissions()),
+        **profile_data
     })
 
 

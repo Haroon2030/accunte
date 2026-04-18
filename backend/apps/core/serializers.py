@@ -4,6 +4,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Permission, Role, UserProfile
+from apps.branches.models import Branch
 
 User = get_user_model()
 
@@ -32,12 +33,13 @@ class RoleSerializer(serializers.ModelSerializer):
         required=False
     )
     users_count = serializers.SerializerMethodField()
+    role_type_display = serializers.CharField(source='get_role_type_display', read_only=True)
     
     class Meta:
         model = Role
         fields = [
-            'id', 'name', 'description', 'permissions', 
-            'permission_ids', 'users_count', 'is_active', 
+            'id', 'name', 'role_type', 'role_type_display', 'description', 'permissions', 
+            'permission_ids', 'users_count', 'is_active', 'is_system_role',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -50,13 +52,14 @@ class RoleListSerializer(serializers.ModelSerializer):
     """Serializer مختصر للأدوار"""
     permissions_count = serializers.SerializerMethodField()
     users_count = serializers.SerializerMethodField()
+    role_type_display = serializers.CharField(source='get_role_type_display', read_only=True)
     
     class Meta:
         model = Role
         fields = [
-            'id', 'name', 'description', 
+            'id', 'name', 'role_type', 'role_type_display', 'description', 
             'permissions_count', 'users_count', 
-            'is_active', 'created_at'
+            'is_active', 'is_system_role', 'created_at'
         ]
     
     def get_permissions_count(self, obj):
@@ -74,6 +77,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(source='user.last_name', read_only=True)
     full_name = serializers.SerializerMethodField()
     role_name = serializers.CharField(source='role.name', read_only=True)
+    role_type = serializers.CharField(source='role.role_type', read_only=True)
+    branch_name = serializers.CharField(source='branch.name', read_only=True)
     permissions = serializers.SerializerMethodField()
     
     class Meta:
@@ -81,7 +86,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'username', 'email', 
             'first_name', 'last_name', 'full_name',
-            'role', 'role_name', 'permissions',
+            'role', 'role_name', 'role_type', 'permissions',
+            'branch', 'branch_name',
             'phone', 'department', 'position', 'avatar'
         ]
     
@@ -101,7 +107,19 @@ class UserSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
+    branch = serializers.PrimaryKeyRelatedField(
+        queryset=Branch.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
     password = serializers.CharField(write_only=True, required=False)
+    
+    # Read-only fields from profile
+    role_name = serializers.CharField(source='profile.role.name', read_only=True)
+    role_type = serializers.CharField(source='profile.role.role_type', read_only=True)
+    branch_id = serializers.IntegerField(source='profile.branch.id', read_only=True)
+    branch_name = serializers.CharField(source='profile.branch.name', read_only=True)
     
     class Meta:
         model = User
@@ -109,23 +127,26 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'first_name', 'last_name',
             'is_active', 'is_staff', 'is_superuser',
             'date_joined', 'last_login',
-            'profile', 'role', 'password'
+            'profile', 'role', 'branch', 'password',
+            'role_name', 'role_type', 'branch_id', 'branch_name'
         ]
         read_only_fields = ['date_joined', 'last_login']
     
     def create(self, validated_data):
         role = validated_data.pop('role', None)
+        branch = validated_data.pop('branch', None)
         password = validated_data.pop('password', None)
         user = User.objects.create(**validated_data)
         if password:
             user.set_password(password)
             user.save()
-        # إنشاء ملف المستخدم
-        UserProfile.objects.create(user=user, role=role)
+        # إنشاء ملف المستخدم مع الفرع
+        UserProfile.objects.create(user=user, role=role, branch=branch)
         return user
     
     def update(self, instance, validated_data):
         role = validated_data.pop('role', None)
+        branch = validated_data.pop('branch', None)
         password = validated_data.pop('password', None)
         
         for attr, value in validated_data.items():
@@ -136,10 +157,12 @@ class UserSerializer(serializers.ModelSerializer):
         
         instance.save()
         
-        # تحديث الدور في ملف المستخدم
+        # تحديث الدور والفرع في ملف المستخدم
+        profile, _ = UserProfile.objects.get_or_create(user=instance)
         if role is not None:
-            profile, _ = UserProfile.objects.get_or_create(user=instance)
             profile.role = role
-            profile.save()
+        if branch is not None:
+            profile.branch = branch
+        profile.save()
         
         return instance

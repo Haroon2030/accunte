@@ -15,6 +15,7 @@ import {
   X,
   Bell,
   User,
+  UserCog,
 } from 'lucide-react'
 
 const navigation = [
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'الفروع', href: '/branches', icon: Building2 },
   { name: 'البنوك', href: '/banks', icon: Landmark },
   { name: 'مراكز التكلفة', href: '/cost-centers', icon: Wallet },
+  { name: 'المستخدمين', href: '/users', icon: UserCog },
   { name: 'الإعدادات', href: '/settings', icon: Settings },
 ]
 

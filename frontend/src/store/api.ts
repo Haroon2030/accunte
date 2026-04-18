@@ -23,7 +23,7 @@ const baseQuery = fetchBaseQuery({
 export const api = createApi({
   reducerPath: 'api',
   baseQuery,
-  tagTypes: ['Suppliers', 'Branches', 'Banks', 'CostCenters', 'Payments'],
+  tagTypes: ['Suppliers', 'Branches', 'Banks', 'CostCenters', 'Payments', 'Users', 'Roles'],
   endpoints: (builder) => ({
     // Suppliers
     getSuppliers: builder.query<{ results: Supplier[]; count: number; next: string | null; previous: string | null }, { page?: number; search?: string }>({
@@ -198,6 +198,51 @@ export const api = createApi({
       query: () => '/dashboard/',
       providesTags: ['Payments', 'Branches', 'Suppliers', 'Banks'],
     }),
+
+    // Users
+    getUsers: builder.query<{ results: User[]; count: number; next: string | null; previous: string | null }, { page?: number; search?: string }>({
+      query: ({ page = 1, search }) => ({
+        url: '/users/',
+        params: { page, search },
+      }),
+      providesTags: ['Users'],
+    }),
+    createUser: builder.mutation<User, Partial<User> & { password?: string; role?: number; branch?: number }>({
+      query: (data) => ({
+        url: '/users/',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Users'],
+    }),
+    updateUser: builder.mutation<User, { id: number; data: Partial<User> & { password?: string; role?: number; branch?: number } }>({
+      query: ({ id, data }) => ({
+        url: `/users/${id}/`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: ['Users'],
+    }),
+    deleteUser: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `/users/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Users'],
+    }),
+
+    // Roles
+    getRoles: builder.query<Role[], void>({
+      query: () => '/users/roles/',
+      providesTags: ['Roles'],
+    }),
+
+    // All Branches for dropdown
+    getAllBranches: builder.query<Branch[], void>({
+      query: () => '/branches/?page_size=1000',
+      transformResponse: (response: { results: Branch[] }) => response.results,
+      providesTags: ['Branches'],
+    }),
   }),
 })
 
@@ -321,6 +366,49 @@ export interface DashboardStats {
   recent_payments: PaymentRequest[]
 }
 
+export interface Role {
+  id: number
+  name: string
+  role_type: 'admin' | 'manager' | 'auditor' | 'branch_employee'
+  role_type_display: string
+  description?: string
+  permissions_count?: number
+  users_count?: number
+  is_active: boolean
+  is_system_role?: boolean
+  created_at: string
+}
+
+export interface UserProfile {
+  id: number
+  role?: number
+  role_name?: string
+  role_type?: string
+  branch?: number
+  branch_name?: string
+  phone?: string
+  department?: string
+  position?: string
+}
+
+export interface User {
+  id: number
+  username: string
+  email: string
+  first_name: string
+  last_name: string
+  is_active: boolean
+  is_staff: boolean
+  is_superuser: boolean
+  date_joined: string
+  last_login?: string
+  profile?: UserProfile
+  role_name?: string
+  role_type?: string
+  branch_id?: number
+  branch_name?: string
+}
+
 export const {
   useGetSuppliersQuery,
   useGetAllSuppliersQuery,
@@ -345,4 +433,10 @@ export const {
   useUpdatePaymentMutation,
   useDeletePaymentMutation,
   useGetDashboardQuery,
+  useGetUsersQuery,
+  useCreateUserMutation,
+  useUpdateUserMutation,
+  useDeleteUserMutation,
+  useGetRolesQuery,
+  useGetAllBranchesQuery,
 } = api

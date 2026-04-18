@@ -10,6 +10,7 @@ import Payments from './pages/Payments'
 import PaymentForm from './pages/PaymentForm'
 import PaymentDetails from './pages/PaymentDetails'
 import Settings from './pages/Settings'
+import Users from './pages/Users'
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
         <Route path="payments/new" element={<PaymentForm />} />
         <Route path="payments/:id" element={<PaymentDetails />} />
         <Route path="payments/:id/edit" element={<PaymentForm />} />
+        <Route path="users" element={<Users />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
