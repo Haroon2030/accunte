@@ -247,20 +247,20 @@ export default function Dashboard() {
       {/* Monthly Payments Chart */}
       {data.monthly_payments.length > 0 && (
         <Card>
-          <CardContent className="p-5">
+          <CardContent className="p-5 overflow-hidden">
             <h3 className="font-semibold text-gray-800 mb-4">المدفوعات الشهرية (آخر 6 أشهر)</h3>
-            <div className="flex items-end justify-center gap-4 h-48">
+            <div className="flex items-end justify-center gap-4">
               {data.monthly_payments.map((month) => {
                 const maxTotal = Math.max(...data.monthly_payments.map(m => m.total)) || 1
-                const height = Math.max((month.total / maxTotal) * 100, 20)
+                const barHeight = Math.max((month.total / maxTotal) * 120, 30)
                 return (
                   <div key={month.month} className="flex flex-col items-center" style={{ width: '80px' }}>
-                    <div className="text-sm font-semibold text-primary-600 mb-2">{formatCurrency(month.total)}</div>
+                    <div className="text-xs font-semibold text-primary-600 mb-1 whitespace-nowrap">{formatCurrency(month.total)}</div>
                     <div 
-                      className="w-16 bg-gradient-to-t from-primary-500 to-primary-400 rounded-t-lg transition-all duration-500 hover:from-primary-600 hover:to-primary-500 shadow-md"
-                      style={{ height: `${height}%`, minHeight: '40px' }}
+                      className="w-12 bg-gradient-to-t from-primary-500 to-primary-400 rounded-t-lg transition-all duration-500 hover:from-primary-600 hover:to-primary-500 shadow-md"
+                      style={{ height: `${barHeight}px` }}
                     />
-                    <div className="text-sm text-gray-600 mt-2 font-medium">
+                    <div className="text-xs text-gray-600 mt-1 font-medium">
                       {month.month.split('-')[1]}/{month.month.split('-')[0].slice(2)}
                     </div>
                   </div>
