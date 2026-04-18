@@ -289,14 +289,14 @@ export default function PaymentForm() {
                       // Auto-set supplier account number (fixed value)
                       setSupplierAccountNumber('21101001')
                       
+                      // Auto-set bank account number (fixed value)
+                      setBankAccountNumber('11102001')
+                      
                       // Auto-set bank that belongs to this branch
                       if (banksData?.results) {
                         const branchBank = banksData.results.find((b: any) => b.branch === branchId)
                         if (branchBank) {
                           setBank(branchBank.id)
-                          if (branchBank.account_number) {
-                            setBankAccountNumber(branchBank.account_number)
-                          }
                           if (branchBank.analytical_number) {
                             setAnalyticalAccount(branchBank.analytical_number)
                           }
@@ -344,9 +344,8 @@ export default function PaymentForm() {
               </label>
               <Input
                 value={bankAccountNumber}
-                onChange={(e) => setBankAccountNumber(e.target.value)}
-                placeholder="أدخل رقم حساب البنك"
-                className="w-full"
+                readOnly
+                className="w-full bg-gray-50"
               />
             </div>
           </div>
