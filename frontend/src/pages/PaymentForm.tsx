@@ -465,7 +465,12 @@ export default function PaymentForm() {
                         type="text"
                         inputMode="numeric"
                         value={item.amount || ''}
-                        onChange={(e) => updateItem(index, 'amount', Number(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const val = Number(e.target.value) || 0
+                          setItems(prev => prev.map((it, i) => 
+                            i === index ? { ...it, amount: val, proposed_amount: val } : it
+                          ))
+                        }}
                         onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
                         className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm text-left focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
