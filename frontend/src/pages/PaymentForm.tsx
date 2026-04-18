@@ -454,7 +454,7 @@ export default function PaymentForm() {
                         type="number"
                         value={item.current_balance}
                         onChange={(e) => updateItem(index, 'current_balance', Number(e.target.value))}
-                        className="w-24 text-left"
+                        className="w-32 text-left"
                       />
                     </td>
                     <td className="px-3 py-3">
@@ -462,7 +462,7 @@ export default function PaymentForm() {
                         type="number"
                         value={item.amount}
                         onChange={(e) => updateItem(index, 'amount', Number(e.target.value))}
-                        className="w-24 text-left"
+                        className="w-32 text-left"
                       />
                     </td>
                     <td className="px-3 py-3">
@@ -503,7 +503,7 @@ export default function PaymentForm() {
                         type="number"
                         value={item.proposed_amount}
                         onChange={(e) => updateItem(index, 'proposed_amount', Number(e.target.value))}
-                        className="w-24 text-left"
+                        className="w-32 text-left"
                       />
                     </td>
                     <td className="px-3 py-3">
