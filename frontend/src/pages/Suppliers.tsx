@@ -212,23 +212,16 @@ export default function Suppliers() {
                 ) : (
                   suppliers.map((supplier, index) => (
                     <tr key={supplier.id}>
-                      <td><span className="table-row-number">{(page - 1) * 8 + index + 1}</span></td>
+                      <td>{(page - 1) * 8 + index + 1}</td>
                       <td><span className="code-text">{supplier.code}</span></td>
-                      <td>
-                        <div className="flex items-center gap-3">
-                          <div className="table-icon-box primary">
-                            <UsersIcon className="w-5 h-5" />
-                          </div>
-                          <span className="font-semibold text-slate-800">{supplier.name}</span>
-                        </div>
-                      </td>
+                      <td className="font-medium text-slate-800">{supplier.name}</td>
                       <td>
                         <span className={`status-badge ${supplier.is_active ? 'active' : 'inactive'}`}>
                           {supplier.is_active ? 'نشط' : 'غير نشط'}
                         </span>
                       </td>
                       <td>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleView(supplier)}
                             className="action-btn edit"

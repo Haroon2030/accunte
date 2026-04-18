@@ -42,6 +42,7 @@ body {
 
 .modern-table {
   @apply w-full border-collapse;
+  table-layout: auto;
 }
 
 .modern-table thead {
@@ -53,16 +54,18 @@ body {
 }
 
 .modern-table th {
-  @apply px-5 py-4 text-right text-sm font-bold text-slate-700 uppercase tracking-wide;
-  letter-spacing: 0.05em;
+  @apply px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wide whitespace-nowrap;
+  letter-spacing: 0.03em;
 }
 
 .modern-table th:first-child {
-  @apply pr-6;
+  @apply pr-4 text-center;
+  width: 50px;
 }
 
 .modern-table th:last-child {
-  @apply pl-6;
+  @apply pl-4 text-center;
+  width: 120px;
 }
 
 .modern-table tbody tr {
@@ -70,24 +73,25 @@ body {
 }
 
 .modern-table tbody tr:nth-child(even) {
-  @apply bg-slate-50/50;
+  @apply bg-slate-50/30;
 }
 
 .modern-table tbody tr:hover {
-  @apply bg-gradient-to-l from-primary-50/60 to-primary-100/40 shadow-sm;
-  transform: scale(1.002);
+  @apply bg-primary-50/50;
 }
 
 .modern-table td {
-  @apply px-5 py-4 text-sm text-slate-600;
+  @apply px-4 py-3 text-sm text-slate-600 text-center whitespace-nowrap;
 }
 
 .modern-table td:first-child {
-  @apply pr-6;
+  @apply pr-4 text-center;
+  width: 50px;
 }
 
 .modern-table td:last-child {
-  @apply pl-6;
+  @apply pl-4 text-center;
+  width: 120px;
 }
 
 /* Table Row Number Badge */

@@ -103,29 +103,18 @@ export default function Branches() {
               <tbody>
                 {data?.results?.map((branch: any, index: number) => (
                   <tr key={branch.id}>
-                    <td><span className="table-row-number">{index + 1}</span></td>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="table-icon-box primary">
-                          <Building2 className="w-5 h-5" />
-                        </div>
-                        <span className="font-semibold text-slate-800">{branch.name}</span>
-                      </div>
-                    </td>
+                    <td>{index + 1}</td>
+                    <td className="font-medium text-slate-800">{branch.name}</td>
                     <td><span className="code-text">{branch.code}</span></td>
-                    <td className="text-slate-600">{branch.cost_center_name || '-'}</td>
-                    <td>
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-semibold text-sm">
-                        {branch.banks_count || 0}
-                      </span>
-                    </td>
+                    <td>{branch.cost_center_name || '-'}</td>
+                    <td>{branch.banks_count || 0}</td>
                     <td>
                       <span className={`status-badge ${branch.is_active ? 'active' : 'inactive'}`}>
                         {branch.is_active ? 'نشط' : 'غير نشط'}
                       </span>
                     </td>
                     <td>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center justify-center gap-1">
                         <button onClick={() => handleEdit(branch)} className="action-btn edit">
                           <Edit className="w-4 h-4" />
                         </button>

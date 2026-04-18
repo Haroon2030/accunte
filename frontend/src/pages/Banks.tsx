@@ -123,36 +123,29 @@ export default function Banks() {
               <tbody>
                 {data?.results?.map((bank: any, index: number) => (
                   <tr key={bank.id}>
-                    <td><span className="table-row-number">{index + 1}</span></td>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="table-icon-box emerald">
-                          <Landmark className="w-5 h-5" />
-                        </div>
-                        <span className="font-semibold text-slate-800">{bank.name}</span>
-                      </div>
-                    </td>
+                    <td>{index + 1}</td>
+                    <td className="font-medium text-slate-800">{bank.name}</td>
                     <td><span className="code-text">{bank.code}</span></td>
-                    <td className="text-slate-600">{bank.branch_name || '-'}</td>
+                    <td>{bank.branch_name || '-'}</td>
                     <td>
                       {bank.account_number ? (
-                        <div className="flex items-center gap-2">
-                          <span className="code-text text-xs">{bank.account_number}</span>
-                          <button onClick={() => copyToClipboard(bank.account_number)} className="action-btn copy p-1.5">
-                            <Copy className="w-3.5 h-3.5" />
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-xs">{bank.account_number}</span>
+                          <button onClick={() => copyToClipboard(bank.account_number)} className="action-btn copy p-1">
+                            <Copy className="w-3 h-3" />
                           </button>
                         </div>
-                      ) : <span className="text-slate-400">-</span>}
+                      ) : '-'}
                     </td>
                     <td>
                       {bank.iban ? (
-                        <div className="flex items-center gap-2">
-                          <span className="code-text text-xs">{bank.iban}</span>
-                          <button onClick={() => copyToClipboard(bank.iban)} className="action-btn copy p-1.5">
-                            <Copy className="w-3.5 h-3.5" />
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-xs">{bank.iban}</span>
+                          <button onClick={() => copyToClipboard(bank.iban)} className="action-btn copy p-1">
+                            <Copy className="w-3 h-3" />
                           </button>
                         </div>
-                      ) : <span className="text-slate-400">-</span>}
+                      ) : '-'}
                     </td>
                     <td>
                       <span className={`status-badge ${bank.is_active ? 'active' : 'inactive'}`}>
@@ -160,7 +153,7 @@ export default function Banks() {
                       </span>
                     </td>
                     <td>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center justify-center gap-1">
                         <button onClick={() => handleEdit(bank)} className="action-btn edit">
                           <Edit className="w-4 h-4" />
                         </button>

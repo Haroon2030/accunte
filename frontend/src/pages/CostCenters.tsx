@@ -103,29 +103,18 @@ export default function CostCenters() {
               <tbody>
                 {data?.results?.map((center: any, index: number) => (
                   <tr key={center.id}>
-                    <td><span className="table-row-number">{index + 1}</span></td>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="table-icon-box purple">
-                          <BarChart3 className="w-5 h-5" />
-                        </div>
-                        <span className="font-semibold text-slate-800">{center.name}</span>
-                      </div>
-                    </td>
+                    <td>{index + 1}</td>
+                    <td className="font-medium text-slate-800">{center.name}</td>
                     <td><span className="code-text">{center.code}</span></td>
-                    <td>
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm">
-                        {center.branches_count || 0}
-                      </span>
-                    </td>
-                    <td className="text-slate-500 max-w-xs truncate">{center.description || '-'}</td>
+                    <td>{center.branches_count || 0}</td>
+                    <td className="max-w-xs truncate">{center.description || '-'}</td>
                     <td>
                       <span className={`status-badge ${center.is_active ? 'active' : 'inactive'}`}>
                         {center.is_active ? 'نشط' : 'غير نشط'}
                       </span>
                     </td>
                     <td>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center justify-center gap-1">
                         <button onClick={() => handleEdit(center)} className="action-btn edit">
                           <Edit className="w-4 h-4" />
                         </button>
