@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Save, ArrowRight, Search, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, Save, ArrowRight, Search, X, User, Building2 } from 'lucide-react'
 import { Button, Card, Input } from '../components/ui'
 import {
   useGetBranchesQuery,
@@ -41,9 +41,12 @@ export default function PaymentForm() {
   const [items, setItems] = useState<PaymentItem[]>([
     { supplier: null, current_balance: 0, amount: 0, sultan_approval: 'جاري المعالجة', auditor_status: 'جاري المعالجة', financial_manager_approval: 'جاري المعالجة', proposed_amount: 0, abu_alaa_approval: 'جاري المعالجة' }
   ])
-  const [supplierSearch, setSupplierSearch] = useState<Record<number, string>>({})
-  const [activeSupplierDropdown, setActiveSupplierDropdown] = useState<number | null>(null)
-  const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({})
+  
+  // Supplier Modal state
+  const [supplierModalOpen, setSupplierModalOpen] = useState(false)
+  const [supplierModalIndex, setSupplierModalIndex] = useState<number | null>(null)
+  const [supplierSearchQuery, setSupplierSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Queries
   const { data: branchesData } = useGetBranchesQuery({ page: 1 })
@@ -153,44 +156,40 @@ export default function PaymentForm() {
     setItems(newItems)
   }
 
-  // Select supplier
-  const selectSupplier = (index: number, supplier: any) => {
+  // Open supplier modal
+  const openSupplierModal = (index: number) => {
+    setSupplierModalIndex(index)
+    setSupplierSearchQuery('')
+    setSupplierModalOpen(true)
+    setTimeout(() => searchInputRef.current?.focus(), 100)
+  }
+
+  // Select supplier from modal
+  const selectSupplier = (supplier: any) => {
+    if (supplierModalIndex === null) return
     const defaultCC = getDefaultCostCenter()
     const newItems = [...items]
-    newItems[index] = {
-      ...newItems[index],
+    newItems[supplierModalIndex] = {
+      ...newItems[supplierModalIndex],
       supplier: supplier.id,
       supplier_name: supplier.name,
       cost_center: defaultCC?.id,
       cost_center_name: defaultCC?.name
     }
     setItems(newItems)
-    setSupplierSearch(prev => ({ ...prev, [index]: '' }))
-    setActiveSupplierDropdown(null)
+    setSupplierModalOpen(false)
+    setSupplierModalIndex(null)
+    setSupplierSearchQuery('')
   }
 
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (activeSupplierDropdown !== null) {
-        const ref = dropdownRefs.current[activeSupplierDropdown]
-        if (ref && !ref.contains(e.target as Node)) {
-          setActiveSupplierDropdown(null)
-        }
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [activeSupplierDropdown])
-
-  // Filtered suppliers per row
-  const getFilteredSuppliers = (index: number) => {
-    const search = (supplierSearch[index] || '').toLowerCase()
-    if (!search) return allSuppliers
+  // Filtered suppliers for modal
+  const getFilteredSuppliers = () => {
+    const search = supplierSearchQuery.toLowerCase().trim()
+    if (!search) return allSuppliers.slice(0, 50) // عرض أول 50 فقط بدون بحث
     return allSuppliers.filter(s =>
       s.name.toLowerCase().includes(search) ||
       s.code?.toLowerCase().includes(search)
-    )
+    ).slice(0, 100) // عرض 100 نتيجة كحد أقصى
   }
 
   // Calculate totals
@@ -348,81 +347,21 @@ export default function PaymentForm() {
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-3 py-3 text-sm text-gray-600">{index + 1}</td>
                     <td className="px-3 py-3">
-                      <Input
-                        value={item.supplier || ''}
-                        onChange={(e) => {
-                          const val = e.target.value ? Number(e.target.value) : null
-                          updateItem(index, 'supplier', val)
-                          // Try to find supplier by id
-                          if (val) {
-                            const found = allSuppliers.find(s => s.id === val)
-                            if (found) {
-                              selectSupplier(index, found)
-                            }
-                          }
-                        }}
-                        placeholder="-"
-                        className="w-20"
-                      />
-                    </td>
-                    <td className="px-3 py-3 relative" ref={el => { dropdownRefs.current[index] = el }}>
-                      <div className="relative">
-                        <div 
-                          className="flex items-center gap-1 cursor-pointer"
-                          onClick={() => setActiveSupplierDropdown(activeSupplierDropdown === index ? null : index)}
-                        >
-                          <div className="relative flex-1">
-                            <Input
-                              value={item.supplier_name || ''}
-                              readOnly
-                              placeholder="اختر المورد..."
-                              className="w-40 cursor-pointer pr-8 text-sm"
-                            />
-                            <Search className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2" />
-                          </div>
-                          <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${activeSupplierDropdown === index ? 'rotate-180' : ''}`} />
-                        </div>
+                      <div className="text-sm text-gray-600 w-20 text-center">
+                        {item.supplier || '-'}
                       </div>
-                      {activeSupplierDropdown === index && (
-                        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden" style={{ width: '280px' }}>
-                          {/* حقل البحث */}
-                          <div className="sticky top-0 bg-white p-2 border-b">
-                            <div className="relative">
-                              <Input
-                                value={supplierSearch[index] || ''}
-                                onChange={(e) => setSupplierSearch(prev => ({ ...prev, [index]: e.target.value }))}
-                                placeholder="ابحث بالاسم أو الكود..."
-                                className="w-full pr-8"
-                                autoFocus
-                              />
-                              <Search className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2" />
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1 text-center">
-                              {getFilteredSuppliers(index).length} مورد
-                            </div>
-                          </div>
-                          {/* قائمة الموردين - 8 صفوف فقط */}
-                          <div className="overflow-y-auto" style={{ maxHeight: '320px' }}>
-                            {getFilteredSuppliers(index).length === 0 ? (
-                              <div className="px-4 py-3 text-sm text-gray-500 text-center">لا توجد نتائج</div>
-                            ) : (
-                              getFilteredSuppliers(index).map((supplier) => (
-                                <button
-                                  key={supplier.id}
-                                  type="button"
-                                  onClick={() => selectSupplier(index, supplier)}
-                                  className={`w-full px-4 py-2 text-right hover:bg-primary-50 border-b last:border-b-0 transition-colors ${
-                                    item.supplier === supplier.id ? 'bg-primary-100 text-primary-700 font-medium' : ''
-                                  }`}
-                                >
-                                  <div className="text-sm">{supplier.name}</div>
-                                  <div className="text-xs text-gray-500">{supplier.code}</div>
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      <button
+                        type="button"
+                        onClick={() => openSupplierModal(index)}
+                        className="flex items-center gap-2 w-44 px-3 py-2 border border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors text-right"
+                      >
+                        <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span className={`flex-1 text-sm truncate ${item.supplier_name ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {item.supplier_name || 'اختر المورد...'}
+                        </span>
+                      </button>
                     </td>
                     <td className="px-3 py-3">
                       <Input
@@ -522,6 +461,118 @@ export default function PaymentForm() {
           </div>
         </Card>
       </form>
+
+      {/* Supplier Selection Modal */}
+      {supplierModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 transition-opacity"
+            onClick={() => setSupplierModalOpen(false)}
+          />
+          
+          {/* Modal */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl transform transition-all">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-l from-primary-600 to-primary-700 rounded-t-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <Building2 className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">اختيار المورد</h3>
+                    <p className="text-primary-100 text-sm">ابحث واختر المورد المطلوب</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSupplierModalOpen(false)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="p-4 border-b bg-gray-50">
+                <div className="relative">
+                  <Search className="w-5 h-5 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={supplierSearchQuery}
+                    onChange={(e) => setSupplierSearchQuery(e.target.value)}
+                    placeholder="ابحث بالاسم أو الكود..."
+                    className="w-full pr-12 pl-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-100 transition-all text-lg"
+                    autoFocus
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-3 text-sm text-gray-500">
+                  <span>إجمالي الموردين: {allSuppliers.length.toLocaleString()}</span>
+                  <span>نتائج البحث: {getFilteredSuppliers().length}</span>
+                </div>
+              </div>
+
+              {/* Results */}
+              <div className="max-h-96 overflow-y-auto">
+                {getFilteredSuppliers().length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                    <Search className="w-12 h-12 text-gray-300 mb-3" />
+                    <p className="text-lg font-medium">لا توجد نتائج</p>
+                    <p className="text-sm">جرب البحث بكلمات أخرى</p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {getFilteredSuppliers().map((supplier) => (
+                      <button
+                        key={supplier.id}
+                        type="button"
+                        onClick={() => selectSupplier(supplier)}
+                        className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-primary-50 transition-colors text-right ${
+                          supplierModalIndex !== null && items[supplierModalIndex]?.supplier === supplier.id
+                            ? 'bg-primary-100 border-r-4 border-primary-600'
+                            : ''
+                        }`}
+                      >
+                        <div className="w-12 h-12 bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl flex items-center justify-center shrink-0">
+                          <User className="w-6 h-6 text-primary-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-gray-900 truncate">{supplier.name}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-600">
+                              كود: {supplier.code}
+                            </span>
+                            <span className="px-2 py-0.5 bg-primary-100 rounded text-xs text-primary-700">
+                              #{supplier.id}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-primary-600">
+                          <ArrowRight className="w-5 h-5 rotate-180" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t bg-gray-50 rounded-b-2xl flex items-center justify-between">
+                <p className="text-sm text-gray-500">
+                  اضغط على المورد لاختياره
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => setSupplierModalOpen(false)}
+                >
+                  إلغاء
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
