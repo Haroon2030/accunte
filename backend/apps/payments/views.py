@@ -306,10 +306,7 @@ class DashboardView(APIView):
         # آخر الطلبات
         recent_payments = payments_qs.select_related(
             'branch', 'bank', 'created_by'
-        ).annotate(
-            items_count=Count('items'),
-            total_amount=Sum('items__amount')
-        )[:10]
+        ).order_by('-created_at')[:10]
         
         data = {
             'branches_count': branches_count,
