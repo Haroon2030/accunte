@@ -1,5 +1,8 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowRight, Edit, Printer, FileText } from 'lucide-react'
+import { ArrowRight, Edit, Printer, FileText, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
+import toast from 'react-hot-toast'
 import { Button, Card } from '../components/ui'
 import { useGetPaymentQuery } from '../store/api'
 
@@ -44,6 +47,85 @@ export default function PaymentDetails() {
   const totalProposed = payment.items?.reduce((sum: number, item: any) => sum + parseFloat(item.proposed_amount || 0), 0) || 0
   const totalBalance = payment.items?.reduce((sum: number, item: any) => sum + parseFloat(item.current_balance || 0), 0) || 0
 
+  // Export to Excel function
+  const exportToExcel = () => {
+    if (!payment.items || payment.items.length === 0) {
+      toast.error('لا توجد بيانات للتصدير')
+      return
+    }
+
+    const getStatusLabel = (status: string) => {
+      const statusMap: Record<string, string> = {
+        'pending': 'جاري المعالجة',
+        'approved': 'معتمد',
+        'rejected': 'مرفوض',
+      }
+      return statusMap[status] || status
+    }
+
+    // Prepare data for export
+    const exportData = payment.items.map((item: any, index: number) => ({
+      '#': index + 1,
+      'رقم المورد': item.supplier_code || item.supplier,
+      'اسم المورد': item.supplier_name,
+      'رصيد المورد': parseFloat(item.current_balance || 0),
+      'دفعة المشتريات': parseFloat(item.amount || 0),
+      'اعتماد سلطان': getStatusLabel(item.sultan_approval),
+      'حالة المدقق': getStatusLabel(item.auditor_status),
+      'المدير المالي': getStatusLabel(item.cfo_approval),
+      'اقتراح السداد': parseFloat(item.proposed_amount || 0),
+      'اعتماد أبو علاء': getStatusLabel(item.abu_alaa_final),
+    }))
+
+    // Add totals row
+    exportData.push({
+      '#': '' as any,
+      'رقم المورد': '',
+      'اسم المورد': 'الإجمالي',
+      'رصيد المورد': totalBalance,
+      'دفعة المشتريات': totalAmount,
+      'اعتماد سلطان': '',
+      'حالة المدقق': '',
+      'المدير المالي': '',
+      'اقتراح السداد': totalProposed,
+      'اعتماد أبو علاء': '',
+    })
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(exportData)
+
+    // Set RTL direction
+    ws['!dir'] = 'rtl'
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 5 },   // #
+      { wch: 12 },  // رقم المورد
+      { wch: 35 },  // اسم المورد
+      { wch: 15 },  // رصيد المورد
+      { wch: 15 },  // دفعة المشتريات
+      { wch: 15 },  // اعتماد سلطان
+      { wch: 15 },  // حالة المدقق
+      { wch: 15 },  // المدير المالي
+      { wch: 15 },  // اقتراح السداد
+      { wch: 15 },  // اعتماد أبو علاء
+    ]
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, `طلب دفع #${id}`)
+
+    // Generate Excel file
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    
+    // Save file
+    const branchName = payment.branch_name || 'طلب'
+    saveAs(dataBlob, `طلب_دفع_${id}_${branchName}.xlsx`)
+    
+    toast.success('تم تصدير البيانات بنجاح')
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -58,6 +140,10 @@ export default function PaymentDetails() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToExcel}>
+            <Download className="w-4 h-4 ml-2" />
+            تصدير Excel
+          </Button>
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="w-4 h-4 ml-2" />
             طباعة
