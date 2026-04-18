@@ -19,7 +19,11 @@ interface PaymentItem {
   supplier_name?: string
   current_balance: number
   amount: number
+  sultan_approval: string
+  auditor_status: string
+  financial_manager_approval: string
   proposed_amount: number
+  abu_alaa_approval: string
   cost_center?: number
   cost_center_name?: string
 }
@@ -35,7 +39,7 @@ export default function PaymentForm() {
   const [costCenter, setCostCenter] = useState<{ id: number; name: string } | null>(null)
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<PaymentItem[]>([
-    { supplier: null, current_balance: 0, amount: 0, proposed_amount: 0 }
+    { supplier: null, current_balance: 0, amount: 0, sultan_approval: 'جاري المعالجة', auditor_status: 'جاري المعالجة', financial_manager_approval: 'جاري المعالجة', proposed_amount: 0, abu_alaa_approval: 'جاري المعالجة' }
   ])
   const [supplierSearch, setSupplierSearch] = useState<Record<number, string>>({})
   const [activeSupplierDropdown, setActiveSupplierDropdown] = useState<number | null>(null)
@@ -81,7 +85,11 @@ export default function PaymentForm() {
           supplier_name: (item as any).supplier_name || '',
           current_balance: (item as any).current_balance || 0,
           amount: (item as any).amount || 0,
+          sultan_approval: (item as any).sultan_approval || 'جاري المعالجة',
+          auditor_status: (item as any).auditor_status || 'جاري المعالجة',
+          financial_manager_approval: (item as any).financial_manager_approval || 'جاري المعالجة',
           proposed_amount: (item as any).proposed_amount || 0,
+          abu_alaa_approval: (item as any).abu_alaa_approval || 'جاري المعالجة',
           cost_center: (item as any).cost_center,
           cost_center_name: (item as any).cost_center_name,
         })))
@@ -120,8 +128,12 @@ export default function PaymentForm() {
     setItems([...items, { 
       supplier: null, 
       current_balance: 0, 
-      amount: 0, 
+      amount: 0,
+      sultan_approval: 'جاري المعالجة',
+      auditor_status: 'جاري المعالجة',
+      financial_manager_approval: 'جاري المعالجة',
       proposed_amount: 0,
+      abu_alaa_approval: 'جاري المعالجة',
       cost_center: defaultCC?.id,
       cost_center_name: defaultCC?.name
     }])
@@ -318,20 +330,24 @@ export default function PaymentForm() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">#</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">رقم المورد</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">اسم المورد</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">الدفعة المرفوعة</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">دفعة المشتريات</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">اقتراح السداد</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-700"></th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">#</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">رقم المورد</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اسم المورد</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">الدفعة المرفوعة</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">دفعة المشتريات</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اعتماد سلطان</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">حالة المدقق</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">المدير المالي</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اقتراح السداد</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اعتماد أبو علاء</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-700"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {items.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-600">{index + 1}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 text-sm text-gray-600">{index + 1}</td>
+                    <td className="px-3 py-3">
                       <Input
                         value={item.supplier || ''}
                         onChange={(e) => {
@@ -346,10 +362,10 @@ export default function PaymentForm() {
                           }
                         }}
                         placeholder="-"
-                        className="w-24"
+                        className="w-20"
                       />
                     </td>
-                    <td className="px-4 py-3 relative" ref={el => { dropdownRefs.current[index] = el }}>
+                    <td className="px-3 py-3 relative" ref={el => { dropdownRefs.current[index] = el }}>
                       <div className="relative">
                         <div 
                           className="flex items-center gap-1 cursor-pointer"
@@ -360,7 +376,7 @@ export default function PaymentForm() {
                               value={item.supplier_name || ''}
                               readOnly
                               placeholder="اختر المورد..."
-                              className="w-52 cursor-pointer pr-8"
+                              className="w-40 cursor-pointer pr-8 text-sm"
                             />
                             <Search className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2" />
                           </div>
@@ -408,31 +424,75 @@ export default function PaymentForm() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <Input
                         type="number"
                         value={item.current_balance}
                         onChange={(e) => updateItem(index, 'current_balance', Number(e.target.value))}
-                        className="w-28 text-left"
+                        className="w-24 text-left"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <Input
                         type="number"
                         value={item.amount}
                         onChange={(e) => updateItem(index, 'amount', Number(e.target.value))}
-                        className="w-28 text-left"
+                        className="w-24 text-left"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
+                      <select
+                        value={item.sultan_approval}
+                        onChange={(e) => updateItem(index, 'sultan_approval', e.target.value)}
+                        className="w-28 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="جاري المعالجة">جاري المعالجة</option>
+                        <option value="معتمد">معتمد</option>
+                        <option value="مرفوض">مرفوض</option>
+                      </select>
+                    </td>
+                    <td className="px-3 py-3">
+                      <select
+                        value={item.auditor_status}
+                        onChange={(e) => updateItem(index, 'auditor_status', e.target.value)}
+                        className="w-28 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="جاري المعالجة">جاري المعالجة</option>
+                        <option value="معتمد">معتمد</option>
+                        <option value="مرفوض">مرفوض</option>
+                      </select>
+                    </td>
+                    <td className="px-3 py-3">
+                      <select
+                        value={item.financial_manager_approval}
+                        onChange={(e) => updateItem(index, 'financial_manager_approval', e.target.value)}
+                        className="w-28 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="جاري المعالجة">جاري المعالجة</option>
+                        <option value="معتمد">معتمد</option>
+                        <option value="مرفوض">مرفوض</option>
+                      </select>
+                    </td>
+                    <td className="px-3 py-3">
                       <Input
                         type="number"
                         value={item.proposed_amount}
                         onChange={(e) => updateItem(index, 'proposed_amount', Number(e.target.value))}
-                        className="w-28 text-left"
+                        className="w-24 text-left"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
+                      <select
+                        value={item.abu_alaa_approval}
+                        onChange={(e) => updateItem(index, 'abu_alaa_approval', e.target.value)}
+                        className="w-28 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="جاري المعالجة">جاري المعالجة</option>
+                        <option value="معتمد">معتمد</option>
+                        <option value="مرفوض">مرفوض</option>
+                      </select>
+                    </td>
+                    <td className="px-3 py-3">
                       <button
                         type="button"
                         onClick={() => removeItem(index)}
@@ -447,10 +507,14 @@ export default function PaymentForm() {
               </tbody>
               <tfoot>
                 <tr className="bg-gray-100 font-semibold">
-                  <td colSpan={3} className="px-4 py-3 text-left">الإجمالي ({items.length} بند)</td>
-                  <td className="px-4 py-3 text-left">{totalAmount.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-left">{totalAmount.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-left">{totalProposed.toLocaleString()}</td>
+                  <td colSpan={3} className="px-3 py-3 text-right">الإجمالي ({items.length} بند)</td>
+                  <td className="px-3 py-3 text-left">{totalAmount.toLocaleString()}</td>
+                  <td className="px-3 py-3 text-left">{totalAmount.toLocaleString()}</td>
+                  <td className="px-3 py-3"></td>
+                  <td className="px-3 py-3"></td>
+                  <td className="px-3 py-3"></td>
+                  <td className="px-3 py-3 text-left">{totalProposed.toLocaleString()}</td>
+                  <td className="px-3 py-3"></td>
                   <td></td>
                 </tr>
               </tfoot>
