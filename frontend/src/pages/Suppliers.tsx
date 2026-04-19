@@ -199,26 +199,26 @@ export default function Suppliers() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
-              <UsersIcon className="w-6 h-6 text-primary-700" />
+      <div className="flex flex-wrap gap-4">
+        <Card className="flex-shrink-0">
+          <CardContent className="flex items-center gap-4 py-4 px-6">
+            <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+              <UsersIcon className="w-5 h-5 text-primary-700" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">إجمالي الموردين</p>
-              <p className="text-lg font-bold text-gray-900">{stats.total} مورد</p>
+              <p className="text-xs text-gray-500">إجمالي الموردين</p>
+              <p className="text-base font-bold text-gray-900">{stats.total} مورد</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-success-100 rounded-xl flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-success-600" />
+        <Card className="flex-shrink-0">
+          <CardContent className="flex items-center gap-4 py-4 px-6">
+            <div className="w-10 h-10 bg-success-100 rounded-xl flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-success-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">الموردين النشطين</p>
-              <p className="text-lg font-bold text-gray-900">{stats.active} مورد</p>
+              <p className="text-xs text-gray-500">الموردين النشطين</p>
+              <p className="text-base font-bold text-gray-900">{stats.active} مورد</p>
             </div>
           </CardContent>
         </Card>
