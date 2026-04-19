@@ -1,7 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowRight, Edit, Printer, FileText, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
-import { saveAs } from 'file-saver'
 import toast from 'react-hot-toast'
 import { Button, Card } from '../components/ui'
 import { useGetPaymentQuery } from '../store/api'
@@ -120,13 +119,9 @@ export default function PaymentDetails() {
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(wb, ws, `طلب دفع #${id}`)
 
-    // Generate Excel file
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-    const dataBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    
-    // Save file
+    // Generate and download Excel file directly
     const branchName = payment.branch_name || 'طلب'
-    saveAs(dataBlob, `طلب_دفع_${id}_${branchName}.xlsx`)
+    XLSX.writeFile(wb, `طلب_دفع_${id}_${branchName}.xlsx`)
     
     toast.success('تم تصدير البيانات بنجاح')
   }
