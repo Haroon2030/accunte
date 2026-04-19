@@ -40,36 +40,6 @@ for r in roles:
     print(f"{'Created' if created else 'Exists'}: {r['name']}")
 EOF
 
-echo "=== Updating template with new asset names ==="
-python << 'EOF'
-import os
-import re
-from pathlib import Path
-
-STATIC_DIR = Path('/app/static/frontend')
-TEMPLATE_FILE = Path('/app/templates/admin/frontend.html')
-
-# Find the latest JS and CSS files
-js_files = list(STATIC_DIR.glob('assets/index-*.js'))
-css_files = list(STATIC_DIR.glob('assets/index-*.css'))
-
-if js_files and css_files:
-    # Get the most recent files
-    js_file = sorted(js_files, key=lambda x: x.stat().st_mtime, reverse=True)[0].name
-    css_file = sorted(css_files, key=lambda x: x.stat().st_mtime, reverse=True)[0].name
-    
-    if TEMPLATE_FILE.exists():
-        content = TEMPLATE_FILE.read_text(encoding='utf-8')
-        content = re.sub(r"{% static 'frontend/assets/index-[^']+\.js' %}", f"{{% static 'frontend/assets/{js_file}' %}}", content)
-        content = re.sub(r"{% static 'frontend/assets/index-[^']+\.css' %}", f"{{% static 'frontend/assets/{css_file}' %}}", content)
-        TEMPLATE_FILE.write_text(content, encoding='utf-8')
-        print(f"Updated template: JS={js_file}, CSS={css_file}")
-    else:
-        print("Template file not found")
-else:
-    print("No asset files found")
-EOF
-
 echo "=== Collecting static files ==="
 python manage.py collectstatic --noinput
 
