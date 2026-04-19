@@ -11,7 +11,6 @@ import CostCenters from './pages/CostCenters'
 import Payments from './pages/Payments'
 import PaymentForm from './pages/PaymentForm'
 import PaymentDetails from './pages/PaymentDetails'
-import PaymentPrint from './pages/PaymentPrint'
 import Settings from './pages/Settings'
 import Users from './pages/Users'
 
@@ -37,8 +36,6 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      {/* صفحة الطباعة - خارج Layout لتكون نظيفة بدون قوائم */}
-      <Route path="/payments/:id/print" element={<ProtectedRoute><PaymentPrint /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="branches" element={<Branches />} />

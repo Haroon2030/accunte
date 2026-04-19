@@ -47,6 +47,11 @@ export default function PaymentDetails() {
   const totalProposed = payment.items?.reduce((sum: number, item: any) => sum + parseFloat(item.proposed_amount || 0), 0) || 0
   const totalBalance = payment.items?.reduce((sum: number, item: any) => sum + parseFloat(item.current_balance || 0), 0) || 0
 
+  // Direct print function
+  const handlePrint = () => {
+    window.print()
+  }
+
   // Export to Excel function
   const exportToExcel = () => {
     if (!payment.items || payment.items.length === 0) {
@@ -127,7 +132,76 @@ export default function PaymentDetails() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+    {/* قسم الطباعة - يظهر فقط عند الطباعة */}
+    <div className="print-section hidden print:block" dir="rtl">
+      <style>{`
+        @media print {
+          @page { size: A4 portrait; margin: 10mm; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body * { visibility: hidden; }
+          .print-section, .print-section * { visibility: visible; }
+          .print-section { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+      
+      {/* الترويسة */}
+      <div className="border-b-4 border-double border-gray-800 pb-4 mb-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">كشف مستحقات الموردين</h1>
+            <p className="text-gray-500 text-sm mt-1">Suppliers Payment Statement</p>
+          </div>
+          <div className="text-left text-sm">
+            <p className="text-gray-600">رقم الطلب: <span className="font-bold text-gray-900">{id}</span></p>
+            <p className="text-gray-600">التاريخ: <span className="font-bold">{new Date(payment.created_at).toLocaleDateString('ar-SA')}</span></p>
+          </div>
+        </div>
+      </div>
+
+      {/* معلومات أساسية */}
+      <div className="flex justify-between mb-6 text-sm">
+        <div><span className="text-gray-500">الفرع:</span> <span className="font-semibold">{payment.branch_name || '-'}</span></div>
+        <div><span className="text-gray-500">البنك:</span> <span className="font-semibold">{payment.bank_name || '-'}</span></div>
+      </div>
+
+      {/* جدول البنود */}
+      <table className="w-full border-collapse text-sm mb-6">
+        <thead>
+          <tr style={{ backgroundColor: '#1f2937', color: 'white' }}>
+            <th className="border border-gray-600 px-3 py-2 text-center w-10">م</th>
+            <th className="border border-gray-600 px-3 py-2 text-center">رقم المورد</th>
+            <th className="border border-gray-600 px-3 py-2 text-right">اسم المورد</th>
+            <th className="border border-gray-600 px-3 py-2 text-center">دفعة المشتريات</th>
+            <th className="border border-gray-600 px-3 py-2 text-center">المبلغ المقترح</th>
+          </tr>
+        </thead>
+        <tbody>
+          {payment.items?.map((item: any, index: number) => (
+            <tr key={item.id} style={{ backgroundColor: index % 2 === 0 ? 'white' : '#f9fafb' }}>
+              <td className="border border-gray-300 px-3 py-2.5 text-center font-medium">{index + 1}</td>
+              <td className="border border-gray-300 px-3 py-2.5 text-center">{item.supplier_code || item.supplier}</td>
+              <td className="border border-gray-300 px-3 py-2.5 font-medium">{item.supplier_name}</td>
+              <td className="border border-gray-300 px-3 py-2.5 text-center">{parseFloat(item.amount || 0).toLocaleString('ar-SA')} ر.س</td>
+              <td className="border border-gray-300 px-3 py-2.5 text-center font-semibold" style={{ color: '#1d4ed8' }}>{parseFloat(item.proposed_amount || 0).toLocaleString('ar-SA')} ر.س</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ backgroundColor: '#1f2937', color: 'white', fontWeight: 'bold' }}>
+            <td colSpan={3} className="border border-gray-600 px-3 py-3 text-right">
+              الإجمالي ({payment.items?.length || 0} مورد)
+            </td>
+            <td className="border border-gray-600 px-3 py-3 text-center">{totalAmount.toLocaleString('ar-SA')} ر.س</td>
+            <td className="border border-gray-600 px-3 py-3 text-center">{totalProposed.toLocaleString('ar-SA')} ر.س</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {/* المحتوى العادي - يختفي عند الطباعة */}
+    <div className="space-y-6 no-print print:hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -144,12 +218,10 @@ export default function PaymentDetails() {
             <Download className="w-4 h-4 ml-2" />
             تصدير Excel
           </Button>
-          <Link to={`/payments/${id}/print`}>
-            <Button variant="outline">
-              <Printer className="w-4 h-4 ml-2" />
-              طباعة رسمية
-            </Button>
-          </Link>
+          <Button variant="outline" onClick={handlePrint}>
+            <Printer className="w-4 h-4 ml-2" />
+            طباعة
+          </Button>
           <Link to={"/payments/" + id + "/edit"}>
             <Button>
               <Edit className="w-4 h-4 ml-2" />
@@ -237,5 +309,6 @@ export default function PaymentDetails() {
         </div>
       </Card>
     </div>
+    </>
   )
 }
