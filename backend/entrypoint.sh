@@ -41,7 +41,7 @@ for r in roles:
 EOF
 
 echo "=== Collecting static files ==="
-python manage.py collectstatic --noinput
+python manage.py collectstatic --clear --noinput
 
 echo "=== Starting Gunicorn ==="
 exec gunicorn config.wsgi:application --bind 0.0.0.0:8096 --workers 3 --timeout 120
