@@ -18,11 +18,26 @@ interface AuthState {
   isLoading: boolean
 }
 
-const initialState: AuthState = {
-  user: null,
-  tokens: null,
-  isLoading: false,
+// Load initial state from localStorage
+const loadFromStorage = (): AuthState => {
+  try {
+    const tokens = localStorage.getItem('tokens')
+    const user = localStorage.getItem('user')
+    return {
+      tokens: tokens ? JSON.parse(tokens) : null,
+      user: user ? JSON.parse(user) : null,
+      isLoading: false,
+    }
+  } catch {
+    return {
+      user: null,
+      tokens: null,
+      isLoading: false,
+    }
+  }
 }
+
+const initialState: AuthState = loadFromStorage()
 
 const authSlice = createSlice({
   name: 'auth',
@@ -34,6 +49,9 @@ const authSlice = createSlice({
     ) => {
       state.user = action.payload.user
       state.tokens = action.payload.tokens
+      // Save to localStorage
+      localStorage.setItem('tokens', JSON.stringify(action.payload.tokens))
+      localStorage.setItem('user', JSON.stringify(action.payload.user))
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload
@@ -41,6 +59,9 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null
       state.tokens = null
+      // Clear localStorage
+      localStorage.removeItem('tokens')
+      localStorage.removeItem('user')
     },
   },
 })

@@ -14,6 +14,15 @@ import PaymentDetails from './pages/PaymentDetails'
 import Settings from './pages/Settings'
 import Users from './pages/Users'
 
+// Protected route wrapper - requires authentication
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const tokens = useSelector((state: RootState) => state.auth.tokens)
+  if (!tokens?.access) {
+    return <Navigate to="/login" replace />
+  }
+  return <>{children}</>
+}
+
 // Admin-only route wrapper
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const user = useSelector((state: RootState) => state.auth.user)
@@ -27,7 +36,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/" element={<Layout />}>
+      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="branches" element={<Branches />} />
         <Route path="banks" element={<Banks />} />
