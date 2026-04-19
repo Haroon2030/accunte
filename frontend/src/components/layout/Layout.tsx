@@ -141,9 +141,9 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <div className="lg:mr-64">
+      <div className="lg:mr-64 flex flex-col min-h-screen">
         {/* Header */}
-        <header className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+        <header className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm shrink-0">
           <div className="flex items-center justify-between h-16 px-4 lg:px-6">
             <div className="flex items-center gap-4">
               <button
@@ -199,9 +199,16 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6">
+        <main className="flex-1 p-4 lg:p-6">
           <Outlet />
         </main>
+
+        {/* Footer */}
+        <footer className="shrink-0 py-4 text-center text-sm text-gray-500 border-t border-gray-100 bg-white shadow-sm mt-auto z-10 sticky bottom-0">
+          <p>
+            تصميم وتطوير <span className="font-semibold text-gray-700">هارون الاهدل</span> | هاتف: <span className="font-semibold text-gray-700" dir="ltr">0531847156</span>
+          </p>
+        </footer>
       </div>
     </div>
   )

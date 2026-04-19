@@ -2,7 +2,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowRight, Edit, Printer, FileText, Download, Building2, CreditCard, User, Calendar, Clock, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import toast from 'react-hot-toast'
-import { Button, Card } from '../components/ui'
+import { Button } from '../components/ui'
 import { useGetPaymentQuery } from '../store/api'
 
 export default function PaymentDetails() {
@@ -197,160 +197,172 @@ export default function PaymentDetails() {
 
     {/* المحتوى العادي - يختفي عند الطباعة */}
     <div className="space-y-6 no-print print:hidden">
-      {/* Header با تصميم عصري */}
-      <div className="bg-gradient-to-l from-primary-600 to-primary-700 rounded-2xl p-6 text-white shadow-lg">
+      {/* Header بتصميم مطابق للصورة */}
+      <div className="bg-[#0a8bc2] rounded-2xl p-5 md:p-6 text-white shadow-lg">
         <div className="flex items-center justify-between">
+          {/* الجانب الأيمن - العنوان والمعلومات */}
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/payments')} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+            <button 
+              onClick={() => navigate('/payments')} 
+              className="p-2 hover:bg-white/20 rounded-xl transition-colors"
+            >
               <ArrowRight className="w-6 h-6" />
             </button>
+            <div className="bg-white/20 p-3 rounded-xl">
+              <FileSpreadsheet className="w-6 h-6" />
+            </div>
             <div>
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-xl">
-                  <FileSpreadsheet className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold">طلب الدفع #{id}</h1>
-                  <div className="flex items-center gap-2 mt-1 text-primary-100">
-                    <Calendar className="w-4 h-4" />
-                    <span className="text-sm">تم الإنشاء: {new Date(payment.created_at).toLocaleDateString('ar-SA')}</span>
-                  </div>
-                </div>
+              <h1 className="text-2xl font-bold">طلب الدفع #{id}</h1>
+              <div className="flex items-center gap-2 mt-1 text-white/80">
+                <Calendar className="w-4 h-4" />
+                <span className="text-sm">تم الإنشاء: {new Date(payment.created_at).toLocaleDateString('ar-SA')}</span>
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={exportToExcel} className="bg-white/10 border-white/30 text-white hover:bg-white/20">
-              <Download className="w-4 h-4 ml-2" />
+          
+          {/* الجانب الأيسر - الأزرار */}
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={exportToExcel} 
+              className="flex items-center gap-2 bg-transparent border border-white/40 text-white hover:bg-white/10 px-4 py-2.5 rounded-xl transition-colors text-sm font-medium"
+            >
+              <Download className="w-4 h-4" />
               تصدير Excel
-            </Button>
-            <Button variant="outline" onClick={handlePrint} className="bg-white/10 border-white/30 text-white hover:bg-white/20">
-              <Printer className="w-4 h-4 ml-2" />
+            </button>
+            <button 
+              onClick={handlePrint} 
+              className="flex items-center gap-2 bg-transparent border border-white/40 text-white hover:bg-white/10 px-4 py-2.5 rounded-xl transition-colors text-sm font-medium"
+            >
+              <Printer className="w-4 h-4" />
               طباعة
-            </Button>
-            <Link to={"/payments/" + id + "/edit"}>
-              <Button className="bg-white text-primary-700 hover:bg-primary-50">
-                <Edit className="w-4 h-4 ml-2" />
+            </button>
+            <Link to={`/payments/${id}/edit`}>
+              <button className="flex items-center gap-2 bg-white text-gray-700 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-colors text-sm font-medium">
+                <Edit className="w-4 h-4" />
                 تعديل
-              </Button>
+              </button>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* بطاقات المعلومات */}
+      {/* بطاقات المعلومات - تصميم مطابق للصورة */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4 border-r-4 border-r-blue-500 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-100 p-3 rounded-xl">
-              <Building2 className="w-5 h-5 text-blue-600" />
+        {/* الفرع */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="bg-emerald-50 p-3 rounded-xl">
+              <Building2 className="w-6 h-6 text-emerald-500" />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">الفرع</p>
-              <p className="font-bold text-gray-900">{payment.branch_name || '-'}</p>
+            <div className="text-right flex-1">
+              <p className="text-sm text-gray-400">الفرع</p>
+              <p className="font-bold text-gray-900 text-lg">{payment.branch_name || '-'}</p>
             </div>
           </div>
-        </Card>
+        </div>
         
-        <Card className="p-4 border-r-4 border-r-green-500 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="bg-green-100 p-3 rounded-xl">
-              <CreditCard className="w-5 h-5 text-green-600" />
+        {/* البنك */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="bg-emerald-50 p-3 rounded-xl">
+              <CreditCard className="w-6 h-6 text-emerald-500" />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">البنك</p>
-              <p className="font-bold text-gray-900">{payment.bank_name || '-'}</p>
+            <div className="text-right flex-1">
+              <p className="text-sm text-gray-400">البنك</p>
+              <p className="font-bold text-gray-900 text-lg">{payment.bank_name || '-'}</p>
             </div>
           </div>
-        </Card>
+        </div>
         
-        <Card className="p-4 border-r-4 border-r-amber-500 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="bg-amber-100 p-3 rounded-xl">
-              <Clock className="w-5 h-5 text-amber-600" />
+        {/* الحالة */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="bg-amber-50 p-3 rounded-xl">
+              <Clock className="w-6 h-6 text-amber-500" />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">الحالة</p>
-              <p className="font-bold text-gray-900">{(payment as any).status_display || payment.status}</p>
+            <div className="text-right flex-1">
+              <p className="text-sm text-gray-400">الحالة</p>
+              <p className="font-bold text-amber-600 text-lg">{(payment as any).status_display || payment.status || 'مسودة'}</p>
             </div>
           </div>
-        </Card>
+        </div>
         
-        <Card className="p-4 border-r-4 border-r-purple-500 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="bg-purple-100 p-3 rounded-xl">
-              <User className="w-5 h-5 text-purple-600" />
+        {/* أنشئ بواسطة */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
+            <div className="bg-purple-50 p-3 rounded-xl">
+              <User className="w-6 h-6 text-purple-500" />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">أنشئ بواسطة</p>
-              <p className="font-bold text-gray-900">{(payment.created_by as any)?.full_name || (payment.created_by as any)?.username || '-'}</p>
+            <div className="text-right flex-1">
+              <p className="text-sm text-gray-400">أنشئ بواسطة</p>
+              <p className="font-bold text-gray-900 text-lg">{(payment.created_by as any)?.full_name || (payment.created_by as any)?.username || 'admin'}</p>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
-      {/* جدول البنود بتصميم عصري */}
-      <Card className="overflow-hidden">
-        <div className="bg-gray-800 text-white px-6 py-4">
+      {/* جدول البنود - تصميم مطابق للصورة */}
+      <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+        <div className="bg-[#1e3a5f] text-white px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              بنود الدفع
-            </h2>
-            <span className="bg-white/20 px-3 py-1 rounded-full text-sm">{payment.items?.length || 0} مورد</span>
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              <h2 className="text-lg font-bold">بنود الدفع</h2>
+            </div>
+            <span className="bg-gray-600 px-4 py-1.5 rounded-full text-sm font-medium">{payment.items?.length || 0} مورد</span>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-100">
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">#</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">رقم المورد</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">اسم المورد</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">رصيد المورد</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">دفعة المشتريات</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">اعتماد سلطان</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">حالة المدقق</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">المدير المالي</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">اقتراح السداد</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">اعتماد أبو علاء</th>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-600">#</th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-600">رقم المورد</th>
+                <th className="px-4 py-4 text-right text-sm font-semibold text-gray-600">اسم المورد</th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-600">رصيد المورد</th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-600">دفعة المشتريات</th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-600">اعتماد سلطان</th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-600">حالة المدقق</th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-600">المدير المالي</th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-600">اقتراح السداد</th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-600">اعتماد أبو علاء</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-100">
               {payment.items?.map((item: any, index: number) => (
-                <tr key={item.id} className="hover:bg-blue-50/50 transition-colors">
-                  <td className="px-4 py-4">
-                    <span className="bg-gray-200 text-gray-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">{index + 1}</span>
+                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-4 text-center">
+                    <span className="bg-gray-100 text-gray-700 w-8 h-8 rounded-full inline-flex items-center justify-center font-bold text-sm">{index + 1}</span>
                   </td>
-                  <td className="px-4 py-4">
-                    <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-mono text-sm">{item.supplier_code || item.supplier}</span>
+                  <td className="px-4 py-4 text-center">
+                    <span className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg font-mono text-sm border border-blue-100">{item.supplier_code || item.supplier}</span>
                   </td>
-                  <td className="px-4 py-4 font-medium text-gray-900">{item.supplier_name}</td>
-                  <td className="px-4 py-4 font-semibold text-gray-700">{parseFloat(item.current_balance || 0).toLocaleString('ar-SA')}</td>
-                  <td className="px-4 py-4 font-semibold text-gray-700">{parseFloat(item.amount || 0).toLocaleString('ar-SA')}</td>
+                  <td className="px-4 py-4 font-semibold text-gray-900">{item.supplier_name}</td>
+                  <td className="px-4 py-4 text-center font-medium text-gray-700">{parseFloat(item.current_balance || 0).toLocaleString('ar-SA')}</td>
+                  <td className="px-4 py-4 text-center font-medium text-gray-700">{parseFloat(item.amount || 0).toLocaleString('ar-SA')}</td>
                   <td className="px-4 py-4 text-center">{getStatusBadge(item.sultan_approval)}</td>
                   <td className="px-4 py-4 text-center">{getStatusBadge(item.auditor_status)}</td>
                   <td className="px-4 py-4 text-center">{getStatusBadge(item.cfo_approval)}</td>
-                  <td className="px-4 py-4">
-                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-lg font-bold">{parseFloat(item.proposed_amount || 0).toLocaleString('ar-SA')}</span>
+                  <td className="px-4 py-4 text-center">
+                    <span className="bg-green-100 text-green-700 px-3 py-1.5 rounded-lg font-bold border border-green-200">{parseFloat(item.proposed_amount || 0).toLocaleString('ar-SA')}</span>
                   </td>
                   <td className="px-4 py-4 text-center">{getStatusBadge(item.abu_alaa_final)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="bg-gray-800 text-white">
-                <td colSpan={3} className="px-4 py-4 font-bold">الإجمالي ({payment.items?.length || 0} مورد)</td>
-                <td className="px-4 py-4 font-bold">{totalBalance.toLocaleString('ar-SA')}</td>
-                <td className="px-4 py-4 font-bold">{totalAmount.toLocaleString('ar-SA')}</td>
+              <tr className="bg-[#1e3a5f] text-white">
+                <td colSpan={3} className="px-4 py-4 font-bold text-right">الإجمالي ({payment.items?.length || 0} مورد)</td>
+                <td className="px-4 py-4 font-bold text-center">{totalBalance.toLocaleString('ar-SA')}</td>
+                <td className="px-4 py-4 font-bold text-center">{totalAmount.toLocaleString('ar-SA')}</td>
                 <td colSpan={3}></td>
-                <td className="px-4 py-4 font-bold text-green-400">{totalProposed.toLocaleString('ar-SA')}</td>
+                <td className="px-4 py-4 font-bold text-center text-green-300">{totalProposed.toLocaleString('ar-SA')}</td>
                 <td></td>
               </tr>
             </tfoot>
           </table>
         </div>
-      </Card>
+      </div>
     </div>
     </>
   )
