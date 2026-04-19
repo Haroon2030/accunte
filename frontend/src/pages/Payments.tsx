@@ -1,19 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Eye, Edit, RefreshCw, Download } from 'lucide-react'
+import { Plus, Eye, Edit, RefreshCw, Download, FileText, Calendar, User, Building2 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import toast from 'react-hot-toast'
-import { Button, Card } from '../components/ui'
+import { Button } from '../components/ui'
 import { useGetPaymentsQuery } from '../store/api'
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-800',
-  pending: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  paid: 'bg-blue-100 text-blue-800',
-}
 
 const statusLabels: Record<string, string> = {
   draft: 'مسودة',
@@ -103,61 +95,84 @@ export default function Payments() {
         </div>
       </div>
 
-      {/* Table */}
-      <Card className="overflow-hidden">
+      {/* Modern Table */}
+      <div className="modern-table-container w-full">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+          <table className="modern-table w-full">
+            <thead>
               <tr>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">سجل الدفعة</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">الفرع</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">المستخدم</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">التاريخ</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">الحالة</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">إجراءات</th>
+                <th>سجل الدفعة</th>
+                <th>الفرع</th>
+                <th>المستخدم</th>
+                <th>التاريخ</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    جاري التحميل...
+                  <td colSpan={6}>
+                    <div className="table-empty-state">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4" />
+                      <p className="text">جاري التحميل...</p>
+                    </div>
                   </td>
                 </tr>
               ) : data?.results?.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    لا توجد طلبات
+                  <td colSpan={6}>
+                    <div className="table-empty-state">
+                      <FileText className="icon" />
+                      <p className="text">لا توجد طلبات دفع</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 data?.results?.map((payment: any) => (
-                  <tr key={payment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-primary-600">#{payment.id}</span>
+                  <tr key={payment.id}>
+                    <td>
+                      <span className="payment-id-badge">#{payment.id}</span>
                     </td>
-                    <td className="px-6 py-4 text-gray-900">{payment.branch_name || payment.branch}</td>
-                    <td className="px-6 py-4 text-gray-600">{payment.created_by_name || 'admin'}</td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {new Date(payment.created_at).toLocaleDateString('ar-SA')}
+                    <td>
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="table-icon-box primary w-8 h-8">
+                          <Building2 className="w-4 h-4" />
+                        </div>
+                        <span className="font-medium text-slate-800">{payment.branch_name || payment.branch}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[payment.status] || 'bg-gray-100'}`}>
+                    <td>
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center">
+                          <User className="w-3.5 h-3.5 text-slate-600" />
+                        </div>
+                        <span className="text-slate-600">{payment.created_by_name || 'admin'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-center gap-2 text-slate-600">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <span>{new Date(payment.created_at).toLocaleDateString('ar-SA')}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`payment-status-badge ${payment.status}`}>
                         {statusLabels[payment.status] || payment.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
+                    <td>
+                      <div className="flex items-center justify-center gap-1">
                         <Link
                           to={`/payments/${payment.id}`}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="action-btn edit"
                           title="عرض التفاصيل"
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
                         <Link
                           to={`/payments/${payment.id}/edit`}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          className="action-btn edit"
                           title="تعديل"
                         >
                           <Edit className="w-4 h-4" />
@@ -170,34 +185,34 @@ export default function Payments() {
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* Pagination */}
-        {data && data.count > 20 && (
-          <div className="px-6 py-4 border-t flex items-center justify-between">
-            <span className="text-sm text-gray-600">
-              إجمالي: {data.count} طلب
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                السابق
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => p + 1)}
-                disabled={page * 20 >= data.count}
-              >
-                التالي
-              </Button>
-            </div>
-          </div>
-        )}
-      </Card>
+      {/* Pagination */}
+      {data && data.count > 20 && (
+        <div className="modern-pagination">
+          <Button
+            variant="outline"
+            size="sm"
+            className="page-btn"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            السابق
+          </Button>
+          <span className="page-info text-slate-600 bg-slate-100 px-4 py-2 rounded-xl text-sm font-medium">
+            صفحة {page} من {Math.ceil(data.count / 20)} • إجمالي {data.count} طلب
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="page-btn"
+            onClick={() => setPage(p => p + 1)}
+            disabled={page * 20 >= data.count}
+          >
+            التالي
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

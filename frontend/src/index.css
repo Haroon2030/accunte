@@ -202,3 +202,66 @@ body {
 .modern-pagination .page-info {
   @apply px-4 py-2 bg-slate-100 rounded-xl text-sm text-slate-600 font-medium;
 }
+
+/* Payment ID Badge */
+.payment-id-badge {
+  @apply inline-flex items-center px-3 py-1.5 rounded-lg font-bold text-sm;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+/* Payment Status Badges */
+.payment-status-badge {
+  @apply px-3 py-1.5 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition-all duration-200;
+}
+
+.payment-status-badge::before {
+  content: '';
+  @apply w-2 h-2 rounded-full;
+}
+
+.payment-status-badge.draft {
+  @apply bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700;
+  box-shadow: 0 2px 6px rgba(100, 116, 139, 0.2);
+}
+
+.payment-status-badge.draft::before {
+  @apply bg-slate-500;
+}
+
+.payment-status-badge.pending {
+  @apply bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+}
+
+.payment-status-badge.pending::before {
+  @apply bg-amber-500 animate-pulse;
+}
+
+.payment-status-badge.approved {
+  @apply bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+
+.payment-status-badge.approved::before {
+  @apply bg-emerald-500;
+}
+
+.payment-status-badge.rejected {
+  @apply bg-gradient-to-r from-red-100 to-red-200 text-red-800;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
+.payment-status-badge.rejected::before {
+  @apply bg-red-500;
+}
+
+.payment-status-badge.paid {
+  @apply bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+}
+
+.payment-status-badge.paid::before {
+  @apply bg-blue-500;
+}
