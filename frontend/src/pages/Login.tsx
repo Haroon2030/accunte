@@ -67,18 +67,24 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 flex items-center justify-center p-4" dir="rtl">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-primary-50 flex items-center justify-center p-4" dir="rtl">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary-200 rounded-full opacity-20 blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary-300 rounded-full opacity-20 blur-3xl"></div>
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
-            <Landmark className="w-12 h-12 text-primary-700" />
+          <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/30">
+            <Landmark className="w-12 h-12 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white">نظام المدفوعات</h1>
-          <p className="text-primary-200 mt-2">نظام إدارة المدفوعات المالية</p>
+          <h1 className="text-3xl font-bold text-gray-800">نظام المدفوعات</h1>
+          <p className="text-gray-500 mt-2">نظام إدارة المدفوعات المالية</p>
         </div>
 
-        <Card className="shadow-2xl">
+        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
           <CardContent className="p-8">
             <div className="text-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">تسجيل الدخول</h2>
@@ -115,7 +121,7 @@ export default function Login() {
                 </button>
               </div>
 
-              <Button type="submit" className="w-full" isLoading={isLoading}>
+              <Button type="submit" className="w-full bg-gradient-to-l from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 shadow-lg shadow-primary-500/30" isLoading={isLoading}>
                 تسجيل الدخول
               </Button>
             </form>
@@ -123,7 +129,7 @@ export default function Login() {
         </Card>
 
         <div className="text-center mt-8">
-          <p className="text-primary-200 text-sm">© 2024 نظام المدفوعات. جميع الحقوق محفوظة</p>
+          <p className="text-gray-500 text-sm">© 2024 نظام المدفوعات. جميع الحقوق محفوظة</p>
         </div>
       </div>
     </div>
