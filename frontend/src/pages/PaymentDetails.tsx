@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowRight, Edit, Printer, FileText, Download } from 'lucide-react'
+import { ArrowRight, Edit, Printer, FileText, Download, Building2, CreditCard, User, Calendar, Clock, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import toast from 'react-hot-toast'
 import { Button, Card } from '../components/ui'
@@ -197,106 +197,176 @@ export default function PaymentDetails() {
 
     {/* المحتوى العادي - يختفي عند الطباعة */}
     <div className="space-y-6 no-print print:hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/payments')} className="p-2 hover:bg-gray-100 rounded-lg">
-            <ArrowRight className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">طلب الدفع #{id}</h1>
-            <p className="text-gray-500 mt-1">تم الإنشاء: {new Date(payment.created_at).toLocaleDateString('ar-SA')}</p>
+      {/* Header با تصميم عصري */}
+      <div className="bg-gradient-to-l from-primary-600 to-primary-700 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate('/payments')} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+              <ArrowRight className="w-6 h-6" />
+            </button>
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-xl">
+                  <FileSpreadsheet className="w-6 h-6" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold">طلب الدفع #{id}</h1>
+                  <div className="flex items-center gap-2 mt-1 text-primary-100">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm">تم الإنشاء: {new Date(payment.created_at).toLocaleDateString('ar-SA')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportToExcel}>
-            <Download className="w-4 h-4 ml-2" />
-            تصدير Excel
-          </Button>
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="w-4 h-4 ml-2" />
-            طباعة
-          </Button>
-          <Link to={"/payments/" + id + "/edit"}>
-            <Button>
-              <Edit className="w-4 h-4 ml-2" />
-              تعديل
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportToExcel} className="bg-white/10 border-white/30 text-white hover:bg-white/20">
+              <Download className="w-4 h-4 ml-2" />
+              تصدير Excel
             </Button>
-          </Link>
+            <Button variant="outline" onClick={handlePrint} className="bg-white/10 border-white/30 text-white hover:bg-white/20">
+              <Printer className="w-4 h-4 ml-2" />
+              طباعة
+            </Button>
+            <Link to={"/payments/" + id + "/edit"}>
+              <Button className="bg-white text-primary-700 hover:bg-primary-50">
+                <Edit className="w-4 h-4 ml-2" />
+                تعديل
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Payment Info */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">معلومات الطلب</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm text-gray-500">الفرع</label>
-            <p className="font-medium">{payment.branch_name || '-'}</p>
+      {/* بطاقات المعلومات */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-4 border-r-4 border-r-blue-500 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 p-3 rounded-xl">
+              <Building2 className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">الفرع</p>
+              <p className="font-bold text-gray-900">{payment.branch_name || '-'}</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-500">البنك</label>
-            <p className="font-medium">{payment.bank_name || '-'}</p>
+        </Card>
+        
+        <Card className="p-4 border-r-4 border-r-green-500 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="bg-green-100 p-3 rounded-xl">
+              <CreditCard className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">البنك</p>
+              <p className="font-bold text-gray-900">{payment.bank_name || '-'}</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-500">الحالة</label>
-            <p className="font-medium">{(payment as any).status_display || payment.status}</p>
+        </Card>
+        
+        <Card className="p-4 border-r-4 border-r-amber-500 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-100 p-3 rounded-xl">
+              <Clock className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">الحالة</p>
+              <p className="font-bold text-gray-900">{(payment as any).status_display || payment.status}</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-500">أنشأ بواسطة</label>
-            <p className="font-medium">{(payment.created_by as any)?.full_name || (payment.created_by as any)?.username || '-'}</p>
+        </Card>
+        
+        <Card className="p-4 border-r-4 border-r-purple-500 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="bg-purple-100 p-3 rounded-xl">
+              <User className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">أنشئ بواسطة</p>
+              <p className="font-bold text-gray-900">{(payment.created_by as any)?.full_name || (payment.created_by as any)?.username || '-'}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* ملخص الإحصائيات */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-none">
+          <div className="text-center">
+            <p className="text-blue-600 text-sm font-medium mb-1">إجمالي رصيد الموردين</p>
+            <p className="text-2xl font-bold text-blue-700">{totalBalance.toLocaleString('ar-SA')} <span className="text-base">ر.س</span></p>
+          </div>
+        </Card>
+        <Card className="p-5 bg-gradient-to-br from-green-50 to-green-100 border-none">
+          <div className="text-center">
+            <p className="text-green-600 text-sm font-medium mb-1">إجمالي دفعات المشتريات</p>
+            <p className="text-2xl font-bold text-green-700">{totalAmount.toLocaleString('ar-SA')} <span className="text-base">ر.س</span></p>
+          </div>
+        </Card>
+        <Card className="p-5 bg-gradient-to-br from-purple-50 to-purple-100 border-none">
+          <div className="text-center">
+            <p className="text-purple-600 text-sm font-medium mb-1">إجمالي المبالغ المقترحة</p>
+            <p className="text-2xl font-bold text-purple-700">{totalProposed.toLocaleString('ar-SA')} <span className="text-base">ر.س</span></p>
+          </div>
+        </Card>
+      </div>
+
+      {/* جدول البنود بتصميم عصري */}
+      <Card className="overflow-hidden">
+        <div className="bg-gray-800 text-white px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              بنود الدفع
+            </h2>
+            <span className="bg-white/20 px-3 py-1 rounded-full text-sm">{payment.items?.length || 0} مورد</span>
           </div>
         </div>
-        {payment.notes && (
-          <div className="mt-4">
-            <label className="block text-sm text-gray-500">ملاحظات</label>
-            <p className="font-medium">{payment.notes}</p>
-          </div>
-        )}
-      </Card>
-
-      {/* Items Table */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">بنود الدفع ({payment.items?.length || 0} بند)</h2>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">#</th>
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">رقم المورد</th>
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اسم المورد</th>
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">رصيد المورد</th>
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">دفعة المشتريات</th>
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اعتماد سلطان</th>
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">حالة المدقق</th>
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">المدير المالي</th>
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اقتراح السداد</th>
-                <th className="px-3 py-3 text-right text-sm font-medium text-gray-700">اعتماد أبو علاء</th>
+              <tr className="bg-gray-100">
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">#</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">رقم المورد</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">اسم المورد</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">رصيد المورد</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">دفعة المشتريات</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">اعتماد سلطان</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">حالة المدقق</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">المدير المالي</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">اقتراح السداد</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">اعتماد أبو علاء</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {payment.items?.map((item: any, index: number) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-3 text-sm text-gray-600">{index + 1}</td>
-                  <td className="px-3 py-3 text-sm">{item.supplier_code || item.supplier}</td>
-                  <td className="px-3 py-3 text-sm font-medium">{item.supplier_name}</td>
-                  <td className="px-3 py-3 text-sm">{parseFloat(item.current_balance || 0).toLocaleString()}</td>
-                  <td className="px-3 py-3 text-sm">{parseFloat(item.amount || 0).toLocaleString()}</td>
-                  <td className="px-3 py-3">{getStatusBadge(item.sultan_approval)}</td>
-                  <td className="px-3 py-3">{getStatusBadge(item.auditor_status)}</td>
-                  <td className="px-3 py-3">{getStatusBadge(item.cfo_approval)}</td>
-                  <td className="px-3 py-3 text-sm">{parseFloat(item.proposed_amount || 0).toLocaleString()}</td>
-                  <td className="px-3 py-3">{getStatusBadge(item.abu_alaa_final)}</td>
+                <tr key={item.id} className="hover:bg-blue-50/50 transition-colors">
+                  <td className="px-4 py-4">
+                    <span className="bg-gray-200 text-gray-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">{index + 1}</span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-mono text-sm">{item.supplier_code || item.supplier}</span>
+                  </td>
+                  <td className="px-4 py-4 font-medium text-gray-900">{item.supplier_name}</td>
+                  <td className="px-4 py-4 font-semibold text-gray-700">{parseFloat(item.current_balance || 0).toLocaleString('ar-SA')}</td>
+                  <td className="px-4 py-4 font-semibold text-gray-700">{parseFloat(item.amount || 0).toLocaleString('ar-SA')}</td>
+                  <td className="px-4 py-4 text-center">{getStatusBadge(item.sultan_approval)}</td>
+                  <td className="px-4 py-4 text-center">{getStatusBadge(item.auditor_status)}</td>
+                  <td className="px-4 py-4 text-center">{getStatusBadge(item.cfo_approval)}</td>
+                  <td className="px-4 py-4">
+                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-lg font-bold">{parseFloat(item.proposed_amount || 0).toLocaleString('ar-SA')}</span>
+                  </td>
+                  <td className="px-4 py-4 text-center">{getStatusBadge(item.abu_alaa_final)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-gray-50">
-              <tr>
-                <td colSpan={3} className="px-3 py-3 text-sm font-semibold text-gray-700">الإجمالي ({payment.items?.length || 0} بند)</td>
-                <td className="px-3 py-3 text-sm font-semibold">{totalBalance.toLocaleString()}</td>
-                <td className="px-3 py-3 text-sm font-semibold">{totalAmount.toLocaleString()}</td>
+            <tfoot>
+              <tr className="bg-gray-800 text-white">
+                <td colSpan={3} className="px-4 py-4 font-bold">الإجمالي ({payment.items?.length || 0} مورد)</td>
+                <td className="px-4 py-4 font-bold">{totalBalance.toLocaleString('ar-SA')}</td>
+                <td className="px-4 py-4 font-bold">{totalAmount.toLocaleString('ar-SA')}</td>
                 <td colSpan={3}></td>
-                <td className="px-3 py-3 text-sm font-semibold">{totalProposed.toLocaleString()}</td>
+                <td className="px-4 py-4 font-bold text-green-400">{totalProposed.toLocaleString('ar-SA')}</td>
                 <td></td>
               </tr>
             </tfoot>
