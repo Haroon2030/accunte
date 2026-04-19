@@ -144,10 +144,12 @@ export default function PaymentDetails() {
             <Download className="w-4 h-4 ml-2" />
             تصدير Excel
           </Button>
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="w-4 h-4 ml-2" />
-            طباعة
-          </Button>
+          <Link to={`/payments/${id}/print`}>
+            <Button variant="outline">
+              <Printer className="w-4 h-4 ml-2" />
+              طباعة رسمية
+            </Button>
+          </Link>
           <Link to={"/payments/" + id + "/edit"}>
             <Button>
               <Edit className="w-4 h-4 ml-2" />

@@ -11,6 +11,7 @@ import CostCenters from './pages/CostCenters'
 import Payments from './pages/Payments'
 import PaymentForm from './pages/PaymentForm'
 import PaymentDetails from './pages/PaymentDetails'
+import PaymentPrint from './pages/PaymentPrint'
 import Settings from './pages/Settings'
 import Users from './pages/Users'
 
@@ -45,6 +46,7 @@ function App() {
         <Route path="payments" element={<Payments />} />
         <Route path="payments/new" element={<PaymentForm />} />
         <Route path="payments/:id" element={<PaymentDetails />} />
+        <Route path="payments/:id/print" element={<PaymentPrint />} />
         <Route path="payments/:id/edit" element={<PaymentForm />} />
         <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
         <Route path="settings" element={<Settings />} />
