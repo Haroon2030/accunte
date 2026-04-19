@@ -28,7 +28,7 @@ const navigation = [
   { name: 'الفروع', href: '/branches', icon: Building2 },
   { name: 'البنوك', href: '/banks', icon: Landmark },
   { name: 'مراكز التكلفة', href: '/cost-centers', icon: Wallet },
-  { name: 'المستخدمين', href: '/users', icon: UserCog },
+  { name: 'المستخدمين', href: '/users', icon: UserCog, adminOnly: true },
   { name: 'الإعدادات', href: '/settings', icon: Settings },
 ]
 
@@ -112,7 +112,9 @@ export default function Layout() {
 
         {/* Navigation */}
         <nav className="p-4 space-y-1">
-          {navigation.map((item) => {
+          {navigation
+            .filter((item) => !item.adminOnly || user?.is_staff)
+            .map((item) => {
             const isActive = location.pathname === item.href ||
               (item.href !== '/' && location.pathname.startsWith(item.href))
             return (
