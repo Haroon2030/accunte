@@ -37,6 +37,8 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* صفحة الطباعة - خارج Layout لتكون نظيفة بدون قوائم */}
+      <Route path="/payments/:id/print" element={<ProtectedRoute><PaymentPrint /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="branches" element={<Branches />} />
@@ -46,7 +48,6 @@ function App() {
         <Route path="payments" element={<Payments />} />
         <Route path="payments/new" element={<PaymentForm />} />
         <Route path="payments/:id" element={<PaymentDetails />} />
-        <Route path="payments/:id/print" element={<PaymentPrint />} />
         <Route path="payments/:id/edit" element={<PaymentForm />} />
         <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
         <Route path="settings" element={<Settings />} />
