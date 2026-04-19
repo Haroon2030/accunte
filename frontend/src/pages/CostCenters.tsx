@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Edit, Trash2, BarChart3, Search } from 'lucide-react'
-import { Button, Card, Input } from '../components/ui'
+import { Button, Input } from '../components/ui'
 import { useGetCostCentersQuery, useCreateCostCenterMutation, useUpdateCostCenterMutation, useDeleteCostCenterMutation } from '../store/api'
 import toast from 'react-hot-toast'
 
@@ -55,8 +55,8 @@ export default function CostCenters() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Header with Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">مراكز التكلفة</h1>
           <p className="text-gray-500 mt-1">إدارة مراكز التكلفة ({data?.count || 0} مركز)</p>
@@ -67,18 +67,16 @@ export default function CostCenters() {
         </Button>
       </div>
 
-      {/* Search */}
-      <Card className="p-4">
-        <div className="relative">
-          <Search className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
-          <Input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="بحث في مراكز التكلفة..."
-            className="pr-10"
-          />
-        </div>
-      </Card>
+      {/* Search Bar */}
+      <div className="relative w-full sm:max-w-md">
+        <Search className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <Input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          placeholder="بحث في مراكز التكلفة..."
+          className="pr-10 bg-white shadow-sm border-gray-200 focus:border-primary-400 focus:ring-primary-400"
+        />
+      </div>
 
       {/* Table */}
       <div className="modern-table-container">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Edit, Trash2, Landmark, Search, Copy } from 'lucide-react'
-import { Button, Card, Input } from '../components/ui'
+import { Button, Input } from '../components/ui'
 import { useGetBanksQuery, useCreateBankMutation, useUpdateBankMutation, useDeleteBankMutation, useGetBranchesQuery } from '../store/api'
 import toast from 'react-hot-toast'
 
@@ -74,8 +74,8 @@ export default function Banks() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Header with Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">البنوك</h1>
           <p className="text-gray-500 mt-1">إدارة الحسابات البنكية ({data?.count || 0} حساب)</p>
@@ -86,18 +86,16 @@ export default function Banks() {
         </Button>
       </div>
 
-      {/* Search */}
-      <Card className="p-4">
-        <div className="relative">
-          <Search className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
-          <Input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="بحث في البنوك..."
-            className="pr-10"
-          />
-        </div>
-      </Card>
+      {/* Search Bar */}
+      <div className="relative w-full sm:max-w-md">
+        <Search className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <Input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          placeholder="بحث في البنوك..."
+          className="pr-10 bg-white shadow-sm border-gray-200 focus:border-primary-400 focus:ring-primary-400"
+        />
+      </div>
 
       {/* Table */}
       <div className="modern-table-container">

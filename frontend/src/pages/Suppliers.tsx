@@ -225,28 +225,28 @@ export default function Suppliers() {
       </div>
 
       {/* Search and Add */}
-      <Card>
-        <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="relative w-full sm:max-w-md">
           <Input
             type="search"
             placeholder="بحث عن مورد..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             searchMode
-            className="w-full sm:w-80"
+            className="bg-white shadow-sm border-gray-200 focus:border-primary-400 focus:ring-primary-400"
           />
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={exportToExcel}>
-              <Download className="w-5 h-5" />
-              <span className="mr-2">تصدير Excel</span>
-            </Button>
-            <Button onClick={handleAdd}>
-              <Plus className="w-5 h-5" />
-              <span className="mr-2">إضافة مورد</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToExcel}>
+            <Download className="w-5 h-5" />
+            <span className="mr-2">تصدير Excel</span>
+          </Button>
+          <Button onClick={handleAdd}>
+            <Plus className="w-5 h-5" />
+            <span className="mr-2">إضافة مورد</span>
+          </Button>
+        </div>
+      </div>
 
       {/* Suppliers Table */}
       <div className="modern-table-container">
