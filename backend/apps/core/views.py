@@ -175,7 +175,7 @@ def current_user(request):
             'role_type': profile.role.role_type if profile.role else None,
             'branch': profile.branch.id if profile.branch else None,
             'branch_name': profile.branch.name if profile.branch else None,
-            'can_see_all_branches': profile.can_see_all_branches(),
+            'can_see_all_branches': profile.can_see_all_branches,
         }
     
     return Response({

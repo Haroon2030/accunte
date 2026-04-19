@@ -15,11 +15,8 @@ from .serializers import BranchSerializer, BranchListSerializer, BranchDetailSer
 class BranchViewSet(viewsets.ModelViewSet):
     """
     ViewSet لإدارة الفروع
+    مع فلترة حسب صلاحيات المستخدم
     """
-    queryset = Branch.objects.select_related('cost_center').annotate(
-        banks_count=Count('bank_accounts', distinct=True),
-        payments_count=Count('payment_requests', distinct=True)
-    )
     serializer_class = BranchSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -27,6 +24,41 @@ class BranchViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'code', 'address']
     ordering_fields = ['name', 'code', 'created_at']
     ordering = ['name']
+
+    def get_queryset(self):
+        """
+        فلترة الفروع حسب صلاحيات المستخدم:
+        - موظف فرع: يرى فقط فرعه
+        - مدقق/مدير/ادمن: يرون جميع الفروع
+        """
+        queryset = Branch.objects.select_related('cost_center').annotate(
+            banks_count=Count('bank_accounts', distinct=True),
+            payments_count=Count('payment_requests', distinct=True)
+        )
+        
+        user = self.request.user
+        
+        # إذا كان المستخدم غير مسجل، يرى كل الفروع (للاختبار)
+        if not user.is_authenticated:
+            return queryset
+        
+        # الأدمن والمدير يرون كل الفروع
+        if user.is_staff or user.is_superuser:
+            return queryset
+        
+        # التحقق من وجود UserProfile
+        if hasattr(user, 'profile'):
+            profile = user.profile
+            
+            # موظف الفرع يرى فقط فرعه
+            if profile.is_branch_employee and not profile.can_see_all_branches:
+                if profile.branch:
+                    queryset = queryset.filter(id=profile.branch.id)
+                else:
+                    # إذا لم يكن مرتبط بفرع، لا يرى شيء
+                    queryset = queryset.none()
+        
+        return queryset
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -36,7 +68,7 @@ class BranchViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def active(self, request):
         """الحصول على الفروع النشطة فقط"""
-        queryset = self.queryset.filter(is_active=True)
+        queryset = self.get_queryset().filter(is_active=True)
         serializer = BranchListSerializer(queryset, many=True)
         return Response(serializer.data)
 

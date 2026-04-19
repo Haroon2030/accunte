@@ -156,6 +156,7 @@ class UserProfile(models.Model):
         """هل المستخدم موظف فرع؟"""
         return self.role and self.role.role_type == Role.RoleType.BRANCH_EMPLOYEE
     
+    @property
     def can_see_all_branches(self):
         """هل يمكن للمستخدم رؤية جميع الفروع؟"""
         if not self.role:
