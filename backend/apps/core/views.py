@@ -3,7 +3,7 @@
 """
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.contrib.admin.views.decorators import staff_member_required
@@ -27,7 +27,7 @@ class PermissionViewSet(viewsets.ModelViewSet):
     """ViewSet للصلاحيات"""
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
-    permission_classes = [AllowAny]  # TODO: تغيير للإنتاج
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['module', 'is_active']
     search_fields = ['name', 'code', 'description']
@@ -53,7 +53,7 @@ class PermissionViewSet(viewsets.ModelViewSet):
 class RoleViewSet(viewsets.ModelViewSet):
     """ViewSet للأدوار"""
     queryset = Role.objects.all()
-    permission_classes = [AllowAny]  # TODO: تغيير للإنتاج
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['is_active']
     search_fields = ['name', 'description']
@@ -109,7 +109,7 @@ class UserViewSet(viewsets.ModelViewSet):
     """ViewSet للمستخدمين"""
     queryset = User.objects.select_related('profile', 'profile__role', 'profile__branch').all()
     serializer_class = UserSerializer
-    permission_classes = [AllowAny]  # TODO: تغيير للإنتاج
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['is_active', 'is_staff', 'is_superuser']
     search_fields = ['username', 'email', 'first_name', 'last_name']

@@ -4,7 +4,7 @@
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Bank
@@ -17,7 +17,7 @@ class BankViewSet(viewsets.ModelViewSet):
     """
     queryset = Bank.objects.select_related('branch')
     serializer_class = BankSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'branch']
     search_fields = ['name', 'code', 'account_number']

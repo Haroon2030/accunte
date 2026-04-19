@@ -9,7 +9,7 @@ from decouple import config
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True  # Temporarily enabled for debugging
+DEBUG = False
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='72.61.107.230,localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
@@ -47,11 +47,48 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 # SECURE_HSTS_PRELOAD = True
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CORS - Allow credentials
+# CORS - Restricted origins
 # ══════════════════════════════════════════════════════════════════════════════
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    'http://72.61.107.230:8096',
+    'http://72.61.107.230',
+    'http://localhost:5173',
+    'http://localhost:8096',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:8096',
+]
 CORS_ALLOW_CREDENTIALS = True
+
+# ══════════════════════════════════════════════════════════════════════════════
+# REST Framework - Production Settings
+# ══════════════════════════════════════════════════════════════════════════════
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'config.pagination.CustomPagination',
+    'PAGE_SIZE': 8,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+    },
+}
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Logging

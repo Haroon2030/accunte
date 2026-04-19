@@ -5,7 +5,7 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
@@ -33,7 +33,7 @@ class PaymentRequestViewSet(viewsets.ModelViewSet):
     ViewSet لإدارة طلبات الدفع
     مع فلترة حسب صلاحيات المستخدم
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'branch', 'bank']
     search_fields = ['id', 'branch__name', 'notes']
@@ -192,7 +192,7 @@ class DashboardView(APIView):
     لوحة التحكم - إحصائيات عامة
     مع فلترة حسب صلاحيات المستخدم
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get_user_branch(self, user):
         """الحصول على فرع المستخدم إذا كان موظف فرع"""
