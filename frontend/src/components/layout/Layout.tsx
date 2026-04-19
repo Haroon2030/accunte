@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import { useState, useRef, useEffect } from 'react'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useSelector, useDispatch } from 'react-redux'
 import { RootState } from '@/store'
+import { logout } from '@/store/authSlice'
 import {
   LayoutDashboard,
   FileText,
@@ -16,6 +17,8 @@ import {
   Bell,
   User,
   UserCog,
+  LogOut,
+  ChevronDown,
 } from 'lucide-react'
 
 const navigation = [
@@ -31,8 +34,29 @@ const navigation = [
 
 export default function Layout() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
   const user = useSelector((state: RootState) => state.auth.user)
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Handle logout
+  const handleLogout = () => {
+    dispatch(logout())
+    navigate('/login')
+  }
 
   // Get user display name
   const getUserDisplayName = () => {
@@ -134,14 +158,39 @@ export default function Layout() {
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-1 left-1 w-2 h-2 bg-danger-500 rounded-full" />
               </button>
-              <div className="flex items-center gap-3 pr-3 border-r border-gray-200">
-                <div className="text-left hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900">{getUserDisplayName()}</p>
-                  <p className="text-xs text-gray-500">{user?.is_staff ? 'مدير النظام' : 'مستخدم'}</p>
-                </div>
-                <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary-600" />
-                </div>
+              
+              {/* User Menu */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-3 pr-3 border-r border-gray-200 hover:bg-gray-50 rounded-lg py-2 px-3 transition-colors"
+                >
+                  <div className="text-left hidden sm:block">
+                    <p className="text-sm font-medium text-gray-900">{getUserDisplayName()}</p>
+                    <p className="text-xs text-gray-500">{user?.is_staff ? 'مدير النظام' : 'مستخدم'}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-primary-600" />
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <div className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-semibold text-gray-900">{getUserDisplayName()}</p>
+                      <p className="text-xs text-gray-500">{user?.email || 'user@example.com'}</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>تسجيل الخروج</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
