@@ -24,26 +24,42 @@ export default function Login() {
     dispatch(setLoading(true))
     
     try {
-      // Mock login for now
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Get JWT tokens
+      const tokenResponse = await fetch('/api/token/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+      
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json()
+        throw new Error(errorData.detail || 'خطأ في تسجيل الدخول')
+      }
+      
+      const tokens = await tokenResponse.json()
+      
+      // Get user info
+      const userResponse = await fetch('/api/v1/me/', {
+        headers: { 'Authorization': `Bearer ${tokens.access}` },
+      })
+      
+      if (!userResponse.ok) {
+        throw new Error('خطأ في جلب بيانات المستخدم')
+      }
+      
+      const user = await userResponse.json()
+      
       dispatch(setCredentials({
-        user: {
-          id: 1,
-          username,
-          email: `${username}@sovereign.com`,
-          first_name: 'أحمد',
-          last_name: 'محمد',
-          is_staff: true,
-        },
+        user,
         tokens: {
-          access: 'mock-access-token',
-          refresh: 'mock-refresh-token',
+          access: tokens.access,
+          refresh: tokens.refresh,
         },
       }))
       toast.success('تم تسجيل الدخول بنجاح')
       navigate('/')
-    } catch {
-      toast.error('خطأ في تسجيل الدخول')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'خطأ في تسجيل الدخول')
     } finally {
       setIsLoadingState(false)
       dispatch(setLoading(false))
@@ -76,6 +92,7 @@ export default function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="أدخل اسم المستخدم"
+                autoComplete="username"
                 required
               />
 
@@ -86,6 +103,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="أدخل كلمة المرور"
+                  autoComplete="current-password"
                   required
                 />
                 <button
