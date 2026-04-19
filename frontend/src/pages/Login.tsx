@@ -129,7 +129,7 @@ export default function Login() {
         </Card>
 
         <div className="text-center mt-8">
-          <p className="text-gray-500 text-sm">© 2024 نظام المدفوعات. جميع الحقوق محفوظة</p>
+          <p className="text-gray-500 text-sm">© 2026 نظام المدفوعات. جميع الحقوق محفوظة</p>
         </div>
       </div>
     </div>
