@@ -53,5 +53,5 @@ jobs:
             cd /root/Accounts
             git fetch origin
             git reset --hard origin/main
-            docker compose exec -T backend python manage.py collectstatic --noinput
-            docker compose restart backend
+            docker compose build backend
+            docker compose up -d
