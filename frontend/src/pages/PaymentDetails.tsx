@@ -289,28 +289,6 @@ export default function PaymentDetails() {
         </Card>
       </div>
 
-      {/* ملخص الإحصائيات */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-none">
-          <div className="text-center">
-            <p className="text-blue-600 text-sm font-medium mb-1">إجمالي رصيد الموردين</p>
-            <p className="text-2xl font-bold text-blue-700">{totalBalance.toLocaleString('ar-SA')} <span className="text-base">ر.س</span></p>
-          </div>
-        </Card>
-        <Card className="p-5 bg-gradient-to-br from-green-50 to-green-100 border-none">
-          <div className="text-center">
-            <p className="text-green-600 text-sm font-medium mb-1">إجمالي دفعات المشتريات</p>
-            <p className="text-2xl font-bold text-green-700">{totalAmount.toLocaleString('ar-SA')} <span className="text-base">ر.س</span></p>
-          </div>
-        </Card>
-        <Card className="p-5 bg-gradient-to-br from-purple-50 to-purple-100 border-none">
-          <div className="text-center">
-            <p className="text-purple-600 text-sm font-medium mb-1">إجمالي المبالغ المقترحة</p>
-            <p className="text-2xl font-bold text-purple-700">{totalProposed.toLocaleString('ar-SA')} <span className="text-base">ر.س</span></p>
-          </div>
-        </Card>
-      </div>
-
       {/* جدول البنود بتصميم عصري */}
       <Card className="overflow-hidden">
         <div className="bg-gray-800 text-white px-6 py-4">
