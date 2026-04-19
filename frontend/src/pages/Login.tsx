@@ -58,7 +58,7 @@ export default function Login() {
           <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
             <Landmark className="w-12 h-12 text-primary-700" />
           </div>
-          <h1 className="text-3xl font-bold text-white">Sovereign Logic</h1>
+          <h1 className="text-3xl font-bold text-white">نظام المدفوعات</h1>
           <p className="text-primary-200 mt-2">نظام إدارة المدفوعات المالية</p>
         </div>
 
@@ -105,7 +105,7 @@ export default function Login() {
         </Card>
 
         <div className="text-center mt-8">
-          <p className="text-primary-200 text-sm">© 2024 Sovereign Logic. جميع الحقوق محفوظة</p>
+          <p className="text-primary-200 text-sm">© 2024 نظام المدفوعات. جميع الحقوق محفوظة</p>
         </div>
       </div>
     </div>

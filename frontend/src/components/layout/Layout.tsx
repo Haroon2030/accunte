@@ -76,7 +76,7 @@ export default function Layout() {
             <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
               <Landmark className="w-6 h-6 text-white" />
             </div>
-            <span className="font-bold text-gray-900">Sovereign Logic</span>
+            <span className="font-bold text-gray-900">نظام المدفوعات</span>
           </div>
           <button
             className="lg:hidden p-2 text-gray-400 hover:text-gray-600"
