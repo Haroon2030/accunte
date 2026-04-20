@@ -78,7 +78,7 @@
                     <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
                         <i data-lucide="landmark" class="w-6 h-6 text-white"></i>
                     </div>
-                    <span class="font-bold text-lg text-slate-800">نظام المدفوعات</span>
+                    <span class="font-extrabold text-xl text-slate-800">نظام المدفوعات</span>
                 </div>
                 <div x-show="!sidebarOpen" class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
                     <i data-lucide="landmark" class="w-6 h-6 text-white"></i>
@@ -103,8 +103,8 @@
                         <i data-lucide="user" class="w-5 h-5 text-primary-600"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="font-medium text-slate-800 truncate">{{ user.get_full_name|default:user.username }}</p>
-                        <p class="text-xs text-slate-500">{{ user.profile.role.name|default:"مستخدم" }}</p>
+                        <p class="font-bold text-slate-800 truncate">{{ user.get_full_name|default:user.username }}</p>
+                        <p class="text-sm font-semibold text-slate-600">{{ user.profile.role.name|default:"مستخدم" }}</p>
                     </div>
                 </div>
             </div>
