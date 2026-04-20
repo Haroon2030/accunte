@@ -12,38 +12,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Tailwind CSS with fallback -->
-    <script src="https://cdn.tailwindcss.com/3.4.1"></script>
-    <script>
-        // Fallback if CDN fails
-        if (typeof tailwind === 'undefined') {
-            document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">');
-        } else {
-            tailwind.config = {
-                theme: {
-                    extend: {
-                        fontFamily: {
-                            'cairo': ['Cairo', 'sans-serif'],
-                        },
-                        colors: {
-                            primary: {
-                                50: '#eff6ff',
-                                100: '#dbeafe',
-                                200: '#bfdbfe',
-                                300: '#93c5fd',
-                                400: '#60a5fa',
-                                500: '#3b82f6',
-                                600: '#2563eb',
-                                700: '#1d4ed8',
-                                800: '#1e40af',
-                                900: '#1e3a8a',
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    
+    <!-- Custom primary colors -->
+    <style>
+        .bg-primary-50 { background-color: #eff6ff; }
+        .bg-primary-100 { background-color: #dbeafe; }
+        .bg-primary-500 { background-color: #3b82f6; }
+        .bg-primary-600 { background-color: #2563eb; }
+        .bg-primary-700 { background-color: #1d4ed8; }
+        .text-primary-500 { color: #3b82f6; }
+        .text-primary-600 { color: #2563eb; }
+        .text-primary-700 { color: #1d4ed8; }
+        .border-primary-500 { border-color: #3b82f6; }
+        .ring-primary-500 { --tw-ring-color: #3b82f6; }
+        .focus\:ring-primary-500:focus { --tw-ring-color: #3b82f6; }
+        .focus\:border-primary-500:focus { border-color: #3b82f6; }
+        .hover\:bg-primary-700:hover { background-color: #1d4ed8; }
+        .from-primary-500 { --tw-gradient-from: #3b82f6; }
+        .to-primary-700 { --tw-gradient-to: #1d4ed8; }
+    </style>
     
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
