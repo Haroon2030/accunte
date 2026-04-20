@@ -2,60 +2,58 @@
 
 {% block table_content %}
 <div class="overflow-x-auto">
-    <table class="w-full">
+    <table class="w-full text-sm">
         <thead class="bg-slate-50 border-b border-slate-200">
             <tr>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">#</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">اسم البنك</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الكود</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الفرع</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">رقم الحساب</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">IBAN</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الحالة</th>
-                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600">إجراءات</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">#</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">اسم البنك</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الكود</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الفرع</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">رقم الحساب</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الحالة</th>
+                <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">إجراءات</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
             {% for bank in object_list %}
             <tr class="hover:bg-slate-50 transition-colors">
-                <td class="px-4 py-3 text-sm text-slate-600">{{ forloop.counter }}</td>
-                <td class="px-4 py-3 font-medium text-slate-800">{{ bank.name }}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-1 bg-slate-100 text-slate-700 rounded text-sm font-mono">{{ bank.code }}</span>
+                <td class="px-3 py-2 text-xs text-slate-500">{{ forloop.counter }}</td>
+                <td class="px-3 py-2 text-slate-800 max-w-[150px] truncate" title="{{ bank.name }}">{{ bank.name }}</td>
+                <td class="px-3 py-2">
+                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-mono">{{ bank.code }}</span>
                 </td>
-                <td class="px-4 py-3 text-sm text-slate-600">{{ bank.branch.name|default:"-" }}</td>
-                <td class="px-4 py-3 text-sm text-slate-600 font-mono">{{ bank.account_number|default:"-" }}</td>
-                <td class="px-4 py-3 text-sm text-slate-600 font-mono">{{ bank.iban|default:"-"|truncatechars:20 }}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2.5 py-1 rounded-full text-xs font-medium {% if bank.is_active %}bg-green-100 text-green-700{% else %}bg-slate-100 text-slate-600{% endif %}">
-                        {% if bank.is_active %}نشط{% else %}غير نشط{% endif %}
+                <td class="px-3 py-2 text-xs text-slate-600 max-w-[100px] truncate" title="{{ bank.branch.name|default:'-' }}">{{ bank.branch.name|default:"-" }}</td>
+                <td class="px-3 py-2 text-xs text-slate-600 font-mono">{{ bank.account_number|default:"-"|truncatechars:15 }}</td>
+                <td class="px-3 py-2">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-medium {% if bank.is_active %}bg-green-100 text-green-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                        {% if bank.is_active %}نشط{% else %}معطل{% endif %}
                     </span>
                 </td>
-                <td class="px-4 py-3">
-                    <div class="flex items-center justify-center gap-1">
+                <td class="px-3 py-2">
+                    <div class="flex items-center justify-center gap-0.5">
                         <button 
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ bank.id }}, data: { name: '{{ bank.name }}', code: '{{ bank.code }}', branch: '{{ bank.branch_id|default:"" }}', account_number: '{{ bank.account_number|default:"" }}', iban: '{{ bank.iban|default:"" }}' } })"
-                            class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="تعديل"
                         >
-                            <i data-lucide="edit" class="w-4 h-4"></i>
+                            <i data-lucide="edit" class="w-3.5 h-3.5"></i>
                         </button>
                         <button 
                             @click="$dispatch('open-delete', { url: '{% url 'banks:delete' bank.id %}' })"
-                            class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="حذف"
                         >
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="8" class="px-4 py-12 text-center">
+                <td colspan="7" class="px-4 py-8 text-center">
                     <div class="flex flex-col items-center">
-                        <i data-lucide="landmark" class="w-12 h-12 text-slate-300 mb-2"></i>
-                        <p class="text-slate-500">لا توجد بنوك</p>
+                        <i data-lucide="landmark" class="w-10 h-10 text-slate-300 mb-2"></i>
+                        <p class="text-slate-500 text-sm">لا توجد بنوك</p>
                     </div>
                 </td>
             </tr>

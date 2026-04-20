@@ -66,32 +66,32 @@
     <!-- Table -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="w-full text-sm">
                 <thead class="bg-slate-50 border-b border-slate-200">
                     <tr>
-                        <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">رقم الطلب</th>
-                        <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الفرع</th>
-                        <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">المورد</th>
-                        <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">المبلغ الإجمالي</th>
-                        <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">التاريخ</th>
-                        <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الحالة</th>
-                        <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600">إجراءات</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">رقم الطلب</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الفرع</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">المورد</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">المبلغ</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">التاريخ</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الحالة</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">إجراءات</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for payment in object_list %}
                     <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-4 py-3">
-                            <a href="{% url 'payments:detail' payment.id %}" class="font-medium text-primary-600 hover:text-primary-700">
+                        <td class="px-3 py-2">
+                            <a href="{% url 'payments:detail' payment.id %}" class="font-medium text-primary-600 hover:text-primary-700 text-xs">
                                 #{{ payment.id }}
                             </a>
                         </td>
-                        <td class="px-4 py-3 text-sm text-slate-600">{{ payment.branch.name }}</td>
-                        <td class="px-4 py-3 text-sm text-slate-600">{{ payment.supplier.name|default:"-" }}</td>
-                        <td class="px-4 py-3 text-sm font-medium text-slate-800">{{ payment.total_amount|floatformat:2 }}</td>
-                        <td class="px-4 py-3 text-sm text-slate-600">{{ payment.created_at|date:"Y/m/d" }}</td>
-                        <td class="px-4 py-3">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-medium
+                        <td class="px-3 py-2 text-xs text-slate-600 max-w-[100px] truncate" title="{{ payment.branch.name }}">{{ payment.branch.name }}</td>
+                        <td class="px-3 py-2 text-xs text-slate-600 max-w-[120px] truncate" title="{{ payment.supplier.name|default:'-' }}">{{ payment.supplier.name|default:"-" }}</td>
+                        <td class="px-3 py-2 text-xs font-medium text-slate-800">{{ payment.total_amount|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-xs text-slate-600">{{ payment.created_at|date:"Y/m/d" }}</td>
+                        <td class="px-3 py-2">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium
                                 {% if payment.status == 'draft' %}bg-slate-100 text-slate-600
                                 {% elif payment.status == 'proposed' %}bg-yellow-100 text-yellow-700
                                 {% elif payment.status == 'first_approved' %}bg-blue-100 text-blue-700
@@ -103,22 +103,22 @@
                                 {{ payment.get_status_display }}
                             </span>
                         </td>
-                        <td class="px-4 py-3">
-                            <div class="flex items-center justify-center gap-1">
+                        <td class="px-3 py-2">
+                            <div class="flex items-center justify-center gap-0.5">
                                 <a 
                                     href="{% url 'payments:detail' payment.id %}"
-                                    class="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                    class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
                                     title="عرض"
                                 >
-                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                                 </a>
                                 {% if payment.status == 'draft' %}
                                 <a 
                                     href="{% url 'payments:update' payment.id %}"
-                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                     title="تعديل"
                                 >
-                                    <i data-lucide="edit" class="w-4 h-4"></i>
+                                    <i data-lucide="edit" class="w-3.5 h-3.5"></i>
                                 </a>
                                 {% endif %}
                             </div>
@@ -126,10 +126,10 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center">
+                        <td colspan="7" class="px-4 py-8 text-center">
                             <div class="flex flex-col items-center">
-                                <i data-lucide="file-text" class="w-12 h-12 text-slate-300 mb-2"></i>
-                                <p class="text-slate-500">لا توجد طلبات دفع</p>
+                                <i data-lucide="file-text" class="w-10 h-10 text-slate-300 mb-2"></i>
+                                <p class="text-slate-500 text-sm">لا توجد طلبات دفع</p>
                             </div>
                         </td>
                     </tr>

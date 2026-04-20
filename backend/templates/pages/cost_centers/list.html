@@ -2,58 +2,58 @@
 
 {% block table_content %}
 <div class="overflow-x-auto">
-    <table class="w-full">
+    <table class="w-full text-sm">
         <thead class="bg-slate-50 border-b border-slate-200">
             <tr>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">#</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">اسم مركز التكلفة</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الكود</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الوصف</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">عدد الفروع</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الحالة</th>
-                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600">إجراءات</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">#</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">اسم مركز التكلفة</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الكود</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الوصف</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الفروع</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الحالة</th>
+                <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">إجراءات</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
             {% for cc in object_list %}
             <tr class="hover:bg-slate-50 transition-colors">
-                <td class="px-4 py-3 text-sm text-slate-600">{{ forloop.counter }}</td>
-                <td class="px-4 py-3 font-medium text-slate-800">{{ cc.name }}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-1 bg-slate-100 text-slate-700 rounded text-sm font-mono">{{ cc.code }}</span>
+                <td class="px-3 py-2 text-xs text-slate-500">{{ forloop.counter }}</td>
+                <td class="px-3 py-2 text-slate-800 max-w-[150px] truncate" title="{{ cc.name }}">{{ cc.name }}</td>
+                <td class="px-3 py-2">
+                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-mono">{{ cc.code }}</span>
                 </td>
-                <td class="px-4 py-3 text-sm text-slate-600">{{ cc.description|default:"-"|truncatechars:50 }}</td>
-                <td class="px-4 py-3 text-sm text-slate-600">{{ cc.branches.count }}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2.5 py-1 rounded-full text-xs font-medium {% if cc.is_active %}bg-green-100 text-green-700{% else %}bg-slate-100 text-slate-600{% endif %}">
-                        {% if cc.is_active %}نشط{% else %}غير نشط{% endif %}
+                <td class="px-3 py-2 text-xs text-slate-600 max-w-[150px] truncate" title="{{ cc.description|default:'-' }}">{{ cc.description|default:"-"|truncatechars:30 }}</td>
+                <td class="px-3 py-2 text-xs text-slate-600">{{ cc.branches.count }}</td>
+                <td class="px-3 py-2">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-medium {% if cc.is_active %}bg-green-100 text-green-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                        {% if cc.is_active %}نشط{% else %}معطل{% endif %}
                     </span>
                 </td>
-                <td class="px-4 py-3">
-                    <div class="flex items-center justify-center gap-1">
+                <td class="px-3 py-2">
+                    <div class="flex items-center justify-center gap-0.5">
                         <button 
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ cc.id }}, data: { name: '{{ cc.name }}', code: '{{ cc.code }}', description: '{{ cc.description|default:"" }}' } })"
-                            class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="تعديل"
                         >
-                            <i data-lucide="edit" class="w-4 h-4"></i>
+                            <i data-lucide="edit" class="w-3.5 h-3.5"></i>
                         </button>
                         <button 
                             @click="$dispatch('open-delete', { url: '{% url 'cost_centers:delete' cc.id %}' })"
-                            class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="حذف"
                         >
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7" class="px-4 py-12 text-center">
+                <td colspan="7" class="px-4 py-8 text-center">
                     <div class="flex flex-col items-center">
-                        <i data-lucide="bar-chart-3" class="w-12 h-12 text-slate-300 mb-2"></i>
-                        <p class="text-slate-500">لا توجد مراكز تكلفة</p>
+                        <i data-lucide="bar-chart-3" class="w-10 h-10 text-slate-300 mb-2"></i>
+                        <p class="text-slate-500 text-sm">لا توجد مراكز تكلفة</p>
                     </div>
                 </td>
             </tr>

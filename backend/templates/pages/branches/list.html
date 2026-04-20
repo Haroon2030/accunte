@@ -2,55 +2,53 @@
 
 {% block table_content %}
 <div class="overflow-x-auto">
-    <table class="w-full">
+    <table class="w-full text-sm">
         <thead class="bg-slate-50 border-b border-slate-200">
             <tr>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">#</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">اسم الفرع</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الكود</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">مركز التكلفة</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">عدد البنوك</th>
-                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الحالة</th>
-                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600">إجراءات</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">#</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">اسم الفرع</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الكود</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">مركز التكلفة</th>
+                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الحالة</th>
+                <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">إجراءات</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
             {% for branch in object_list %}
             <tr class="hover:bg-slate-50 transition-colors">
-                <td class="px-4 py-3 text-sm text-slate-600">{{ forloop.counter }}</td>
-                <td class="px-4 py-3 font-medium text-slate-800">{{ branch.name }}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-1 bg-slate-100 text-slate-700 rounded text-sm font-mono">{{ branch.code }}</span>
+                <td class="px-3 py-2 text-xs text-slate-500">{{ forloop.counter }}</td>
+                <td class="px-3 py-2 text-slate-800 max-w-[150px] truncate" title="{{ branch.name }}">{{ branch.name }}</td>
+                <td class="px-3 py-2">
+                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-mono">{{ branch.code }}</span>
                 </td>
-                <td class="px-4 py-3 text-sm text-slate-600">{{ branch.cost_center.name|default:"-" }}</td>
-                <td class="px-4 py-3 text-sm text-slate-600">{{ branch.bank_accounts.count }}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2.5 py-1 rounded-full text-xs font-medium {% if branch.is_active %}bg-green-100 text-green-700{% else %}bg-slate-100 text-slate-600{% endif %}">
-                        {% if branch.is_active %}نشط{% else %}غير نشط{% endif %}
+                <td class="px-3 py-2 text-xs text-slate-600 max-w-[120px] truncate" title="{{ branch.cost_center.name|default:'-' }}">{{ branch.cost_center.name|default:"-" }}</td>
+                <td class="px-3 py-2">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-medium {% if branch.is_active %}bg-green-100 text-green-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                        {% if branch.is_active %}نشط{% else %}معطل{% endif %}
                     </span>
                 </td>
-                <td class="px-4 py-3">
-                    <div class="flex items-center justify-center gap-1">
+                <td class="px-3 py-2">
+                    <div class="flex items-center justify-center gap-0.5">
                         <button 
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ branch.id }}, data: { name: '{{ branch.name }}', code: '{{ branch.code }}', cost_center: '{{ branch.cost_center_id|default:"" }}', address: '{{ branch.address|default:"" }}', phone: '{{ branch.phone|default:"" }}' } })"
-                            class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="تعديل"
                         >
-                            <i data-lucide="edit" class="w-4 h-4"></i>
+                            <i data-lucide="edit" class="w-3.5 h-3.5"></i>
                         </button>
                         <button 
                             @click="$dispatch('open-delete', { url: '{% url 'branches:delete' branch.id %}' })"
-                            class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="حذف"
                         >
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7" class="px-4 py-12 text-center">
+                <td colspan="6" class="px-4 py-8 text-center">
                     <div class="flex flex-col items-center">
                         <i data-lucide="building-2" class="w-12 h-12 text-slate-300 mb-2"></i>
                         <p class="text-slate-500">لا توجد فروع</p>
