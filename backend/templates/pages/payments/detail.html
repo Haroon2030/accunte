@@ -150,58 +150,6 @@
 
         <!-- Sidebar -->
         <div class="space-y-6">
-            <!-- Status Actions -->
-            {% if can_change_status %}
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <h3 class="font-bold text-slate-800 mb-4">إجراءات الحالة</h3>
-                <div class="space-y-3">
-                    {% if payment.status == 'draft' %}
-                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="status" value="proposed">
-                        <button type="submit" class="w-full px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors">
-                            تقديم للاعتماد
-                        </button>
-                    </form>
-                    {% elif payment.status == 'proposed' %}
-                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="status" value="first_approved">
-                        <button type="submit" class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                            الموافقة المبدئية
-                        </button>
-                    </form>
-                    {% elif payment.status == 'first_approved' %}
-                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="status" value="audited">
-                        <button type="submit" class="w-full px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
-                            التدقيق
-                        </button>
-                    </form>
-                    {% elif payment.status == 'audited' %}
-                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="status" value="final_approved">
-                        <button type="submit" class="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-                            الاعتماد النهائي
-                        </button>
-                    </form>
-                    {% endif %}
-                    
-                    {% if payment.status != 'rejected' and payment.status != 'final_approved' %}
-                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="status" value="rejected">
-                        <button type="submit" class="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                            رفض
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
             <!-- Audit Log -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                 <h3 class="font-bold text-slate-800 mb-4">سجل الإجراءات</h3>
