@@ -545,6 +545,130 @@ def payment_change_status(request, pk):
     return redirect('payments:detail', pk=pk)
 
 
+@login_required
+def payment_export_excel(request, pk):
+    """تصدير طلب الدفع إلى Excel"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from django.http import HttpResponse
+    from datetime import datetime
+    
+    payment = get_object_or_404(PaymentRequest, pk=pk)
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"طلب دفع {payment.id}"
+    
+    # RTL direction
+    ws.sheet_view.rightToLeft = True
+    
+    # Styles
+    header_font = Font(name='Arial', size=12, bold=True, color='FFFFFF')
+    header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+    header_alignment = Alignment(horizontal='center', vertical='center')
+    
+    title_font = Font(name='Arial', size=14, bold=True)
+    title_alignment = Alignment(horizontal='center', vertical='center')
+    
+    cell_font = Font(name='Arial', size=11)
+    cell_alignment = Alignment(horizontal='center', vertical='center')
+    
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Title
+    ws.merge_cells('A1:I1')
+    title_cell = ws['A1']
+    title_cell.value = f'طلب دفع رقم #{payment.id}'
+    title_cell.font = title_font
+    title_cell.alignment = title_alignment
+    
+    # Payment info
+    ws['A3'] = 'الفرع:'
+    ws['B3'] = payment.branch.name
+    ws['D3'] = 'التاريخ:'
+    ws['E3'] = payment.created_at.strftime('%Y/%m/%d')
+    ws['G3'] = 'الحالة:'
+    ws['H3'] = payment.get_status_display()
+    
+    # Headers
+    headers = ['رقم المورد', 'اسم المورد', 'رصيد المورد', 'دفعه المشتريات', 
+               'اعتماد سلطان', 'حالة المدقق', 'اعتماد المدير المالي', 'اقتراح السداد', 'اعتماد أبوعلاء']
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=5, column=col_num)
+        cell.value = header
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    # Data rows
+    row_num = 6
+    for item in payment.items.all():
+        ws.cell(row=row_num, column=1, value=item.supplier.code).alignment = cell_alignment
+        ws.cell(row=row_num, column=2, value=item.supplier.name).alignment = cell_alignment
+        ws.cell(row=row_num, column=3, value=float(item.current_balance)).alignment = cell_alignment
+        ws.cell(row=row_num, column=4, value=float(item.proposed_amount)).alignment = cell_alignment
+        ws.cell(row=row_num, column=5, value=item.get_sultan_approval_display()).alignment = cell_alignment
+        ws.cell(row=row_num, column=6, value=item.get_auditor_status_display()).alignment = cell_alignment
+        ws.cell(row=row_num, column=7, value=item.get_cfo_approval_display()).alignment = cell_alignment
+        ws.cell(row=row_num, column=8, value=float(item.abu_alaa_proposed)).alignment = cell_alignment
+        ws.cell(row=row_num, column=9, value=item.get_abu_alaa_final_display()).alignment = cell_alignment
+        
+        # Apply borders
+        for col in range(1, 10):
+            ws.cell(row=row_num, column=col).border = border
+            ws.cell(row=row_num, column=col).font = cell_font
+        
+        row_num += 1
+    
+    # Total row
+    total_row = row_num
+    ws.merge_cells(f'A{total_row}:C{total_row}')
+    total_cell = ws.cell(row=total_row, column=1)
+    total_cell.value = 'المجموع الكلي'
+    total_cell.font = Font(name='Arial', size=12, bold=True)
+    total_cell.alignment = Alignment(horizontal='center', vertical='center')
+    total_cell.fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
+    
+    ws.cell(row=total_row, column=4, value=float(payment.total_proposed_amount)).font = Font(bold=True)
+    ws.cell(row=total_row, column=4).alignment = cell_alignment
+    ws.cell(row=total_row, column=8, value=float(payment.total_abu_alaa_proposed)).font = Font(bold=True)
+    ws.cell(row=total_row, column=8).alignment = cell_alignment
+    
+    # Apply borders to total row
+    for col in range(1, 10):
+        ws.cell(row=total_row, column=col).border = border
+        if col in [1, 4, 8]:
+            ws.cell(row=total_row, column=col).fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
+    
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['F'].width = 15
+    ws.column_dimensions['G'].width = 20
+    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['I'].width = 15
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="payment_{payment.id}_{datetime.now().strftime("%Y%m%d")}.xlsx"'
+    
+    wb.save(response)
+    return response
+
+
 # =============================================================================
 # User Management Views
 # =============================================================================

@@ -28,8 +28,12 @@
             ">
                 {{ payment.get_status_display }}
             </span>
+            <a href="{% url 'payments:export_excel' payment.id %}" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                تصدير Excel
+            </a>
             {% if payment.status == 'draft' %}
-            <a href="{% url 'payments:update' payment.id %}" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+            <a href="{% url 'payments:update' payment.id %}" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2">
                 <i data-lucide="edit" class="w-4 h-4"></i>
                 تعديل
             </a>
@@ -135,7 +139,7 @@
                             <td colspan="3" class="px-6 py-5 font-bold text-slate-900 text-right text-base">المجموع الكلي</td>
                             <td class="px-6 py-5 font-bold text-slate-900 text-base">{{ payment.total_proposed_amount|floatformat:2 }}</td>
                             <td colspan="3" class="px-6 py-5"></td>
-                            <td class="px-6 py-5 font-bold text-slate-900 text-base">{{ payment.amount|floatformat:2 }}</td>
+                            <td class="px-6 py-5 font-bold text-slate-900 text-base">{{ payment.total_abu_alaa_proposed|floatformat:2 }}</td>
                             <td class="px-6 py-5"></td>
                         </tr>
                     </tfoot>
