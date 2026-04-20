@@ -66,10 +66,10 @@
 </head>
 <body class="bg-slate-50 min-h-screen" x-data="{ sidebarOpen: true, mobileMenuOpen: false }">
     <!-- Main Layout with Sidebar -->
-    <div class="flex h-screen overflow-hidden" dir="ltr">
+    <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
         <aside 
-            class="bg-white border-r border-slate-200 transition-all duration-300 flex flex-col"
+            class="bg-white border-l border-slate-200 transition-all duration-300 flex flex-col"
             :class="sidebarOpen ? 'w-64' : 'w-20'"
         >
             <!-- Logo -->
