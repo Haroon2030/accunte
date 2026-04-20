@@ -4,6 +4,55 @@
 
 {% block page_title %}طلب دفع #{{ payment.id }}{% endblock %}
 
+{% block extra_head %}
+<style>
+    @media print {
+        /* إخفاء العناصر غير المطلوبة عند الطباعة */
+        nav, .sidebar, button, a.px-4, .flex.items-center.gap-4 a {
+            display: none !important;
+        }
+        
+        /* تحسين مظهر الطباعة */
+        body {
+            font-size: 12pt;
+            background: white;
+        }
+        
+        .space-y-6 {
+            margin: 0;
+            padding: 20px;
+        }
+        
+        table {
+            width: 100% !important;
+            page-break-inside: auto;
+        }
+        
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+        
+        thead {
+            display: table-header-group;
+        }
+        
+        tfoot {
+            display: table-footer-group;
+        }
+        
+        /* إظهار الحالة فقط */
+        .flex.items-center.gap-2 {
+            justify-content: flex-start !important;
+        }
+        
+        @page {
+            margin: 1cm;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
     <!-- Header -->
@@ -28,6 +77,10 @@
             ">
                 {{ payment.get_status_display }}
             </span>
+            <button onclick="window.print()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                طباعة
+            </button>
             <a href="{% url 'payments:export_excel' payment.id %}" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
                 <i data-lucide="download" class="w-4 h-4"></i>
                 تصدير Excel
