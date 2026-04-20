@@ -543,3 +543,88 @@ def payment_change_status(request, pk):
             messages.error(request, 'حالة غير صالحة')
     
     return redirect('payments:detail', pk=pk)
+
+
+# =============================================================================
+# User Management Views
+# =============================================================================
+
+from django.contrib.auth.models import User
+
+class UserListView(LoginRequiredMixin, ListView):
+    """قائمة المستخدمين"""
+    model = User
+    template_name = 'pages/users/list.html'
+    context_object_name = 'users'
+    
+    def get_queryset(self):
+        return User.objects.all().order_by('-date_joined')
+
+
+@login_required
+def user_create(request):
+    """إنشاء مستخدم جديد"""
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email', '')
+        password = request.POST.get('password')
+        first_name = request.POST.get('first_name', '')
+        last_name = request.POST.get('last_name', '')
+        is_staff = request.POST.get('is_staff') == 'on'
+        is_active = request.POST.get('is_active') == 'on'
+        
+        if User.objects.filter(username=username).exists():
+            messages.error(request, 'اسم المستخدم موجود مسبقاً')
+        else:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            user.is_staff = is_staff
+            user.is_active = is_active
+            user.save()
+            messages.success(request, 'تم إنشاء المستخدم بنجاح')
+            return redirect('users:list')
+    
+    return render(request, 'pages/users/form.html')
+
+
+@login_required
+def user_update(request, pk):
+    """تعديل مستخدم"""
+    user = get_object_or_404(User, pk=pk)
+    
+    if request.method == 'POST':
+        user.username = request.POST.get('username')
+        user.email = request.POST.get('email', '')
+        user.first_name = request.POST.get('first_name', '')
+        user.last_name = request.POST.get('last_name', '')
+        user.is_staff = request.POST.get('is_staff') == 'on'
+        user.is_active = request.POST.get('is_active') == 'on'
+        
+        password = request.POST.get('password')
+        if password:
+            user.set_password(password)
+        
+        user.save()
+        messages.success(request, 'تم تعديل المستخدم بنجاح')
+        return redirect('users:list')
+    
+    return render(request, 'pages/users/form.html', {'user_obj': user})
+
+
+@login_required
+def user_delete(request, pk):
+    """حذف مستخدم"""
+    user = get_object_or_404(User, pk=pk)
+    
+    if user == request.user:
+        messages.error(request, 'لا يمكنك حذف حسابك الخاص')
+    else:
+        user.delete()
+        messages.success(request, 'تم حذف المستخدم بنجاح')
+    
+    return redirect('users:list')

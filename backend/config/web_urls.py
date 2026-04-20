@@ -51,6 +51,14 @@ payment_patterns = [
     path('<int:pk>/status/', web_views.payment_change_status, name='change_status'),
 ]
 
+# User URLs
+user_patterns = [
+    path('', web_views.UserListView.as_view(), name='list'),
+    path('create/', web_views.user_create, name='create'),
+    path('<int:pk>/update/', web_views.user_update, name='update'),
+    path('<int:pk>/delete/', web_views.user_delete, name='delete'),
+]
+
 # Main URL patterns
 urlpatterns = [
     # Dashboard
@@ -65,4 +73,5 @@ urlpatterns = [
     path('cost-centers/', include((cost_center_patterns, 'cost_centers'))),
     path('suppliers/', include((supplier_patterns, 'suppliers'))),
     path('payments/', include((payment_patterns, 'payments'))),
+    path('users/', include((user_patterns, 'users'))),
 ]
