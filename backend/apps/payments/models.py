@@ -141,6 +141,11 @@ class PaymentRequest(models.Model):
     def total_amount(self):
         return self.items.aggregate(total=models.Sum('amount'))['total'] or 0
 
+    @property
+    def total_proposed_amount(self):
+        """مجموع دفعات المشتريات المقترحة"""
+        return self.items.aggregate(total=models.Sum('proposed_amount'))['total'] or 0
+
     def get_available_transitions(self, user):
         """الحصول على الانتقالات المتاحة للمستخدم"""
         transitions = []
