@@ -6,8 +6,6 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
@@ -190,8 +188,3 @@ def current_user(request):
         'permissions': list(user.get_all_permissions()),
         **profile_data
     })
-
-
-def admin_frontend(request, **kwargs):
-    """عرض واجهة React"""
-    return render(request, 'admin/frontend.html')
