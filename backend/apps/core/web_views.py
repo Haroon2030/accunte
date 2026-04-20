@@ -402,6 +402,9 @@ def payment_create(request):
             branch_id=request.POST.get('branch'),
             bank_id=request.POST.get('bank') or None,
             cost_center=request.POST.get('cost_center', ''),
+            bank_account_number=request.POST.get('bank_account_number', ''),
+            supplier_account=request.POST.get('supplier_account', '21101001'),
+            analytical_account=request.POST.get('analytical_account', ''),
             notes=request.POST.get('notes', ''),
             created_by=request.user,
             status='draft' if request.POST.get('action') == 'draft' else 'proposed',
@@ -466,6 +469,9 @@ def payment_update(request, pk):
         payment.branch_id = request.POST.get('branch')
         payment.bank_id = request.POST.get('bank') or None
         payment.cost_center = request.POST.get('cost_center', '')
+        payment.bank_account_number = request.POST.get('bank_account_number', '')
+        payment.supplier_account = request.POST.get('supplier_account', '21101001')
+        payment.analytical_account = request.POST.get('analytical_account', '')
         payment.notes = request.POST.get('notes', '')
         
         if request.POST.get('action') == 'submit':
