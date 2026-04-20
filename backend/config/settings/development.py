@@ -29,6 +29,7 @@ DATABASES = {
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
 
 # ══════════════════════════════════════════════════════════════════════════════
 # REST Framework - Allow any access in development (no auth required)
