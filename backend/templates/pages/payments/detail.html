@@ -71,81 +71,6 @@
                 </div>
             </div>
 
-            <!-- Items -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-4 border-b border-slate-200">
-                    <h3 class="font-bold text-slate-800">بنود الدفع</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-base">
-                        <thead class="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600 whitespace-nowrap">رقم المورد</th>
-                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600 whitespace-nowrap">اسم المورد</th>
-                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600 whitespace-nowrap">رصيد المورد</th>
-                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600 whitespace-nowrap">دفعه المشتريات</th>
-                                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600 whitespace-nowrap">اعتماد سلطان</th>
-                                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600 whitespace-nowrap">حالة المدقق</th>
-                                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600 whitespace-nowrap">اعتماد المدير المالي</th>
-                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600 whitespace-nowrap">اقتراح السداد</th>
-                                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600 whitespace-nowrap">اعتماد أبوعلاء</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            {% for item in payment.items.all %}
-                            <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-3 text-sm text-slate-600 font-mono">{{ item.supplier.code }}</td>
-                                <td class="px-4 py-3 text-sm text-slate-800 min-w-[180px]" title="{{ item.supplier.name }}">{{ item.supplier.name }}</td>
-                                <td class="px-4 py-3 text-sm text-slate-600">{{ item.current_balance|floatformat:2 }}</td>
-                                <td class="px-4 py-3 text-sm text-slate-800 font-medium">{{ item.proposed_amount|floatformat:2 }}</td>
-                                <td class="px-4 py-3 text-center">
-                                    <span class="px-2 py-1 rounded text-sm {% if item.sultan_approval == 'approved' %}bg-green-100 text-green-700{% elif item.sultan_approval == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
-                                        {{ item.get_sultan_approval_display }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    <span class="px-2 py-1 rounded text-sm {% if item.auditor_status == 'approved' %}bg-green-100 text-green-700{% elif item.auditor_status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
-                                        {{ item.get_auditor_status_display }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    <span class="px-2 py-1 rounded text-sm {% if item.cfo_approval == 'approved' %}bg-green-100 text-green-700{% elif item.cfo_approval == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
-                                        {{ item.get_cfo_approval_display }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-sm text-slate-800 font-medium">{{ item.abu_alaa_proposed|floatformat:2 }}</td>
-                                <td class="px-4 py-3 text-center">
-                                    <span class="px-2 py-1 rounded text-sm {% if item.abu_alaa_final == 'approved' %}bg-green-100 text-green-700{% elif item.abu_alaa_final == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
-                                        {{ item.get_abu_alaa_final_display }}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="9" class="px-6 py-12 text-center text-slate-500 text-base">لا توجد بنود</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                        <tfoot class="bg-slate-50">
-                            <tr>
-                                <td colspan="3" class="px-4 py-3 text-sm font-bold text-slate-800 text-left">المجموع الكلي</td>
-                                <td class="px-4 py-3 text-sm font-bold text-slate-800">{{ payment.total_amount|floatformat:2 }}</td>
-                                <td colspan="3"></td>
-                                <td class="px-4 py-3 text-sm font-bold text-slate-800">{{ payment.amount|floatformat:2 }}</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Notes -->
-            {% if payment.notes %}
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <h3 class="font-bold text-slate-800 mb-4">ملاحظات</h3>
-                <p class="text-slate-600">{{ payment.notes }}</p>
-            </div>
-            {% endif %}
         </div>
 
         <!-- Sidebar -->
@@ -156,6 +81,83 @@
                 طباعة
             </button>
         </div>
+    </div>
+
+    <!-- Items Table (Full Width) -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" style="max-width: 1400px;">
+        <div class="p-4 border-b border-slate-200">
+            <h3 class="font-bold text-slate-800">بنود الدفع</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full" style="font-size: 12px;">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-4 py-3 text-right font-semibold text-slate-600 whitespace-nowrap">رقم المورد</th>
+                            <th class="px-4 py-3 text-right font-semibold text-slate-600 whitespace-nowrap">اسم المورد</th>
+                            <th class="px-4 py-3 text-right font-semibold text-slate-600 whitespace-nowrap">رصيد المورد</th>
+                            <th class="px-4 py-3 text-right font-semibold text-slate-600 whitespace-nowrap">دفعه المشتريات</th>
+                            <th class="px-4 py-3 text-center font-semibold text-slate-600 whitespace-nowrap">اعتماد سلطان</th>
+                            <th class="px-4 py-3 text-center font-semibold text-slate-600 whitespace-nowrap">حالة المدقق</th>
+                            <th class="px-4 py-3 text-center font-semibold text-slate-600 whitespace-nowrap">اعتماد المدير المالي</th>
+                            <th class="px-4 py-3 text-right font-semibold text-slate-600 whitespace-nowrap">اقتراح السداد</th>
+                            <th class="px-4 py-3 text-center font-semibold text-slate-600 whitespace-nowrap">اعتماد أبوعلاء</th>
+                            </tr>
+                        </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for item in payment.items.all %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 text-slate-600 font-mono">{{ item.supplier.code }}</td>
+                            <td class="px-4 py-3 text-slate-800 min-w-[180px]" title="{{ item.supplier.name }}">{{ item.supplier.name }}</td>
+                            <td class="px-4 py-3 text-slate-600">{{ item.current_balance|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-slate-800 font-medium">{{ item.proposed_amount|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 rounded {% if item.sultan_approval == 'approved' %}bg-green-100 text-green-700{% elif item.sultan_approval == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                        {{ item.get_sultan_approval_display }}
+                                    </span>
+                                </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 rounded {% if item.auditor_status == 'approved' %}bg-green-100 text-green-700{% elif item.auditor_status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ item.get_auditor_status_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 rounded {% if item.cfo_approval == 'approved' %}bg-green-100 text-green-700{% elif item.cfo_approval == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ item.get_cfo_approval_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-slate-800 font-medium">{{ item.abu_alaa_proposed|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 rounded {% if item.abu_alaa_final == 'approved' %}bg-green-100 text-green-700{% elif item.abu_alaa_final == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ item.get_abu_alaa_final_display }}
+                                </span>
+                            </td>
+                            </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="px-6 py-12 text-center text-slate-500">لا توجد بنود</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-slate-50">
+                        <tr>
+                            <td colspan="3" class="px-4 py-3 font-bold text-slate-800 text-left">المجموع الكلي</td>
+                            <td class="px-4 py-3 font-bold text-slate-800">{{ payment.total_amount|floatformat:2 }}</td>
+                            <td colspan="3"></td>
+                            <td class="px-4 py-3 font-bold text-slate-800">{{ payment.amount|floatformat:2 }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+    </div>
+
+    <!-- Notes -->
+    {% if payment.notes %}
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6" style="max-width: 1400px;">
+        <h3 class="font-bold text-slate-800 mb-4">ملاحظات</h3>
+        <p class="text-slate-600">{{ payment.notes }}</p>
+    </div>
+    {% endif %}
     </div>
 </div>
 {% endblock %}
