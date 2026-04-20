@@ -130,13 +130,13 @@
                         </tr>
                         {% endfor %}
                     </tbody>
-                    <tfoot class="bg-slate-50 border-t-2 border-slate-300">
+                    <tfoot class="bg-slate-100 border-t-2 border-slate-400">
                         <tr>
-                            <td colspan="3" class="px-6 py-4 font-bold text-slate-800 text-right">المجموع الكلي</td>
-                            <td class="px-6 py-4 font-bold text-slate-800 text-center">{{ payment.total_amount|floatformat:2 }}</td>
-                            <td colspan="3" class="px-6 py-4"></td>
-                            <td class="px-6 py-4 font-bold text-slate-800 text-center">{{ payment.amount|floatformat:2 }}</td>
-                            <td class="px-6 py-4"></td>
+                            <td colspan="3" class="px-6 py-5 font-bold text-slate-900 text-right text-base">المجموع الكلي</td>
+                            <td class="px-6 py-5 font-bold text-slate-900 text-base">{{ payment.total_amount|floatformat:2 }}</td>
+                            <td colspan="3" class="px-6 py-5"></td>
+                            <td class="px-6 py-5 font-bold text-slate-900 text-base">{{ payment.amount|floatformat:2 }}</td>
+                            <td class="px-6 py-5"></td>
                         </tr>
                     </tfoot>
                 </table>
