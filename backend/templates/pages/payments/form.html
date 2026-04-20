@@ -26,7 +26,7 @@
                     <select 
                         name="branch" 
                         required
-                        @change="loadBanks($event.target.value)"
+                        @change="onBranchChange($event.target.value)"
                         class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                         <option value="">-- اختر الفرع --</option>
@@ -40,6 +40,8 @@
                     <select 
                         name="bank"
                         x-ref="bankSelect"
+                        x-model="selectedBank"
+                        @change="onBankChange($event.target.value)"
                         class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                         <option value="">-- اختر البنك --</option>
@@ -53,7 +55,7 @@
                     <input 
                         type="text" 
                         name="cost_center"
-                        value="{% if payment %}{{ payment.cost_center }}{% endif %}"
+                        x-model="costCenter"
                         class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                 </div>
@@ -62,7 +64,7 @@
                     <input 
                         type="text" 
                         name="bank_account_number"
-                        value="{% if payment %}{{ payment.bank_account_number }}{% endif %}"
+                        x-model="bankAccountNumber"
                         class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                 </div>
@@ -71,7 +73,7 @@
                     <input 
                         type="text" 
                         name="supplier_account"
-                        value="{% if payment %}{{ payment.supplier_account }}{% else %}21101001{% endif %}"
+                        x-model="supplierAccount"
                         class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                 </div>
@@ -80,7 +82,7 @@
                     <input 
                         type="text" 
                         name="analytical_account"
-                        value="{% if payment %}{{ payment.analytical_account }}{% endif %}"
+                        x-model="analyticalAccount"
                         class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                 </div>
@@ -309,6 +311,31 @@
 <script>
 function paymentForm() {
     return {
+        // Branches & Banks data
+        branches: {
+            {% for branch in branches %}
+            '{{ branch.id }}': { 
+                cost_center: '{{ branch.cost_center.code|default:"" }}'
+            },
+            {% endfor %}
+        },
+        banks: {
+            {% for bank in banks %}
+            '{{ bank.id }}': { 
+                branch_id: '{{ bank.branch_id|default:"" }}',
+                account_number: '{{ bank.account_number|default:"" }}',
+                analytical_number: '{{ bank.analytical_number|default:"" }}'
+            },
+            {% endfor %}
+        },
+        
+        // Form fields
+        selectedBank: '{% if payment %}{{ payment.bank_id|default:"" }}{% endif %}',
+        costCenter: '{% if payment %}{{ payment.cost_center }}{% endif %}',
+        bankAccountNumber: '{% if payment %}{{ payment.bank_account_number }}{% endif %}',
+        supplierAccount: '{% if payment %}{{ payment.supplier_account }}{% else %}21101001{% endif %}',
+        analyticalAccount: '{% if payment %}{{ payment.analytical_account }}{% endif %}',
+        
         // Supplier Modal
         showSupplierModal: false,
         supplierSearch: '',
@@ -365,6 +392,44 @@ function paymentForm() {
         
         get totalProposed() {
             return this.items.reduce((sum, item) => sum + (parseFloat(item.proposed_amount) || 0), 0);
+        },
+        
+        onBranchChange(branchId) {
+            // Filter banks by branch
+            const bankSelect = this.$refs.bankSelect;
+            const options = bankSelect.querySelectorAll('option[data-branch]');
+            let firstBankId = null;
+            
+            options.forEach(opt => {
+                if (!branchId || opt.dataset.branch === branchId) {
+                    opt.style.display = '';
+                    if (!firstBankId && opt.value) firstBankId = opt.value;
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+            
+            // Auto-fill branch data
+            if (branchId && this.branches[branchId]) {
+                this.costCenter = this.branches[branchId].cost_center;
+            }
+            
+            // Auto-select first bank if available
+            if (firstBankId) {
+                this.selectedBank = firstBankId;
+                this.onBankChange(firstBankId);
+            } else {
+                this.selectedBank = '';
+                this.bankAccountNumber = '';
+                this.analyticalAccount = '';
+            }
+        },
+        
+        onBankChange(bankId) {
+            if (bankId && this.banks[bankId]) {
+                this.bankAccountNumber = this.banks[bankId].account_number;
+                this.analyticalAccount = this.banks[bankId].analytical_number;
+            }
         },
         
         openSupplierModal(index) {
@@ -424,19 +489,6 @@ function paymentForm() {
         
         calculateTotal() {
             // Computed property handles this
-        },
-        
-        loadBanks(branchId) {
-            const bankSelect = this.$refs.bankSelect;
-            const options = bankSelect.querySelectorAll('option[data-branch]');
-            options.forEach(opt => {
-                if (!branchId || opt.dataset.branch === branchId) {
-                    opt.style.display = '';
-                } else {
-                    opt.style.display = 'none';
-                }
-            });
-            bankSelect.value = '';
         }
     }
 }

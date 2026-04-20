@@ -448,8 +448,8 @@ def payment_create(request):
         return redirect('payments:detail', pk=payment.pk)
     
     context = {
-        'branches': Branch.objects.filter(is_active=True),
-        'banks': Bank.objects.filter(is_active=True),
+        'branches': Branch.objects.filter(is_active=True).select_related('cost_center'),
+        'banks': Bank.objects.filter(is_active=True).select_related('branch'),
         'cost_centers': CostCenter.objects.filter(is_active=True),
         'suppliers': Supplier.objects.filter(is_active=True),
     }
@@ -518,8 +518,8 @@ def payment_update(request, pk):
     
     context = {
         'payment': payment,
-        'branches': Branch.objects.filter(is_active=True),
-        'banks': Bank.objects.filter(is_active=True),
+        'branches': Branch.objects.filter(is_active=True).select_related('cost_center'),
+        'banks': Bank.objects.filter(is_active=True).select_related('branch'),
         'cost_centers': CostCenter.objects.filter(is_active=True),
         'suppliers': Supplier.objects.filter(is_active=True),
     }
