@@ -410,20 +410,32 @@ def payment_create(request):
         # Add items
         items_count = int(request.POST.get('items_count', 0))
         total = 0
+        total_proposed = 0
         for i in range(items_count):
             supplier_id = request.POST.get(f'items-{i}-supplier')
-            amount = request.POST.get(f'items-{i}-amount', 0)
             current_balance = request.POST.get(f'items-{i}-current_balance', 0)
-            description = request.POST.get(f'items-{i}-description', '')
+            proposed_amount = request.POST.get(f'items-{i}-proposed_amount', 0)
+            sultan_approval = request.POST.get(f'items-{i}-sultan_approval', 'pending')
+            auditor_status = request.POST.get(f'items-{i}-auditor_status', 'pending')
+            cfo_approval = request.POST.get(f'items-{i}-cfo_approval', 'pending')
+            abu_alaa_proposed = request.POST.get(f'items-{i}-abu_alaa_proposed', 0)
+            abu_alaa_final = request.POST.get(f'items-{i}-abu_alaa_final', 'pending')
+            
             if supplier_id:
                 PaymentRequestItem.objects.create(
                     payment_request=payment,
                     supplier_id=supplier_id,
-                    amount=float(amount),
-                    current_balance=float(current_balance),
-                    description=description,
+                    current_balance=float(current_balance or 0),
+                    proposed_amount=float(proposed_amount or 0),
+                    sultan_approval=sultan_approval,
+                    auditor_status=auditor_status,
+                    cfo_approval=cfo_approval,
+                    abu_alaa_proposed=float(abu_alaa_proposed or 0),
+                    abu_alaa_final=abu_alaa_final,
+                    amount=float(abu_alaa_proposed or 0),
                 )
-                total += float(amount)
+                total += float(abu_alaa_proposed or 0)
+                total_proposed += float(proposed_amount or 0)
         
         # Update total amount
         payment.amount = total
@@ -465,20 +477,32 @@ def payment_update(request, pk):
         payment.items.all().delete()
         items_count = int(request.POST.get('items_count', 0))
         total = 0
+        total_proposed = 0
         for i in range(items_count):
             supplier_id = request.POST.get(f'items-{i}-supplier')
-            amount = request.POST.get(f'items-{i}-amount', 0)
             current_balance = request.POST.get(f'items-{i}-current_balance', 0)
-            description = request.POST.get(f'items-{i}-description', '')
+            proposed_amount = request.POST.get(f'items-{i}-proposed_amount', 0)
+            sultan_approval = request.POST.get(f'items-{i}-sultan_approval', 'pending')
+            auditor_status = request.POST.get(f'items-{i}-auditor_status', 'pending')
+            cfo_approval = request.POST.get(f'items-{i}-cfo_approval', 'pending')
+            abu_alaa_proposed = request.POST.get(f'items-{i}-abu_alaa_proposed', 0)
+            abu_alaa_final = request.POST.get(f'items-{i}-abu_alaa_final', 'pending')
+            
             if supplier_id:
                 PaymentRequestItem.objects.create(
                     payment_request=payment,
                     supplier_id=supplier_id,
-                    amount=float(amount),
-                    current_balance=float(current_balance),
-                    description=description,
+                    current_balance=float(current_balance or 0),
+                    proposed_amount=float(proposed_amount or 0),
+                    sultan_approval=sultan_approval,
+                    auditor_status=auditor_status,
+                    cfo_approval=cfo_approval,
+                    abu_alaa_proposed=float(abu_alaa_proposed or 0),
+                    abu_alaa_final=abu_alaa_final,
+                    amount=float(abu_alaa_proposed or 0),
                 )
-                total += float(amount)
+                total += float(abu_alaa_proposed or 0)
+                total_proposed += float(proposed_amount or 0)
         
         payment.amount = total
         payment.save()
