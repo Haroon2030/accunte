@@ -5,6 +5,6 @@
     class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {% if current_url == url or request.path|startswith:url %}bg-primary-50 text-primary-700{% else %}text-slate-600 hover:bg-slate-100{% endif %}"
 >
     <i data-lucide="{{ icon }}" class="w-5 h-5 flex-shrink-0"></i>
-    <span x-show="sidebarOpen" class="font-bold text-base">{{ label }}</span>
+    <span x-show="sidebarOpen" class="font-semibold text-base">{{ label }}</span>
 </a>
 {% endwith %}
