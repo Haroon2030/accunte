@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}{% if payment %}تعديل طلب دفع{% else %}طلب دفع جديد{% endif %} - نظام المدفوعات{% endblock %}
+
+{% block page_title %}{% if payment %}تعديل طلب دفع #{{ payment.id }}{% else %}طلب دفع جديد{% endif %}{% endblock %}
+
+{% block content %}
+<div x-data="paymentForm()" class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <a href="{% url 'payments:list' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+            <i data-lucide="arrow-right" class="w-5 h-5 text-slate-600"></i>
+        </a>
+        <p class="text-slate-500">{% if payment %}تعديل الطلب{% else %}إنشاء طلب دفع جديد{% endif %}</p>
+    </div>
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Main Info -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 class="font-bold text-slate-800 mb-4">المعلومات الأساسية</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">الفرع *</label>
+                    <select 
+                        name="branch" 
+                        required
+                        @change="loadBanks($event.target.value)"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >
+                        <option value="">-- اختر الفرع --</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch.id }}" {% if payment and payment.branch_id == branch.id %}selected{% endif %}>{{ branch.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">البنك</label>
+                    <select 
+                        name="bank"
+                        x-ref="bankSelect"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >
+                        <option value="">-- اختر البنك --</option>
+                        {% for bank in banks %}
+                        <option value="{{ bank.id }}" data-branch="{{ bank.branch_id }}" {% if payment and payment.bank_id == bank.id %}selected{% endif %}>{{ bank.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">مركز التكلفة</label>
+                    <input 
+                        type="text" 
+                        name="cost_center"
+                        value="{% if payment %}{{ payment.cost_center }}{% endif %}"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >
+                </div>
+                <div class="md:col-span-2 lg:col-span-3">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">ملاحظات</label>
+                    <textarea 
+                        name="notes"
+                        rows="2"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >{% if payment %}{{ payment.notes|default:"" }}{% endif %}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800">بنود الدفع (الموردين)</h3>
+                <button 
+                    type="button"
+                    @click="addItem()"
+                    class="px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                    <i data-lucide="plus" class="w-4 h-4 inline"></i>
+                    إضافة مورد
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600 w-8">#</th>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">المورد</th>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600 w-40">الرصيد الحالي</th>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600 w-40">الدفعة المقترحة</th>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600 w-full">الوصف</th>
+                            <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600 w-16"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <template x-for="(item, index) in items" :key="index">
+                            <tr>
+                                <td class="px-4 py-3 text-sm text-slate-600" x-text="index + 1"></td>
+                                <td class="px-4 py-2">
+                                    <input type="hidden" :name="'items-' + index + '-id'" x-model="item.id">
+                                    <select 
+                                        :name="'items-' + index + '-supplier'"
+                                        x-model="item.supplier"
+                                        required
+                                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    >
+                                        <option value="">-- اختر المورد --</option>
+                                        {% for supplier in suppliers %}
+                                        <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input 
+                                        type="number" 
+                                        :name="'items-' + index + '-current_balance'"
+                                        x-model.number="item.current_balance"
+                                        step="0.01"
+                                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    >
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input 
+                                        type="number" 
+                                        :name="'items-' + index + '-amount'"
+                                        x-model.number="item.amount"
+                                        @input="calculateTotal()"
+                                        step="0.01"
+                                        min="0"
+                                        required
+                                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    >
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input 
+                                        type="text" 
+                                        :name="'items-' + index + '-description'"
+                                        x-model="item.description"
+                                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                        placeholder="وصف اختياري"
+                                    >
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <button 
+                                        type="button"
+                                        @click="removeItem(index)"
+                                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                    <tfoot class="bg-slate-50">
+                        <tr>
+                            <td colspan="3" class="px-4 py-3 text-sm font-bold text-slate-800 text-left">المجموع الكلي</td>
+                            <td class="px-4 py-3 text-sm font-bold text-slate-800" x-text="grandTotal.toFixed(2)"></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <input type="hidden" name="items_count" x-model="items.length">
+        </div>
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-3">
+            <a href="{% url 'payments:list' %}" class="px-6 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                إلغاء
+            </a>
+            <button type="submit" name="action" value="draft" class="px-6 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors">
+                حفظ كمسودة
+            </button>
+            <button type="submit" name="action" value="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                حفظ وتقديم
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function paymentForm() {
+    return {
+        items: [
+            {% if payment %}
+            {% for item in payment.items.all %}
+            { id: {{ item.id }}, supplier: '{{ item.supplier_id }}', current_balance: {{ item.current_balance }}, amount: {{ item.amount }}, description: '{{ item.description|default:"" }}' },
+            {% endfor %}
+            {% else %}
+            { id: '', supplier: '', current_balance: 0, amount: 0, description: '' }
+            {% endif %}
+        ],
+        
+        get grandTotal() {
+            return this.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        },
+        
+        addItem() {
+            this.items.push({ id: '', supplier: '', current_balance: 0, amount: 0, description: '' });
+            this.$nextTick(() => lucide.createIcons());
+        },
+        
+        removeItem(index) {
+            if (this.items.length > 1) {
+                this.items.splice(index, 1);
+            }
+        },
+        
+        calculateTotal() {
+            // Computed property handles this
+        },
+        
+        loadBanks(branchId) {
+            const bankSelect = this.$refs.bankSelect;
+            const options = bankSelect.querySelectorAll('option[data-branch]');
+            options.forEach(opt => {
+                if (!branchId || opt.dataset.branch === branchId) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+            bankSelect.value = '';
+        }
+    }
+}
+</script>
+{% endblock %}

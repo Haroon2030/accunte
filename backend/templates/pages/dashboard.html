@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التحكم - نظام المدفوعات{% endblock %}
+
+{% block page_title %}لوحة التحكم{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total Payments -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
+                    <i data-lucide="file-text" class="w-6 h-6 text-primary-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500">إجمالي الطلبات</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ stats.total_payments }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                    <i data-lucide="clock" class="w-6 h-6 text-yellow-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500">قيد المراجعة</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ stats.pending_payments }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Approved -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500">معتمدة</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ stats.approved_payments }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Amount -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <i data-lucide="banknote" class="w-6 h-6 text-blue-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500">إجمالي المبالغ</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ stats.total_amount|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Recent Payments -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+            <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800">آخر الطلبات</h3>
+                <a href="{% url 'payments:list' %}" class="text-sm text-primary-600 hover:text-primary-700">عرض الكل</a>
+            </div>
+            <div class="divide-y divide-slate-100">
+                {% for payment in recent_payments %}
+                <a href="{% url 'payments:detail' payment.id %}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="file-text" class="w-5 h-5 text-slate-600"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-800">طلب #{{ payment.id }}</p>
+                            <p class="text-sm text-slate-500">{{ payment.branch.name }}</p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium
+                        {% if payment.status == 'draft' %}bg-slate-100 text-slate-600
+                        {% elif payment.status == 'proposed' %}bg-yellow-100 text-yellow-700
+                        {% elif payment.status == 'final_approved' %}bg-green-100 text-green-700
+                        {% elif payment.status == 'rejected' %}bg-red-100 text-red-700
+                        {% else %}bg-blue-100 text-blue-700{% endif %}
+                    ">
+                        {{ payment.get_status_display }}
+                    </span>
+                </a>
+                {% empty %}
+                <div class="p-8 text-center text-slate-500">
+                    <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                    <p>لا توجد طلبات</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="space-y-4">
+            <!-- Branches -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="building-2" class="w-5 h-5 text-purple-600"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-800">الفروع</p>
+                            <p class="text-sm text-slate-500">{{ stats.total_branches }} فرع</p>
+                        </div>
+                    </div>
+                    <a href="{% url 'branches:list' %}" class="text-primary-600 hover:text-primary-700">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Banks -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="landmark" class="w-5 h-5 text-emerald-600"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-800">البنوك</p>
+                            <p class="text-sm text-slate-500">{{ stats.total_banks }} بنك</p>
+                        </div>
+                    </div>
+                    <a href="{% url 'banks:list' %}" class="text-primary-600 hover:text-primary-700">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Suppliers -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="users" class="w-5 h-5 text-orange-600"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-800">الموردين</p>
+                            <p class="text-sm text-slate-500">{{ stats.total_suppliers }} مورد</p>
+                        </div>
+                    </div>
+                    <a href="{% url 'suppliers:list' %}" class="text-primary-600 hover:text-primary-700">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Cost Centers -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5 text-pink-600"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-800">مراكز التكلفة</p>
+                            <p class="text-sm text-slate-500">{{ stats.total_cost_centers }} مركز</p>
+                        </div>
+                    </div>
+                    <a href="{% url 'cost_centers:list' %}" class="text-primary-600 hover:text-primary-700">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

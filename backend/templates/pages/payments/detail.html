@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}طلب دفع #{{ payment.id }} - نظام المدفوعات{% endblock %}
+
+{% block page_title %}طلب دفع #{{ payment.id }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'payments:list' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <i data-lucide="arrow-right" class="w-5 h-5 text-slate-600"></i>
+            </a>
+            <div>
+                <p class="text-slate-500">تفاصيل الطلب</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-sm font-medium
+                {% if payment.status == 'draft' %}bg-slate-100 text-slate-600
+                {% elif payment.status == 'proposed' %}bg-yellow-100 text-yellow-700
+                {% elif payment.status == 'first_approved' %}bg-blue-100 text-blue-700
+                {% elif payment.status == 'audited' %}bg-purple-100 text-purple-700
+                {% elif payment.status == 'final_approved' %}bg-green-100 text-green-700
+                {% elif payment.status == 'rejected' %}bg-red-100 text-red-700
+                {% endif %}
+            ">
+                {{ payment.get_status_display }}
+            </span>
+            {% if payment.status == 'draft' %}
+            <a href="{% url 'payments:update' payment.id %}" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                <i data-lucide="edit" class="w-4 h-4"></i>
+                تعديل
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Info -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Payment Info -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="font-bold text-slate-800 mb-4">معلومات الطلب</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-slate-500">رقم الطلب</p>
+                        <p class="font-medium text-slate-800">#{{ payment.id }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">تاريخ الإنشاء</p>
+                        <p class="font-medium text-slate-800">{{ payment.created_at|date:"Y/m/d H:i" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">الفرع</p>
+                        <p class="font-medium text-slate-800">{{ payment.branch.name }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">مركز التكلفة</p>
+                        <p class="font-medium text-slate-800">{{ payment.cost_center.name|default:"-" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">المورد</p>
+                        <p class="font-medium text-slate-800">{{ payment.supplier.name|default:"-" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">البنك</p>
+                        <p class="font-medium text-slate-800">{{ payment.bank.name|default:"-" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200">
+                    <h3 class="font-bold text-slate-800">بنود الدفع</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">#</th>
+                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">المورد</th>
+                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الرصيد الحالي</th>
+                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الدفعة المقترحة</th>
+                                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الوصف</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for item in payment.items.all %}
+                            <tr>
+                                <td class="px-4 py-3 text-sm text-slate-600">{{ forloop.counter }}</td>
+                                <td class="px-4 py-3 text-sm text-slate-800">{{ item.supplier.name }}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">{{ item.current_balance|floatformat:2 }}</td>
+                                <td class="px-4 py-3 text-sm font-medium text-slate-800">{{ item.amount|floatformat:2 }}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">{{ item.description|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-4 py-8 text-center text-slate-500">لا توجد بنود</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-slate-50">
+                            <tr>
+                                <td colspan="3" class="px-4 py-3 text-sm font-bold text-slate-800 text-left">المجموع الكلي</td>
+                                <td class="px-4 py-3 text-sm font-bold text-slate-800">{{ payment.amount|floatformat:2 }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            {% if payment.notes %}
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="font-bold text-slate-800 mb-4">ملاحظات</h3>
+                <p class="text-slate-600">{{ payment.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Status Actions -->
+            {% if can_change_status %}
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="font-bold text-slate-800 mb-4">إجراءات الحالة</h3>
+                <div class="space-y-3">
+                    {% if payment.status == 'draft' %}
+                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="proposed">
+                        <button type="submit" class="w-full px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors">
+                            تقديم للاعتماد
+                        </button>
+                    </form>
+                    {% elif payment.status == 'proposed' %}
+                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="first_approved">
+                        <button type="submit" class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            الموافقة المبدئية
+                        </button>
+                    </form>
+                    {% elif payment.status == 'first_approved' %}
+                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="audited">
+                        <button type="submit" class="w-full px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
+                            التدقيق
+                        </button>
+                    </form>
+                    {% elif payment.status == 'audited' %}
+                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="final_approved">
+                        <button type="submit" class="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                            الاعتماد النهائي
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    {% if payment.status != 'rejected' and payment.status != 'final_approved' %}
+                    <form method="post" action="{% url 'payments:change_status' payment.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="rejected">
+                        <button type="submit" class="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                            رفض
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Audit Log -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="font-bold text-slate-800 mb-4">سجل الإجراءات</h3>
+                <div class="space-y-4">
+                    {% for log in payment.audit_logs.all %}
+                    <div class="flex gap-3">
+                        <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center shrink-0">
+                            <i data-lucide="user" class="w-4 h-4 text-slate-600"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-slate-800">{{ log.action }}</p>
+                            <p class="text-xs text-slate-500">{{ log.user.username }} - {{ log.created_at|date:"Y/m/d H:i" }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-sm text-slate-500">لا توجد إجراءات</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Print -->
+            <button onclick="window.print()" class="w-full px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                طباعة
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

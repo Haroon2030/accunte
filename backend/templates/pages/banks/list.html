@@ -1,0 +1,135 @@
+{% extends "pages/list_base.html" %}
+
+{% block table_content %}
+<div class="overflow-x-auto">
+    <table class="w-full">
+        <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">#</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">اسم البنك</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الكود</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الفرع</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">رقم الحساب</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">IBAN</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold text-slate-600">الحالة</th>
+                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-600">إجراءات</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for bank in object_list %}
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-4 py-3 text-sm text-slate-600">{{ forloop.counter }}</td>
+                <td class="px-4 py-3 font-medium text-slate-800">{{ bank.name }}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 bg-slate-100 text-slate-700 rounded text-sm font-mono">{{ bank.code }}</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-slate-600">{{ bank.branch.name|default:"-" }}</td>
+                <td class="px-4 py-3 text-sm text-slate-600 font-mono">{{ bank.account_number|default:"-" }}</td>
+                <td class="px-4 py-3 text-sm text-slate-600 font-mono">{{ bank.iban|default:"-"|truncatechars:20 }}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2.5 py-1 rounded-full text-xs font-medium {% if bank.is_active %}bg-green-100 text-green-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                        {% if bank.is_active %}نشط{% else %}غير نشط{% endif %}
+                    </span>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center justify-center gap-1">
+                        <button 
+                            @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ bank.id }}, data: { name: '{{ bank.name }}', code: '{{ bank.code }}', branch: '{{ bank.branch_id|default:"" }}', account_number: '{{ bank.account_number|default:"" }}', iban: '{{ bank.iban|default:"" }}' } })"
+                            class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="تعديل"
+                        >
+                            <i data-lucide="edit" class="w-4 h-4"></i>
+                        </button>
+                        <button 
+                            @click="$dispatch('open-delete', { url: '{% url 'banks:delete' bank.id %}' })"
+                            class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="حذف"
+                        >
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="px-4 py-12 text-center">
+                    <div class="flex flex-col items-center">
+                        <i data-lucide="landmark" class="w-12 h-12 text-slate-300 mb-2"></i>
+                        <p class="text-slate-500">لا توجد بنوك</p>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block modal_form %}
+<form 
+    :action="editId ? '{% url 'banks:list' %}' + editId + '/update/' : '{% url 'banks:create' %}'"
+    method="post"
+    class="space-y-4"
+>
+    {% csrf_token %}
+    <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">اسم البنك *</label>
+        <input 
+            type="text" 
+            name="name" 
+            x-model="editData.name"
+            required
+            class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        >
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">الكود *</label>
+        <input 
+            type="text" 
+            name="code" 
+            x-model="editData.code"
+            required
+            class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        >
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">الفرع</label>
+        <select 
+            name="branch"
+            x-model="editData.branch"
+            class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        >
+            <option value="">-- اختر الفرع --</option>
+            {% for branch in branches %}
+            <option value="{{ branch.id }}">{{ branch.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">رقم الحساب</label>
+        <input 
+            type="text" 
+            name="account_number" 
+            x-model="editData.account_number"
+            class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        >
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">IBAN</label>
+        <input 
+            type="text" 
+            name="iban" 
+            x-model="editData.iban"
+            class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        >
+    </div>
+    <div class="flex gap-3 pt-4">
+        <button type="submit" class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+            حفظ
+        </button>
+        <button type="button" @click="open = false" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+            إلغاء
+        </button>
+    </div>
+</form>
+{% endblock %}

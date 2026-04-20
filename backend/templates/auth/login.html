@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}تسجيل الدخول - نظام المدفوعات{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-primary-50 flex items-center justify-center p-4">
+    <!-- Background Pattern -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-40 -right-40 w-80 h-80 bg-primary-200 rounded-full opacity-20 blur-3xl"></div>
+        <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-primary-300 rounded-full opacity-20 blur-3xl"></div>
+    </div>
+
+    <div class="w-full max-w-md relative z-10">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/30">
+                <i data-lucide="landmark" class="w-12 h-12 text-white"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800">نظام المدفوعات</h1>
+            <p class="text-gray-500 mt-2">نظام إدارة المدفوعات المالية</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border-0 p-8">
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-bold text-gray-900">تسجيل الدخول</h2>
+                <p class="text-gray-500 mt-1">أدخل بياناتك للوصول إلى حسابك</p>
+            </div>
+
+            {% if form.errors %}
+            <div class="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
+                <p>اسم المستخدم أو كلمة المرور غير صحيحة</p>
+            </div>
+            {% endif %}
+
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">اسم المستخدم</label>
+                    <input 
+                        type="text" 
+                        name="username" 
+                        id="username"
+                        required
+                        autocomplete="username"
+                        class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                        placeholder="أدخل اسم المستخدم"
+                    >
+                </div>
+
+                <div x-data="{ showPassword: false }">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
+                    <div class="relative">
+                        <input 
+                            :type="showPassword ? 'text' : 'password'"
+                            name="password" 
+                            id="password"
+                            required
+                            autocomplete="current-password"
+                            class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                            placeholder="أدخل كلمة المرور"
+                        >
+                        <button 
+                            type="button"
+                            @click="showPassword = !showPassword"
+                            class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <i x-show="!showPassword" data-lucide="eye" class="w-5 h-5"></i>
+                            <i x-show="showPassword" data-lucide="eye-off" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button 
+                    type="submit"
+                    class="w-full py-3 px-4 bg-gradient-to-l from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white font-medium rounded-lg shadow-lg shadow-primary-500/30 transition-all"
+                >
+                    تسجيل الدخول
+                </button>
+            </form>
+        </div>
+
+        <div class="text-center mt-8">
+            <p class="text-gray-500 text-sm">© 2026 نظام المدفوعات. جميع الحقوق محفوظة</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
