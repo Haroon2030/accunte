@@ -150,26 +150,6 @@
 
         <!-- Sidebar -->
         <div class="space-y-6">
-            <!-- Audit Log -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <h3 class="font-bold text-slate-800 mb-4">سجل الإجراءات</h3>
-                <div class="space-y-4">
-                    {% for log in payment.audit_logs.all %}
-                    <div class="flex gap-3">
-                        <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center shrink-0">
-                            <i data-lucide="user" class="w-4 h-4 text-slate-600"></i>
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-sm text-slate-800">{{ log.action }}</p>
-                            <p class="text-xs text-slate-500">{{ log.user.username }} - {{ log.created_at|date:"Y/m/d H:i" }}</p>
-                        </div>
-                    </div>
-                    {% empty %}
-                    <p class="text-sm text-slate-500">لا توجد إجراءات</p>
-                    {% endfor %}
-                </div>
-            </div>
-
             <!-- Print -->
             <button onclick="window.print()" class="w-full px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
                 <i data-lucide="printer" class="w-4 h-4"></i>
