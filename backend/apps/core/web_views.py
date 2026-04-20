@@ -90,7 +90,7 @@ class BranchListView(LoginRequiredMixin, ListView):
     paginate_by = 15
     
     def get_queryset(self):
-        queryset = Branch.objects.select_related('cost_center').prefetch_related('bank_set')
+        queryset = Branch.objects.select_related('cost_center')
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(Q(name__icontains=search) | Q(code__icontains=search))
