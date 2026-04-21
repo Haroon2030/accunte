@@ -406,6 +406,11 @@ class PaymentListView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         queryset = PaymentRequest.objects.select_related('branch', 'bank', 'created_by')
+
+        # تصفية حسب فرع المستخدم تلقائياً
+        user_branch = getattr(getattr(self.request.user, 'profile', None), 'branch', None)
+        if user_branch:
+            queryset = queryset.filter(branch=user_branch)
         
         search = self.request.GET.get('search')
         if search:
@@ -415,15 +420,19 @@ class PaymentListView(LoginRequiredMixin, ListView):
         if status:
             queryset = queryset.filter(status=status)
         
-        branch = self.request.GET.get('branch')
-        if branch:
-            queryset = queryset.filter(branch_id=branch)
+        if not user_branch:
+            branch = self.request.GET.get('branch')
+            if branch:
+                queryset = queryset.filter(branch_id=branch)
         
         return queryset.order_by('-created_at')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['branches'] = Branch.objects.filter(is_active=True)
+        user_branch = getattr(getattr(self.request.user, 'profile', None), 'branch', None)
+        if not user_branch:
+            context['branches'] = Branch.objects.filter(is_active=True)
+        context['user_branch'] = user_branch
         return context
 
 
@@ -494,11 +503,20 @@ def payment_create(request):
         messages.success(request, 'تم إنشاء طلب الدفع بنجاح')
         return redirect('payments:detail', pk=payment.pk)
     
+    user_branch = getattr(getattr(request.user, 'profile', None), 'branch', None)
+    if user_branch:
+        branches_qs = Branch.objects.filter(is_active=True, pk=user_branch.pk).select_related('cost_center')
+        banks_qs = Bank.objects.filter(is_active=True, branch=user_branch).select_related('branch')
+    else:
+        branches_qs = Branch.objects.filter(is_active=True).select_related('cost_center')
+        banks_qs = Bank.objects.filter(is_active=True).select_related('branch')
+
     context = {
-        'branches': Branch.objects.filter(is_active=True).select_related('cost_center'),
-        'banks': Bank.objects.filter(is_active=True).select_related('branch'),
+        'branches': branches_qs,
+        'banks': banks_qs,
         'cost_centers': CostCenter.objects.filter(is_active=True),
         'suppliers': Supplier.objects.filter(is_active=True),
+        'user_branch': user_branch,
     }
     return render(request, 'pages/payments/form.html', context)
 
@@ -565,12 +583,21 @@ def payment_update(request, pk):
         messages.success(request, 'تم تعديل طلب الدفع بنجاح')
         return redirect('payments:detail', pk=pk)
     
+    user_branch = getattr(getattr(request.user, 'profile', None), 'branch', None)
+    if user_branch:
+        branches_qs = Branch.objects.filter(is_active=True, pk=user_branch.pk).select_related('cost_center')
+        banks_qs = Bank.objects.filter(is_active=True, branch=user_branch).select_related('branch')
+    else:
+        branches_qs = Branch.objects.filter(is_active=True).select_related('cost_center')
+        banks_qs = Bank.objects.filter(is_active=True).select_related('branch')
+
     context = {
         'payment': payment,
-        'branches': Branch.objects.filter(is_active=True).select_related('cost_center'),
-        'banks': Bank.objects.filter(is_active=True).select_related('branch'),
+        'branches': branches_qs,
+        'banks': banks_qs,
         'cost_centers': CostCenter.objects.filter(is_active=True),
         'suppliers': Supplier.objects.filter(is_active=True),
+        'user_branch': user_branch,
     }
     return render(request, 'pages/payments/form.html', context)
 
