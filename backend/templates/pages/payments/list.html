@@ -112,7 +112,7 @@
                                 >
                                     <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                                 </a>
-                                {% if payment.status == 'draft' %}
+                                {% if payment.status != 'final_approved' %}
                                 <a 
                                     href="{% url 'payments:update' payment.id %}"
                                     class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"

@@ -92,7 +92,7 @@
                 <i data-lucide="download" class="w-4 h-4"></i>
                 تصدير Excel
             </a>
-            {% if payment.status == 'draft' %}
+            {% if payment.status != 'final_approved' %}
             <a href="{% url 'payments:update' payment.id %}" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2">
                 <i data-lucide="edit" class="w-4 h-4"></i>
                 تعديل
