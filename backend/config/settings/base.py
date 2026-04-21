@@ -193,5 +193,10 @@ LOGIN_URL = '/auth/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/auth/login/'
 
+# Session settings
+SESSION_COOKIE_AGE = 86400  # 24 hours in seconds
+SESSION_SAVE_EVERY_REQUEST = True  # Update session on every request
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep session after browser close
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
