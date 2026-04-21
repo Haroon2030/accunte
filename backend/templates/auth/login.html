@@ -13,18 +13,18 @@
     <div class="w-full max-w-md relative z-10">
         <!-- Logo -->
         <div class="text-center mb-8">
-            <div class="w-24 h-24 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-500/50">
-                <i data-lucide="landmark" class="w-14 h-14 text-white"></i>
+            <div class="w-24 h-24 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-500/50" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>
             </div>
-            <h1 class="text-4xl font-extrabold text-slate-900 mb-2">نظام المدفوعات</h1>
-            <p class="text-slate-600 text-lg font-semibold">نظام إدارة المدفوعات المالية</p>
+            <h1 class="text-4xl font-extrabold text-slate-900 mb-2" style="font-weight: 900 !important;">نظام المدفوعات</h1>
+            <p class="text-slate-600 text-lg font-semibold" style="font-weight: 600 !important;">نظام إدارة المدفوعات المالية</p>
         </div>
 
         <!-- Login Card -->
         <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 p-8">
             <div class="text-center mb-6">
-                <h2 class="text-2xl font-bold text-slate-900">تسجيل الدخول</h2>
-                <p class="text-slate-600 mt-2 text-base font-medium">أدخل بياناتك للوصول إلى حسابك</p>
+                <h2 class="text-2xl font-bold text-slate-900" style="font-weight: 800 !important;">تسجيل الدخول</h2>
+                <p class="text-slate-600 mt-2 text-base font-medium" style="font-weight: 600 !important;">أدخل بياناتك للوصول إلى حسابك</p>
             </div>
 
             {% if form.errors %}
@@ -37,7 +37,7 @@
                 {% csrf_token %}
                 
                 <div>
-                    <label for="username" class="block text-base font-bold text-slate-800 mb-2">اسم المستخدم</label>
+                    <label for="username" class="block text-base font-bold text-slate-800 mb-2" style="font-weight: 700 !important;">اسم المستخدم</label>
                     <input 
                         type="text" 
                         name="username" 
@@ -46,11 +46,12 @@
                         autocomplete="username"
                         class="w-full px-4 py-3.5 text-base font-medium border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                         placeholder="أدخل اسم المستخدم"
+                        style="font-weight: 500 !important;"
                     >
                 </div>
 
                 <div x-data="{ showPassword: false }">
-                    <label for="password" class="block text-base font-bold text-slate-800 mb-2">كلمة المرور</label>
+                    <label for="password" class="block text-base font-bold text-slate-800 mb-2" style="font-weight: 700 !important;">كلمة المرور</label>
                     <div class="relative">
                         <input 
                             :type="showPassword ? 'text' : 'password'"
@@ -60,6 +61,7 @@
                             autocomplete="current-password"
                             class="w-full px-4 py-3.5 text-base font-medium border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                             placeholder="أدخل كلمة المرور"
+                            style="font-weight: 500 !important;"
                         >
                         <button 
                             type="button"
@@ -74,7 +76,10 @@
 
                 <button 
                     type="submit"
-                    class="w-full py-4 px-4 bg-gradient-to-l from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white text-lg font-bold rounded-lg shadow-xl shadow-primary-500/40 transition-all hover:shadow-2xl hover:shadow-primary-600/50"
+                    class="w-full py-4 px-4 text-white text-lg font-bold rounded-lg shadow-xl transition-all hover:shadow-2xl"
+                    style="background: linear-gradient(to left, #2563eb, #3b82f6); font-weight: 800 !important;"
+                    onmouseover="this.style.background='linear-gradient(to left, #1d4ed8, #2563eb)'"
+                    onmouseout="this.style.background='linear-gradient(to left, #2563eb, #3b82f6)'"
                 >
                     تسجيل الدخول
                 </button>

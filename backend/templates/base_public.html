@@ -10,7 +10,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS -->
     <link href="/static/css/tailwind.min.css" rel="stylesheet">
@@ -19,6 +19,8 @@
     <style>
         .bg-primary-50 { background-color: #eff6ff; }
         .bg-primary-100 { background-color: #dbeafe; }
+        .bg-primary-200 { background-color: #bfdbfe; }
+        .bg-primary-300 { background-color: #93c5fd; }
         .bg-primary-500 { background-color: #3b82f6; }
         .bg-primary-600 { background-color: #2563eb; }
         .bg-primary-700 { background-color: #1d4ed8; }
@@ -30,8 +32,17 @@
         .focus\:ring-primary-500:focus { --tw-ring-color: #3b82f6; }
         .focus\:border-primary-500:focus { border-color: #3b82f6; }
         .hover\:bg-primary-700:hover { background-color: #1d4ed8; }
+        .hover\:from-primary-700:hover { --tw-gradient-from: #1d4ed8; }
+        .hover\:to-primary-600:hover { --tw-gradient-to: #2563eb; }
         .from-primary-500 { --tw-gradient-from: #3b82f6; }
+        .from-primary-600 { --tw-gradient-from: #2563eb; }
+        .to-primary-500 { --tw-gradient-to: #3b82f6; }
+        .to-primary-600 { --tw-gradient-to: #2563eb; }
         .to-primary-700 { --tw-gradient-to: #1d4ed8; }
+        .shadow-primary-500\/30 { box-shadow: 0 10px 15px -3px rgb(59 130 246 / 0.3), 0 4px 6px -4px rgb(59 130 246 / 0.3); }
+        .shadow-primary-500\/40 { box-shadow: 0 10px 15px -3px rgb(59 130 246 / 0.4), 0 4px 6px -4px rgb(59 130 246 / 0.4); }
+        .shadow-primary-500\/50 { box-shadow: 0 10px 15px -3px rgb(59 130 246 / 0.5), 0 4px 6px -4px rgb(59 130 246 / 0.5); }
+        .shadow-primary-600\/50 { box-shadow: 0 10px 15px -3px rgb(37 99 235 / 0.5), 0 4px 6px -4px rgb(37 99 235 / 0.5); }
     </style>
     
     <!-- HTMX -->
@@ -44,8 +55,21 @@
     <script src="/static/js/lucide.min.js"></script>
     
     <style>
-        * { font-family: 'Cairo', sans-serif; }
+        * { 
+            font-family: 'Cairo', sans-serif; 
+        }
+        html {
+            font-size: 16px;
+        }
+        body {
+            font-weight: 500;
+            line-height: 1.6;
+        }
         [x-cloak] { display: none !important; }
+        
+        /* Transitions */
+        .fade-in { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -57,7 +81,12 @@
     <div id="toast-container" class="fixed bottom-4 left-4 z-50 space-y-2"></div>
     
     <script>
-        lucide.createIcons();
+        // Initialize Lucide icons
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
         
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
