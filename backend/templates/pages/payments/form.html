@@ -114,6 +114,7 @@
                             <th class="px-2 py-2 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">حالة المدقق</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">اعتماد المدير المالي</th>
                             <th class="px-2 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">اقتراح السداد</th>
+                            <th class="px-2 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">ملاحظات</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">اعتماد أبوعلاء</th>
                             <th class="px-2 py-2 text-center text-xs font-semibold text-slate-600 w-10"></th>
                         </tr>
@@ -207,6 +208,16 @@
                                         required
                                         class="w-24 px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                     >
+                                </td>
+                                <!-- ملاحظات -->
+                                <td class="px-2 py-2">
+                                    <textarea
+                                        :name="'items-' + index + '-notes'"
+                                        x-model="item.notes"
+                                        rows="1"
+                                        class="w-32 px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                                        placeholder="ملاحظات..."
+                                    ></textarea>
                                 </td>
                                 <!-- اعتماد أبوعلاء -->
                                 <td class="px-2 py-2">
@@ -362,7 +373,8 @@ function paymentForm() {
                 auditor_status: '{{ item.auditor_status }}',
                 cfo_approval: '{{ item.cfo_approval }}',
                 abu_alaa_proposed: {{ item.abu_alaa_proposed }},
-                abu_alaa_final: '{{ item.abu_alaa_final }}'
+                abu_alaa_final: '{{ item.abu_alaa_final }}',
+                notes: '{{ item.notes|escapejs }}'
             },
             {% endfor %}
             {% else %}
@@ -377,7 +389,8 @@ function paymentForm() {
                 auditor_status: 'pending',
                 cfo_approval: 'pending',
                 abu_alaa_proposed: 0,
-                abu_alaa_final: 'pending'
+                abu_alaa_final: 'pending',
+                notes: ''
             }
             {% endif %}
         ],
@@ -476,7 +489,8 @@ function paymentForm() {
                 auditor_status: 'pending',
                 cfo_approval: 'pending',
                 abu_alaa_proposed: 0,
-                abu_alaa_final: 'pending'
+                abu_alaa_final: 'pending',
+                notes: ''
             });
             this.$nextTick(() => lucide.createIcons());
         },

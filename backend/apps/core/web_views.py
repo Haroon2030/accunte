@@ -468,6 +468,7 @@ def payment_create(request):
             cfo_approval = request.POST.get(f'items-{i}-cfo_approval', 'pending')
             abu_alaa_proposed = request.POST.get(f'items-{i}-abu_alaa_proposed', 0)
             abu_alaa_final = request.POST.get(f'items-{i}-abu_alaa_final', 'pending')
+            notes = request.POST.get(f'items-{i}-notes', '')
             
             if supplier_id:
                 PaymentRequestItem.objects.create(
@@ -481,6 +482,7 @@ def payment_create(request):
                     abu_alaa_proposed=float(abu_alaa_proposed or 0),
                     abu_alaa_final=abu_alaa_final,
                     amount=float(abu_alaa_proposed or 0),
+                    notes=notes,
                 )
                 total += float(abu_alaa_proposed or 0)
                 total_proposed += float(proposed_amount or 0)
@@ -538,6 +540,7 @@ def payment_update(request, pk):
             cfo_approval = request.POST.get(f'items-{i}-cfo_approval', 'pending')
             abu_alaa_proposed = request.POST.get(f'items-{i}-abu_alaa_proposed', 0)
             abu_alaa_final = request.POST.get(f'items-{i}-abu_alaa_final', 'pending')
+            notes = request.POST.get(f'items-{i}-notes', '')
             
             if supplier_id:
                 PaymentRequestItem.objects.create(
@@ -551,6 +554,7 @@ def payment_update(request, pk):
                     abu_alaa_proposed=float(abu_alaa_proposed or 0),
                     abu_alaa_final=abu_alaa_final,
                     amount=float(abu_alaa_proposed or 0),
+                    notes=notes,
                 )
                 total += float(abu_alaa_proposed or 0)
                 total_proposed += float(proposed_amount or 0)
