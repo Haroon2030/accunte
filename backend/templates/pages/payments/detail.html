@@ -12,6 +12,13 @@
             display: none !important;
         }
         
+        /* إخفاء عمود الملاحظات عند الطباعة */
+        thead th:nth-child(9),
+        tbody td:nth-child(9),
+        tfoot td:nth-child(9) {
+            display: none !important;
+        }
+        
         /* تحسين مظهر الطباعة */
         body {
             font-size: 12pt;
@@ -54,7 +61,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ showNotesModal: false, currentNote: '', currentSupplier: '' }">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div class="flex items-center gap-4">
@@ -144,6 +151,7 @@
                             <th class="px-6 py-4 text-center font-semibold text-slate-600 whitespace-nowrap">حالة المدقق</th>
                             <th class="px-6 py-4 text-center font-semibold text-slate-600 whitespace-nowrap">اعتماد المدير المالي</th>
                             <th class="px-6 py-4 text-right font-semibold text-slate-600 whitespace-nowrap">اقتراح السداد</th>
+                            <th class="px-6 py-4 text-center font-semibold text-slate-600 whitespace-nowrap">ملاحظات</th>
                             <th class="px-6 py-4 text-center font-semibold text-slate-600 whitespace-nowrap">اعتماد أبوعلاء</th>
                             </tr>
                         </thead>
@@ -171,6 +179,19 @@
                             </td>
                             <td class="px-6 py-4 text-slate-800 font-medium">{{ item.abu_alaa_proposed|floatformat:2 }}</td>
                             <td class="px-6 py-4 text-center">
+                                {% if item.notes %}
+                                <button 
+                                    @click="showNotesModal = true; currentNote = '{{ item.notes|escapejs }}'; currentSupplier = '{{ item.supplier.name|escapejs }}';"
+                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="عرض الملاحظة"
+                                >
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                                {% else %}
+                                <span class="text-slate-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-center">
                                 <span class="px-2 py-1 rounded {% if item.abu_alaa_final == 'approved' %}bg-green-100 text-green-700{% elif item.abu_alaa_final == 'rejected' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">
                                     {{ item.get_abu_alaa_final_display }}
                                 </span>
@@ -178,7 +199,7 @@
                             </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="9" class="px-6 py-12 text-center text-slate-500">لا توجد بنود</td>
+                            <td colspan="10" class="px-6 py-12 text-center text-slate-500">لا توجد بنود</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -188,6 +209,7 @@
                             <td class="px-6 py-5 font-bold text-slate-900 text-base">{{ payment.total_proposed_amount|floatformat:2 }}</td>
                             <td colspan="3" class="px-6 py-5"></td>
                             <td class="px-6 py-5 font-bold text-slate-900 text-base">{{ payment.total_abu_alaa_proposed|floatformat:2 }}</td>
+                            <td class="px-6 py-5"></td>
                             <td class="px-6 py-5"></td>
                         </tr>
                     </tfoot>
@@ -202,6 +224,51 @@
         <p class="text-slate-600">{{ payment.notes }}</p>
     </div>
     {% endif %}
+
+    <!-- Notes Modal -->
+    <div 
+        x-show="showNotesModal" 
+        x-cloak
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        @click.self="showNotesModal = false"
+        style="display: none;"
+    >
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6" @click.stop>
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-900">ملاحظات البند</h3>
+                    <p class="text-sm text-slate-500 mt-1" x-text="currentSupplier"></p>
+                </div>
+                <button @click="showNotesModal = false" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div class="bg-slate-50 rounded-lg p-4 mb-4 max-h-96 overflow-y-auto">
+                <p class="text-slate-700 whitespace-pre-wrap" x-text="currentNote"></p>
+            </div>
+
+            <div class="flex justify-end">
+                <button 
+                    @click="showNotesModal = false"
+                    class="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                    إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // تهيئة Lucide icons عند فتح الـ modal
+    document.addEventListener('alpine:init', () => {
+        Alpine.watch(() => {
+            setTimeout(() => lucide.createIcons(), 100);
+        });
+    });
+</script>
 {% endblock %}
