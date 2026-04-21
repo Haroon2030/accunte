@@ -742,6 +742,8 @@ def user_create(request):
         last_name = request.POST.get('last_name', '')
         is_staff = request.POST.get('is_staff') == 'on'
         is_active = request.POST.get('is_active') == 'on'
+        role_id = request.POST.get('role')
+        branch_id = request.POST.get('branch')
         
         if User.objects.filter(username=username).exists():
             messages.error(request, 'اسم المستخدم موجود مسبقاً')
@@ -756,10 +758,23 @@ def user_create(request):
             user.is_staff = is_staff
             user.is_active = is_active
             user.save()
+            
+            # إنشاء أو تحديث UserProfile
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            if role_id:
+                profile.role_id = role_id
+            if branch_id:
+                profile.branch_id = branch_id
+            profile.save()
+            
             messages.success(request, 'تم إنشاء المستخدم بنجاح')
             return redirect('users:list')
     
-    return render(request, 'pages/users/form.html')
+    context = {
+        'roles': Role.objects.filter(is_active=True),
+        'branches': Branch.objects.filter(is_active=True),
+    }
+    return render(request, 'pages/users/form.html', context)
 
 
 @login_required
@@ -781,10 +796,33 @@ def user_update(request, pk):
             user.set_password(password)
         
         user.save()
+        
+        # تحديث UserProfile
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        role_id = request.POST.get('role')
+        branch_id = request.POST.get('branch')
+        
+        if role_id:
+            profile.role_id = role_id
+        else:
+            profile.role = None
+            
+        if branch_id:
+            profile.branch_id = branch_id
+        else:
+            profile.branch = None
+            
+        profile.save()
+        
         messages.success(request, 'تم تعديل المستخدم بنجاح')
         return redirect('users:list')
     
-    return render(request, 'pages/users/form.html', {'user_obj': user})
+    context = {
+        'user_obj': user,
+        'roles': Role.objects.filter(is_active=True),
+        'branches': Branch.objects.filter(is_active=True),
+    }
+    return render(request, 'pages/users/form.html', context)
 
 
 @login_required
@@ -800,3 +838,91 @@ def user_delete(request, pk):
         messages.success(request, 'تم حذف المستخدم بنجاح')
     
     return redirect('users:list')
+
+
+# =============================================================================
+# Role Management Views
+# =============================================================================
+
+from apps.core.models import Role, UserProfile
+
+class RoleListView(AdminRequiredMixin, LoginRequiredMixin, ListView):
+    """قائمة الأدوار"""
+    model = Role
+    template_name = 'pages/roles/list.html'
+    context_object_name = 'roles'
+    
+    def get_queryset(self):
+        return Role.objects.all().order_by('name')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # عدد المستخدمين لكل دور
+        for role in context['roles']:
+            role.users_count = UserProfile.objects.filter(role=role).count()
+        return context
+
+
+@login_required
+@admin_required
+def role_create(request):
+    """إنشاء دور جديد"""
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        role_type = request.POST.get('role_type')
+        description = request.POST.get('description', '')
+        
+        if Role.objects.filter(name=name).exists():
+            messages.error(request, 'اسم الدور موجود مسبقاً')
+        else:
+            Role.objects.create(
+                name=name,
+                role_type=role_type,
+                description=description,
+                is_system_role=False,
+                is_active=True
+            )
+            messages.success(request, 'تم إنشاء الدور بنجاح')
+            return redirect('roles:list')
+    
+    return redirect('roles:list')
+
+
+@login_required
+@admin_required
+def role_update(request, pk):
+    """تعديل دور"""
+    role = get_object_or_404(Role, pk=pk)
+    
+    if request.method == 'POST':
+        if role.is_system_role:
+            messages.error(request, 'لا يمكن تعديل أدوار النظام')
+        else:
+            role.name = request.POST.get('name')
+            role.role_type = request.POST.get('role_type')
+            role.description = request.POST.get('description', '')
+            role.save()
+            messages.success(request, 'تم تعديل الدور بنجاح')
+        
+        return redirect('roles:list')
+    
+    return redirect('roles:list')
+
+
+@login_required
+@admin_required
+def role_delete(request, pk):
+    """حذف دور"""
+    role = get_object_or_404(Role, pk=pk)
+    
+    if role.is_system_role:
+        messages.error(request, 'لا يمكن حذف أدوار النظام')
+    else:
+        users_count = UserProfile.objects.filter(role=role).count()
+        if users_count > 0:
+            messages.error(request, f'لا يمكن حذف الدور لأنه مرتبط بـ {users_count} مستخدم')
+        else:
+            role.delete()
+            messages.success(request, 'تم حذف الدور بنجاح')
+    
+    return redirect('roles:list')

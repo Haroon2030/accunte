@@ -24,11 +24,10 @@
                         <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">#</th>
                         <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">اسم المستخدم</th>
                         <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">الاسم الكامل</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">البريد الإلكتروني</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">الدور</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">الفرع</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-slate-600">الحالة</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-slate-600">مشرف</th>
                         <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">تاريخ الانضمام</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">آخر دخول</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-slate-600 w-24">إجراءات</th>
                     </tr>
                 </thead>
@@ -38,7 +37,22 @@
                         <td class="px-4 py-3 text-slate-600">{{ forloop.counter }}</td>
                         <td class="px-4 py-3 font-medium text-slate-800">{{ user_item.username }}</td>
                         <td class="px-4 py-3 text-slate-600">{{ user_item.get_full_name|default:"-" }}</td>
-                        <td class="px-4 py-3 text-slate-600">{{ user_item.email|default:"-" }}</td>
+                        <td class="px-4 py-3 text-slate-600">
+                            {% if user_item.profile.role %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                {{ user_item.profile.role.name }}
+                            </span>
+                            {% else %}
+                            <span class="text-slate-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-slate-600">
+                            {% if user_item.profile.branch %}
+                            <span class="text-slate-700">{{ user_item.profile.branch.name }}</span>
+                            {% else %}
+                            <span class="text-slate-400">-</span>
+                            {% endif %}
+                        </td>
                         <td class="px-4 py-3 text-center">
                             {% if user_item.is_active %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
@@ -50,17 +64,7 @@
                             </span>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3 text-center">
-                            {% if user_item.is_staff %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                نعم
-                            </span>
-                            {% else %}
-                            <span class="text-slate-400">-</span>
-                            {% endif %}
-                        </td>
                         <td class="px-4 py-3 text-slate-500 text-xs">{{ user_item.date_joined|date:"Y/m/d" }}</td>
-                        <td class="px-4 py-3 text-slate-500 text-xs">{{ user_item.last_login|date:"Y/m/d H:i"|default:"-" }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-1">
                                 <a href="{% url 'users:update' user_item.pk %}" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors" title="تعديل">
@@ -79,7 +83,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="px-4 py-8 text-center text-slate-500">
+                        <td colspan="8" class="px-4 py-8 text-center text-slate-500">
                             لا يوجد مستخدمين
                         </td>
                     </tr>

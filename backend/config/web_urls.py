@@ -60,6 +60,14 @@ user_patterns = [
     path('<int:pk>/delete/', web_views.user_delete, name='delete'),
 ]
 
+# Role URLs
+role_patterns = [
+    path('', web_views.RoleListView.as_view(), name='list'),
+    path('create/', web_views.role_create, name='create'),
+    path('<int:pk>/update/', web_views.role_update, name='update'),
+    path('<int:pk>/delete/', web_views.role_delete, name='delete'),
+]
+
 # Main URL patterns
 urlpatterns = [
     # Dashboard
@@ -75,4 +83,5 @@ urlpatterns = [
     path('suppliers/', include((supplier_patterns, 'suppliers'))),
     path('payments/', include((payment_patterns, 'payments'))),
     path('users/', include((user_patterns, 'users'))),
+    path('roles/', include((role_patterns, 'roles'))),
 ]

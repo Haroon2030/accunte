@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}نظام المدفوعات{% endblock %}</title>
+    <title>{% block title %}النظام{% endblock %}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%232563eb' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>م</text></svg>">
     
     <!-- Fonts -->
@@ -15,7 +15,7 @@
     <!-- Tailwind CSS -->
     <link href="/static/css/tailwind.min.css" rel="stylesheet">
     
-    <!-- Custom primary colors -->
+    <!-- Primary Colors (Blue) -->
     <style>
         .bg-primary-50 { background-color: #eff6ff; }
         .bg-primary-100 { background-color: #dbeafe; }
@@ -30,6 +30,7 @@
         .focus\:ring-primary-500:focus { --tw-ring-color: #3b82f6; }
         .focus\:border-primary-500:focus { border-color: #3b82f6; }
         .hover\:bg-primary-700:hover { background-color: #1d4ed8; }
+        .hover\:bg-primary-50:hover { background-color: #eff6ff; }
         .from-primary-500 { --tw-gradient-from: #3b82f6; }
         .to-primary-700 { --tw-gradient-to: #1d4ed8; }
     </style>
@@ -53,10 +54,6 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        /* HTMX loading indicator */
-        .htmx-request .htmx-indicator { display: inline-flex; }
-        .htmx-indicator { display: none; }
-        
         /* Transitions */
         .fade-in { animation: fadeIn 0.2s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -64,10 +61,10 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-slate-50 min-h-screen" x-data="{ sidebarOpen: true, mobileMenuOpen: false }">
-    <!-- Main Layout with Sidebar -->
+<body class="bg-slate-50 min-h-screen" x-data="{ sidebarOpen: true }">
     <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar -->
+        
+        <!-- ===== SIDEBAR ===== -->
         <aside 
             class="bg-white border-l border-slate-200 transition-all duration-300 flex flex-col"
             :class="sidebarOpen ? 'w-64' : 'w-20'"
@@ -76,27 +73,34 @@
             <div class="h-16 flex items-center justify-center border-b border-slate-200 px-4">
                 <div class="flex items-center gap-3" x-show="sidebarOpen">
                     <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-                        <i data-lucide="landmark" class="w-6 h-6 text-white"></i>
+                        <i data-lucide="layout-dashboard" class="w-6 h-6 text-white"></i>
                     </div>
-                    <span class="font-bold text-xl text-slate-800">نظام المدفوعات</span>
+                    <span class="font-bold text-lg text-slate-800">اسم النظام</span>
                 </div>
                 <div x-show="!sidebarOpen" class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-                    <i data-lucide="landmark" class="w-6 h-6 text-white"></i>
+                    <i data-lucide="layout-dashboard" class="w-6 h-6 text-white"></i>
                 </div>
             </div>
             
             <!-- Navigation -->
             <nav class="flex-1 overflow-y-auto p-4 space-y-1">
-                {% include "components/nav_item.html" with url="dashboard" icon="layout-dashboard" label="لوحة التحكم" %}
-                {% include "components/nav_item.html" with url="payments:list" icon="file-text" label="طلبات الدفع" %}
-                {% include "components/nav_item.html" with url="suppliers:list" icon="truck" label="الموردين" %}
-                {% include "components/nav_item.html" with url="branches:list" icon="building-2" label="الفروع" %}
-                {% include "components/nav_item.html" with url="banks:list" icon="landmark" label="البنوك" %}
-                {% include "components/nav_item.html" with url="cost_centers:list" icon="bar-chart-3" label="مراكز التكلفة" %}
-                {% if user.profile.role.role_type == 'admin' %}
-                    {% include "components/nav_item.html" with url="roles:list" icon="shield" label="الأدوار" %}
-                    {% include "components/nav_item.html" with url="users:list" icon="users" label="المستخدمين" %}
-                {% endif %}
+                <!-- Navigation Item Template -->
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary-50 text-primary-700">
+                    <i data-lucide="home" class="w-5 h-5 flex-shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium">الرئيسية</span>
+                </a>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+                    <i data-lucide="file-text" class="w-5 h-5 flex-shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium">الطلبات</span>
+                </a>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+                    <i data-lucide="users" class="w-5 h-5 flex-shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium">المستخدمين</span>
+                </a>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5 flex-shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium">الإعدادات</span>
+                </a>
             </nav>
             
             <!-- User Info -->
@@ -106,14 +110,14 @@
                         <i data-lucide="user" class="w-5 h-5 text-primary-600"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="font-semibold text-slate-800 truncate">{{ user.get_full_name|default:user.username }}</p>
-                        <p class="text-sm font-medium text-slate-600">{{ user.profile.role.name|default:"مستخدم" }}</p>
+                        <p class="font-medium text-slate-800 truncate">اسم المستخدم</p>
+                        <p class="text-xs text-slate-500">مشرف</p>
                     </div>
                 </div>
             </div>
         </aside>
         
-        <!-- Main Content -->
+        <!-- ===== MAIN CONTENT ===== -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
             <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
@@ -125,14 +129,11 @@
                 </div>
                 
                 <div class="flex items-center gap-3">
-                    <!-- Notifications -->
                     <button class="p-2 hover:bg-slate-100 rounded-lg transition-colors relative">
                         <i data-lucide="bell" class="w-5 h-5 text-slate-600"></i>
                         <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                     </button>
-                    
-                    <!-- Logout -->
-                    <a href="{% url 'auth:logout' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="تسجيل الخروج">
+                    <a href="#" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="تسجيل الخروج">
                         <i data-lucide="log-out" class="w-5 h-5 text-slate-600"></i>
                     </a>
                 </div>
@@ -149,10 +150,8 @@
     <div id="toast-container" class="fixed bottom-4 left-4 z-50 space-y-2"></div>
     
     <script>
-        // Initialize Lucide icons
         lucide.createIcons();
         
-        // Toast notification function
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const colors = {
@@ -162,23 +161,13 @@
                 info: 'bg-blue-500'
             };
             const toast = document.createElement('div');
-            toast.className = `${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg fade-in flex items-center gap-2`;
-            toast.innerHTML = `<span>${message}</span>`;
+            toast.className = `${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg fade-in`;
+            toast.textContent = message;
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 4000);
         }
         
-        // HTMX event handlers
-        document.body.addEventListener('htmx:afterSwap', function(e) {
-            lucide.createIcons();
-        });
-        
-        // Show Django messages as toasts
-        {% if messages %}
-            {% for message in messages %}
-                showToast('{{ message }}', '{{ message.tags }}');
-            {% endfor %}
-        {% endif %}
+        document.body.addEventListener('htmx:afterSwap', () => lucide.createIcons());
     </script>
     
     {% block extra_js %}{% endblock %}
