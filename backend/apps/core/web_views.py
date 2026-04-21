@@ -9,13 +9,56 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView, D
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.db.models import Count, Sum, Q
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
+from functools import wraps
 
 from apps.branches.models import Branch
 from apps.banks.models import Bank
 from apps.cost_centers.models import CostCenter
 from apps.suppliers.models import Supplier
 from apps.payments.models import PaymentRequest, PaymentRequestItem
+from apps.core.models import Role
+
+
+# =============================================================================
+# Custom Decorators
+# =============================================================================
+
+def admin_required(view_func):
+    """تحقق من أن المستخدم لديه دور أدمن"""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('auth:login')
+        
+        # التحقق من دور الأدمن
+        try:
+            user_role = request.user.profile.role
+            if user_role and user_role.role_type == Role.RoleType.ADMIN:
+                return view_func(request, *args, **kwargs)
+        except:
+            pass
+        
+        messages.error(request, 'ليس لديك صلاحية للوصول إلى هذه الصفحة')
+        return redirect('dashboard')
+    return wrapper
+
+
+class AdminRequiredMixin:
+    """Mixin للتحقق من دور الأدمن في CBVs"""
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('auth:login')
+        
+        try:
+            user_role = request.user.profile.role
+            if user_role and user_role.role_type == Role.RoleType.ADMIN:
+                return super().dispatch(request, *args, **kwargs)
+        except:
+            pass
+        
+        messages.error(request, 'ليس لديك صلاحية للوصول إلى هذه الصفحة')
+        return redirect('dashboard')
 
 
 # =============================================================================
@@ -677,7 +720,7 @@ def payment_export_excel(request, pk):
 
 from django.contrib.auth.models import User
 
-class UserListView(LoginRequiredMixin, ListView):
+class UserListView(AdminRequiredMixin, LoginRequiredMixin, ListView):
     """قائمة المستخدمين"""
     model = User
     template_name = 'pages/users/list.html'
@@ -688,6 +731,7 @@ class UserListView(LoginRequiredMixin, ListView):
 
 
 @login_required
+@admin_required
 def user_create(request):
     """إنشاء مستخدم جديد"""
     if request.method == 'POST':
@@ -719,6 +763,7 @@ def user_create(request):
 
 
 @login_required
+@admin_required
 def user_update(request, pk):
     """تعديل مستخدم"""
     user = get_object_or_404(User, pk=pk)
@@ -743,6 +788,7 @@ def user_update(request, pk):
 
 
 @login_required
+@admin_required
 def user_delete(request, pk):
     """حذف مستخدم"""
     user = get_object_or_404(User, pk=pk)

@@ -93,7 +93,9 @@
                 {% include "components/nav_item.html" with url="branches:list" icon="building-2" label="الفروع" %}
                 {% include "components/nav_item.html" with url="banks:list" icon="landmark" label="البنوك" %}
                 {% include "components/nav_item.html" with url="cost_centers:list" icon="bar-chart-3" label="مراكز التكلفة" %}
-                {% include "components/nav_item.html" with url="users:list" icon="users" label="المستخدمين" %}
+                {% if user.profile.role.role_type == 'admin' %}
+                    {% include "components/nav_item.html" with url="users:list" icon="users" label="المستخدمين" %}
+                {% endif %}
             </nav>
             
             <!-- User Info -->
