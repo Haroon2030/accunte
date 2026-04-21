@@ -2,6 +2,7 @@
 Web URLs - روابط واجهة الويب
 """
 from django.urls import path, include
+from django.views.generic import RedirectView
 from apps.core import web_views
 
 # Authentication URLs
@@ -75,6 +76,9 @@ urlpatterns = [
     
     # Auth
     path('auth/', include((auth_patterns, 'auth'))),
+    
+    # Redirect /login/ to /auth/login/
+    path('login/', RedirectView.as_view(pattern_name='auth:login', permanent=True)),
     
     # CRUD
     path('branches/', include((branch_patterns, 'branches'))),
