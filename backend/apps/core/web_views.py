@@ -506,8 +506,8 @@ def payment_update(request, pk):
     """تعديل طلب دفع"""
     payment = get_object_or_404(PaymentRequest, pk=pk)
     
-    if payment.status != 'draft':
-        messages.error(request, 'لا يمكن تعديل طلب غير مسودة')
+    if payment.status == 'final_approved':
+        messages.error(request, 'لا يمكن تعديل طلب معتمد نهائياً')
         return redirect('payments:detail', pk=pk)
     
     if request.method == 'POST':
