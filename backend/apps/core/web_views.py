@@ -47,9 +47,11 @@ def login_view(request):
 
 def logout_view(request):
     """تسجيل الخروج"""
-    logout(request)
-    messages.info(request, 'تم تسجيل الخروج بنجاح')
-    return redirect('login')
+    if request.method == 'POST' or request.method == 'GET':
+        logout(request)
+        messages.success(request, 'تم تسجيل الخروج بنجاح')
+        return redirect('auth:login')
+    return redirect('dashboard')
 
 
 # =============================================================================
