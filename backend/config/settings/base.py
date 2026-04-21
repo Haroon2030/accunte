@@ -199,5 +199,8 @@ SESSION_COOKIE_AGE = 86400  # 24 hours in seconds
 SESSION_SAVE_EVERY_REQUEST = True  # Update session on every request
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep session after browser close
 
+# Security Headers
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None  # Disable COOP header (causes warnings on HTTP)
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
