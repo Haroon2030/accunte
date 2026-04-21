@@ -5,10 +5,15 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
+from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 
 urlpatterns = [
+    # Favicon
+    path('favicon.ico', RedirectView.as_view(url='/static/favicon.svg', permanent=True)),
+    
     # Admin
     path('admin/', admin.site.urls),
     
