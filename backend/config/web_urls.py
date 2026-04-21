@@ -50,6 +50,7 @@ payment_patterns = [
     path('<int:pk>/', web_views.PaymentDetailView.as_view(), name='detail'),
     path('<int:pk>/update/', web_views.payment_update, name='update'),
     path('<int:pk>/status/', web_views.payment_change_status, name='change_status'),
+    path('<int:pk>/delete/', web_views.payment_delete, name='delete'),
     path('<int:pk>/export-excel/', web_views.payment_export_excel, name='export_excel'),
 ]
 

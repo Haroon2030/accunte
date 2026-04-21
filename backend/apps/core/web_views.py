@@ -622,6 +622,22 @@ def payment_change_status(request, pk):
 
 
 @login_required
+def payment_delete(request, pk):
+    """حذف طلب الدفع - للمدراء فقط"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role is None or request.user.profile.role.role_type != 'admin':
+        messages.error(request, 'ليس لديك صلاحية حذف الطلبات')
+        return redirect('payments:list')
+    
+    payment = get_object_or_404(PaymentRequest, pk=pk)
+    if request.method == 'POST':
+        payment.delete()
+        messages.success(request, f'تم حذف الطلب #{pk} بنجاح')
+        return redirect('payments:list')
+    
+    return redirect('payments:list')
+
+
+@login_required
 def payment_export_excel(request, pk):
     """تصدير طلب الدفع إلى Excel"""
     from openpyxl import Workbook
