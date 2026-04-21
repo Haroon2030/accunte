@@ -114,7 +114,7 @@ def dashboard_view(request):
         'total_suppliers': Supplier.objects.filter(is_active=True).count(),
         'total_cost_centers': CostCenter.objects.filter(is_active=True).count(),
     }
-    recent_payments = PaymentRequest.objects.select_related('branch', 'bank').order_by('-created_at')[:5]
+    recent_payments = PaymentRequest.objects.select_related('branch', 'bank').order_by('-created_at')[:6]
     
     context = {
         'stats': stats,
