@@ -46,6 +46,133 @@ def unique_banks_for_select(banks_qs, selected_bank_id=None):
     return unique
 
 
+def _chart_percent(value, total):
+    if not total:
+        return 0
+    return round(float(value) / float(total) * 100)
+
+
+def _conic_gradient(segments):
+    total = sum(segment['value'] for segment in segments)
+    if total <= 0:
+        return 'conic-gradient(#e2e8f0 0deg 360deg)'
+
+    parts = []
+    angle = 0
+    for segment in segments:
+        sweep = segment['value'] / total * 360
+        end_angle = angle + sweep
+        parts.append(f"{segment['color']} {angle}deg {end_angle}deg")
+        angle = end_angle
+    return f"conic-gradient({', '.join(parts)})"
+
+
+def _build_dashboard_charts():
+    contract_type_labels = dict(Contract.ContractType.choices)
+    contract_type_colors = {
+        'fixed_discount': '#6366f1',
+        'monthly_incentive': '#8b5cf6',
+        'annual_incentive': '#3b82f6',
+    }
+    contract_types = list(
+        Contract.objects.values('contract_type')
+        .annotate(count=Count('id'))
+        .order_by('contract_type')
+    )
+    contracts_total = Contract.objects.count()
+    contracts_active = Contract.objects.filter(is_active=True).count()
+    contracts_inactive = max(contracts_total - contracts_active, 0)
+    contracts_by_type = [
+        {
+            'label': contract_type_labels.get(row['contract_type'], row['contract_type']),
+            'value': row['count'],
+            'color': contract_type_colors.get(row['contract_type'], '#94a3b8'),
+            'percent': _chart_percent(row['count'], contracts_total),
+        }
+        for row in contract_types
+        if row['count']
+    ]
+
+    items_total = Item.objects.count()
+    items_active = Item.objects.filter(is_active=True).count()
+    items_inactive = max(items_total - items_active, 0)
+    items_amount = Item.objects.filter(is_active=True).aggregate(total=Sum('amount'))['total'] or 0
+    batches_total = ItemBatch.objects.count()
+    top_item_suppliers = list(
+        ItemBatch.objects.values('supplier__name')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:3]
+    )
+
+    rentals_total = SpaceRental.objects.count()
+    rentals_active = SpaceRental.objects.filter(is_active=True).count()
+    rentals_inactive = max(rentals_total - rentals_active, 0)
+    rentals_monthly = SpaceRental.objects.filter(is_active=True).aggregate(total=Sum('monthly_rent'))['total'] or 0
+    rental_type_labels = dict(SpaceRental.RentalType.choices)
+    rental_type_colors = {
+        'shelf': '#14b8a6',
+        'floor_gondola': '#06b6d4',
+    }
+    rentals_by_type = list(
+        SpaceRental.objects.filter(is_active=True)
+        .values('rental_type')
+        .annotate(count=Count('id'), rent_total=Sum('monthly_rent'))
+        .order_by('rental_type')
+    )
+    rentals_type_segments = [
+        {
+            'label': rental_type_labels.get(row['rental_type'], row['rental_type']),
+            'value': row['count'],
+            'amount': row['rent_total'] or 0,
+            'color': rental_type_colors.get(row['rental_type'], '#94a3b8'),
+            'percent': _chart_percent(row['count'], rentals_active or rentals_total),
+        }
+        for row in rentals_by_type
+        if row['count']
+    ]
+
+    return {
+        'contracts': {
+            'total': contracts_total,
+            'active': contracts_active,
+            'inactive': contracts_inactive,
+            'by_type': contracts_by_type,
+            'status_gradient': _conic_gradient([
+                {'value': contracts_active, 'color': '#22c55e'},
+                {'value': contracts_inactive, 'color': '#cbd5e1'},
+            ]),
+            'type_gradient': _conic_gradient(contracts_by_type or [{'value': 1, 'color': '#e2e8f0'}]),
+            'active_percent': _chart_percent(contracts_active, contracts_total),
+        },
+        'items': {
+            'total': items_total,
+            'batches': batches_total,
+            'amount': items_amount,
+            'active': items_active,
+            'inactive': items_inactive,
+            'top_suppliers': top_item_suppliers,
+            'status_gradient': _conic_gradient([
+                {'value': items_active, 'color': '#f59e0b'},
+                {'value': items_inactive, 'color': '#fde68a'},
+            ]),
+            'active_percent': _chart_percent(items_active, items_total),
+        },
+        'space_rentals': {
+            'total': rentals_total,
+            'active': rentals_active,
+            'inactive': rentals_inactive,
+            'monthly_rent': rentals_monthly,
+            'by_type': rentals_type_segments,
+            'status_gradient': _conic_gradient([
+                {'value': rentals_active, 'color': '#14b8a6'},
+                {'value': rentals_inactive, 'color': '#cbd5e1'},
+            ]),
+            'type_gradient': _conic_gradient(rentals_type_segments or [{'value': 1, 'color': '#e2e8f0'}]),
+            'active_percent': _chart_percent(rentals_active, rentals_total),
+        },
+    }
+
+
 # =============================================================================
 # Custom Decorators
 # =============================================================================
@@ -164,6 +291,7 @@ def dashboard_view(request):
 
     context = {
         'stats': stats,
+        'charts': _build_dashboard_charts(),
         'recent_payments': recent_payments,
         'recent_contracts': recent_contracts,
         'recent_space_rentals': recent_space_rentals,
