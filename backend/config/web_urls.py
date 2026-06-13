@@ -37,6 +37,7 @@ cost_center_patterns = [
 
 # Supplier URLs
 supplier_patterns = [
+    path('search.json', web_views.suppliers_search_json, name='search'),
     path('', web_views.SupplierListView.as_view(), name='list'),
     path('create/', web_views.supplier_create, name='create'),
     path('<int:pk>/update/', web_views.supplier_update, name='update'),

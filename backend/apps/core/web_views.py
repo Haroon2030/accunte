@@ -74,6 +74,25 @@ def banks_json_for_payment(banks_qs, selected_bank_id=None):
     ]
 
 
+def unique_suppliers_for_select(suppliers_qs, limit=20):
+    """One entry per supplier name (normalized)."""
+    seen = set()
+    unique = []
+    for supplier in suppliers_qs.order_by('name', 'code', 'id'):
+        name_key = _normalize_bank_name(supplier.name)
+        if not name_key or name_key in seen:
+            continue
+        seen.add(name_key)
+        unique.append({
+            'id': str(supplier.id),
+            'code': supplier.code or '',
+            'name': supplier.name or '',
+        })
+        if len(unique) >= limit:
+            break
+    return unique
+
+
 def _chart_percent(value, total):
     if not total:
         return 0
@@ -821,6 +840,18 @@ class SupplierListView(LoginRequiredMixin, ListView):
 
 
 @login_required
+def suppliers_search_json(request):
+    """بحث الموردين للقوائم المنسدلة — خفيف وسريع."""
+    q = request.GET.get('q', '').strip()
+    qs = Supplier.objects.filter(is_active=True)
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(code__icontains=q))
+    return JsonResponse({
+        'results': unique_suppliers_for_select(qs, limit=20),
+    })
+
+
+@login_required
 def supplier_create(request):
     """إنشاء مورد جديد"""
     if request.method == 'POST':
@@ -895,10 +926,6 @@ class ContractListView(LoginRequiredMixin, ListView):
         context['page_subtitle'] = 'إدارة عقود الموردين (خصم ثابت، حافز شهري، حافز سنوي)'
         context['add_button_text'] = 'إضافة عقد'
         context['search_placeholder'] = 'البحث عن عقد...'
-        context['suppliers'] = Supplier.objects.filter(is_active=True).order_by('name')
-        context['suppliers_json'] = list(
-            Supplier.objects.filter(is_active=True).order_by('name').values('id', 'code', 'name')
-        )
         context['contract_types'] = Contract.ContractType.choices
         context['contract_types_json'] = [
             {'value': value, 'label': label}
@@ -984,10 +1011,6 @@ class SpaceRentalListView(LoginRequiredMixin, ListView):
         context['add_button_text'] = 'إضافة إيجار'
         context['search_placeholder'] = 'البحث عن إيجار...'
         context['branches'] = Branch.objects.filter(is_active=True).order_by('name')
-        context['suppliers'] = Supplier.objects.filter(is_active=True).order_by('name')
-        context['suppliers_json'] = list(
-            Supplier.objects.filter(is_active=True).order_by('name').values('id', 'code', 'name')
-        )
         context['rental_types'] = SpaceRental.RentalType.choices
         return context
 

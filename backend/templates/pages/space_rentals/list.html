@@ -81,7 +81,6 @@
 {% endblock %}
 
 {% block create_edit_modal %}
-{{ suppliers_json|json_script:"rental-suppliers-data" }}
 <div
     x-data="spaceRentalModal()"
     @open-modal.window="if ($event.detail.id === 'create-modal') { open = true; editId = $event.detail.editId || null; editData = $event.detail.data || {}; showSupplierList = false; }"
@@ -148,6 +147,8 @@
                             >
                         </div>
                         <div class="max-h-28 overflow-y-auto">
+                            <div x-show="supplierLoading" class="p-2 text-center text-slate-400 text-xs">جاري التحميل...</div>
+                            <div x-show="!supplierLoading">
                             <template x-for="supplier in filteredSuppliers.slice(0, 8)" :key="supplier.id">
                                 <button
                                     type="button"
@@ -159,6 +160,7 @@
                                 </button>
                             </template>
                             <div x-show="filteredSuppliers.length === 0" class="p-2 text-center text-slate-400 text-xs">لا توجد نتائج</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -211,18 +213,23 @@ function spaceRentalModal() {
         editData: {},
         showSupplierList: false,
         supplierSearch: '',
-        suppliers: [],
+        supplierLoading: false,
+        supplierSearchTimer: null,
         filteredSuppliers: [],
+        supplierSearchUrl: '{% url "suppliers:search" %}',
 
-        init() {
-            const el = document.getElementById('rental-suppliers-data');
-            if (el) {
-                this.suppliers = JSON.parse(el.textContent).map(s => ({
-                    id: String(s.id),
-                    code: s.code || '',
-                    name: s.name || '',
-                }));
-                this.filteredSuppliers = this.suppliers;
+        async loadSuppliers(query = '') {
+            this.supplierLoading = true;
+            try {
+                const url = `${this.supplierSearchUrl}?q=${encodeURIComponent(query)}`;
+                const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!response.ok) throw new Error('supplier search failed');
+                const data = await response.json();
+                this.filteredSuppliers = data.results || [];
+            } catch (error) {
+                this.filteredSuppliers = [];
+            } finally {
+                this.supplierLoading = false;
             }
         },
 
@@ -230,7 +237,7 @@ function spaceRentalModal() {
             this.showSupplierList = !this.showSupplierList;
             if (this.showSupplierList) {
                 this.supplierSearch = '';
-                this.filteredSuppliers = this.suppliers;
+                this.loadSuppliers();
                 this.$nextTick(() => {
                     if (this.$refs.supplierSearchInput) this.$refs.supplierSearchInput.focus();
                 });
@@ -238,13 +245,10 @@ function spaceRentalModal() {
         },
 
         filterSuppliers() {
-            const search = this.supplierSearch.toLowerCase().trim();
-            this.filteredSuppliers = !search
-                ? this.suppliers
-                : this.suppliers.filter(s =>
-                    (s.name && s.name.toLowerCase().includes(search)) ||
-                    (s.code && s.code.toLowerCase().includes(search))
-                );
+            clearTimeout(this.supplierSearchTimer);
+            this.supplierSearchTimer = setTimeout(() => {
+                this.loadSuppliers(this.supplierSearch);
+            }, 250);
         },
 
         selectSupplier(supplier) {

@@ -381,10 +381,14 @@
         window.showToast = showToast;
 
         const htmxProgress = document.getElementById('htmx-progress');
+        if (htmxProgress) htmxProgress.classList.remove('htmx-loading');
         document.body.addEventListener('htmx:beforeRequest', function() {
             if (htmxProgress) htmxProgress.classList.add('htmx-loading');
         });
         document.body.addEventListener('htmx:afterRequest', function() {
+            if (htmxProgress) htmxProgress.classList.remove('htmx-loading');
+        });
+        document.body.addEventListener('htmx:responseError', function() {
             if (htmxProgress) htmxProgress.classList.remove('htmx-loading');
         });
         document.body.addEventListener('htmx:afterSwap', function() {

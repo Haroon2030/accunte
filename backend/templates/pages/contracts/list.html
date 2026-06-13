@@ -80,7 +80,6 @@
 
 {% block create_edit_modal %}
 {{ contract_types_json|json_script:"contract-types-data" }}
-{{ suppliers_json|json_script:"contract-suppliers-data" }}
 <div
     x-data="contractModal()"
     @open-modal.window="if ($event.detail.id === 'create-modal') { open = true; editId = $event.detail.editId || null; editData = $event.detail.data || {}; showContractTypeList = false; showSupplierList = false; syncContractTypeName(); syncSupplierName(); }"
@@ -147,6 +146,8 @@
                             >
                         </div>
                         <div class="max-h-36 overflow-y-auto">
+                            <div x-show="supplierLoading" class="p-3 text-center text-slate-400 text-sm">جاري التحميل...</div>
+                            <div x-show="!supplierLoading">
                             <template x-for="supplier in filteredSuppliers.slice(0, 8)" :key="supplier.id">
                                 <button
                                     type="button"
@@ -159,6 +160,7 @@
                                 </button>
                             </template>
                             <div x-show="filteredSuppliers.length === 0" class="p-3 text-center text-slate-400 text-sm">لا توجد نتائج</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -262,23 +264,16 @@ function contractModal() {
         showContractTypeList: false,
         showSupplierList: false,
         supplierSearch: '',
+        supplierLoading: false,
+        supplierSearchTimer: null,
         contractTypes: [],
-        suppliers: [],
         filteredSuppliers: [],
+        supplierSearchUrl: '{% url "suppliers:search" %}',
 
         init() {
             const typesEl = document.getElementById('contract-types-data');
             if (typesEl) {
                 this.contractTypes = JSON.parse(typesEl.textContent);
-            }
-            const suppliersEl = document.getElementById('contract-suppliers-data');
-            if (suppliersEl) {
-                this.suppliers = JSON.parse(suppliersEl.textContent).map(s => ({
-                    id: String(s.id),
-                    code: s.code || '',
-                    name: s.name || '',
-                }));
-                this.filteredSuppliers = this.suppliers;
             }
         },
 
@@ -293,10 +288,22 @@ function contractModal() {
 
         syncSupplierName() {
             if (this.editData.supplier && !this.editData.supplier_name) {
-                const match = this.suppliers.find(s => s.id === String(this.editData.supplier));
-                if (match) {
-                    this.editData.supplier_name = match.name;
-                }
+                this.loadSuppliers(this.editData.supplier_name || '');
+            }
+        },
+
+        async loadSuppliers(query = '') {
+            this.supplierLoading = true;
+            try {
+                const url = `${this.supplierSearchUrl}?q=${encodeURIComponent(query)}`;
+                const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!response.ok) throw new Error('supplier search failed');
+                const data = await response.json();
+                this.filteredSuppliers = data.results || [];
+            } catch (error) {
+                this.filteredSuppliers = [];
+            } finally {
+                this.supplierLoading = false;
             }
         },
 
@@ -305,7 +312,7 @@ function contractModal() {
             this.showContractTypeList = false;
             if (this.showSupplierList) {
                 this.supplierSearch = '';
-                this.filteredSuppliers = this.suppliers;
+                this.loadSuppliers();
                 this.$nextTick(() => {
                     if (this.$refs.supplierSearchInput) {
                         this.$refs.supplierSearchInput.focus();
@@ -315,13 +322,10 @@ function contractModal() {
         },
 
         filterSuppliers() {
-            const search = this.supplierSearch.toLowerCase().trim();
-            this.filteredSuppliers = !search
-                ? this.suppliers
-                : this.suppliers.filter(s =>
-                    (s.name && s.name.toLowerCase().includes(search)) ||
-                    (s.code && s.code.toLowerCase().includes(search))
-                );
+            clearTimeout(this.supplierSearchTimer);
+            this.supplierSearchTimer = setTimeout(() => {
+                this.loadSuppliers(this.supplierSearch);
+            }, 250);
         },
 
         selectSupplier(supplier) {
