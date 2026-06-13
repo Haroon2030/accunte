@@ -108,109 +108,113 @@
     @open-modal.window="if ($event.detail.id === 'create-modal') { open = true; editId = $event.detail.editId || null; editData = $event.detail.data || {}; viewOnly = $event.detail.viewOnly || false; showContractTypeList = false; showSupplierList = false; syncContractTypeName(); syncSupplierName(); }"
     @keydown.escape.window="if (showSupplierList) { showSupplierList = false; } else if (showContractTypeList) { showContractTypeList = false; } else { open = false; viewOnly = false; }"
 >
-    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
+    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="fixed inset-0 modal-overlay" @click="open = false; viewOnly = false"></div>
-        <div class="modal-panel relative w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" @click.stop>
-            <h3 class="text-lg font-bold mb-4" x-text="viewOnly ? 'عرض التفاصيل' : (editId ? 'تعديل' : 'إضافة جديد')"></h3>
+        <div class="modal-panel relative w-full max-w-lg mx-auto flex flex-col max-h-[min(520px,72vh)]" @click.stop>
+            <div class="px-4 pt-4 pb-2 border-b border-slate-100 flex-shrink-0">
+                <h3 class="text-base font-bold text-slate-800" x-text="viewOnly ? 'عرض التفاصيل' : (editId ? 'تعديل' : 'إضافة جديد')"></h3>
+            </div>
+            <div class="overflow-y-auto flex-1 min-h-0 px-4 py-3">
             <fieldset :disabled="viewOnly">
             <form
+                id="contract-modal-form"
                 :action="editId ? '{% url 'contracts:list' %}' + editId + '/update/' : '{% url 'contracts:create' %}'"
                 method="post"
-                class="space-y-4"
+                class="space-y-3"
                 @submit="if (!editData.supplier) { $event.preventDefault(); alert('يرجى اختيار المورد'); return; } if (!editData.contract_type) { $event.preventDefault(); alert('يرجى اختيار نوع العقد'); }"
             >
                 {% csrf_token %}
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">عنوان العقد *</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-0.5">عنوان العقد *</label>
                         <input
                             type="text"
                             name="title"
                             x-model="editData.title"
                             required
-                            class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         >
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">رقم العقد *</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-0.5">رقم العقد *</label>
                         <input
                             type="text"
                             name="code"
                             x-model="editData.code"
                             required
-                            class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         >
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">المورد *</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-0.5">المورد *</label>
                     <input type="hidden" name="supplier" :value="editData.supplier || ''">
                     <button
                         type="button"
                         @click.prevent.stop="toggleSupplierList()"
-                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-right flex items-center justify-between gap-2"
+                        class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-right flex items-center justify-between gap-2"
                     >
                         <span class="truncate" x-text="editData.supplier_name || 'اختر المورد'" :class="editData.supplier_name ? 'text-slate-800' : 'text-slate-400'"></span>
-                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200" :class="showSupplierList && 'rotate-180'"></i>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform duration-200" :class="showSupplierList && 'rotate-180'"></i>
                     </button>
                     <div
                         x-show="showSupplierList"
                         x-cloak
                         x-transition
-                        class="mt-1.5 border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden"
+                        class="mt-1 border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden"
                     >
-                        <div class="p-2 border-b border-slate-100 bg-slate-50">
+                        <div class="p-1.5 border-b border-slate-100 bg-slate-50">
                             <input
                                 type="text"
                                 x-model="supplierSearch"
                                 @input="filterSuppliers()"
                                 x-ref="supplierSearchInput"
                                 placeholder="ابحث بالاسم أو الكود..."
-                                class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                             >
                         </div>
-                        <div class="max-h-36 overflow-y-auto">
-                            <div x-show="supplierLoading" class="p-3 text-center text-slate-400 text-sm">جاري التحميل...</div>
+                        <div class="max-h-28 overflow-y-auto">
+                            <div x-show="supplierLoading" class="p-2 text-center text-slate-400 text-xs">جاري التحميل...</div>
                             <div x-show="!supplierLoading">
                             <template x-for="supplier in filteredSuppliers.slice(0, 8)" :key="supplier.id">
                                 <button
                                     type="button"
                                     @click="selectSupplier(supplier)"
-                                    class="w-full px-3 py-2 text-right hover:bg-primary-50 flex items-center gap-2 border-b border-slate-50 text-sm"
+                                    class="w-full px-2.5 py-1.5 text-right hover:bg-primary-50 flex items-center gap-2 border-b border-slate-50 text-sm"
                                     :class="editData.supplier === supplier.id ? 'bg-primary-50 text-primary-700' : 'text-slate-800'"
                                 >
-                                    <span class="text-slate-400 font-mono w-16 truncate" x-text="supplier.code"></span>
+                                    <span class="text-slate-400 font-mono w-14 truncate text-xs" x-text="supplier.code"></span>
                                     <span class="flex-1 truncate" x-text="supplier.name"></span>
                                 </button>
                             </template>
-                            <div x-show="filteredSuppliers.length === 0" class="p-3 text-center text-slate-400 text-sm">لا توجد نتائج</div>
+                            <div x-show="filteredSuppliers.length === 0" class="p-2 text-center text-slate-400 text-xs">لا توجد نتائج</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">نوع العقد *</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-0.5">نوع العقد *</label>
                     <input type="hidden" name="contract_type" :value="editData.contract_type || ''">
                     <button
                         type="button"
                         @click.prevent.stop="toggleContractTypeList()"
-                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-right flex items-center justify-between gap-2"
+                        class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-right flex items-center justify-between gap-2"
                     >
                         <span class="truncate" x-text="editData.contract_type_name || 'اختر نوع العقد'" :class="editData.contract_type_name ? 'text-slate-800' : 'text-slate-400'"></span>
-                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200" :class="showContractTypeList && 'rotate-180'"></i>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform duration-200" :class="showContractTypeList && 'rotate-180'"></i>
                     </button>
                     <div
                         x-show="showContractTypeList"
                         x-cloak
                         x-transition
-                        class="mt-1.5 border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden"
+                        class="mt-1 border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden"
                     >
-                        <div class="max-h-36 overflow-y-auto">
+                        <div class="max-h-28 overflow-y-auto">
                             <template x-for="type in contractTypes" :key="type.value">
                                 <button
                                     type="button"
                                     @click="selectContractType(type)"
-                                    class="w-full px-3 py-2 text-right hover:bg-primary-50 flex items-center gap-2 border-b border-slate-50 text-sm"
+                                    class="w-full px-2.5 py-1.5 text-right hover:bg-primary-50 flex items-center gap-2 border-b border-slate-50 text-sm"
                                     :class="editData.contract_type === type.value ? 'bg-primary-50 text-primary-700' : 'text-slate-800'"
                                 >
                                     <span class="flex-1 truncate" x-text="type.label"></span>
@@ -218,10 +222,10 @@
                             </template>
                         </div>
                     </div>
-                    <p class="text-xs text-slate-500 mt-1">خصم ثابت (نسبة %) · حافز شهري (مبلغ) · حافز سنوي (مبلغ)</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">خصم ثابت (نسبة %) · حافز شهري (مبلغ) · حافز سنوي (مبلغ)</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">القيمة *</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-0.5">القيمة *</label>
                     <input
                         type="number"
                         name="value"
@@ -229,51 +233,54 @@
                         step="0.01"
                         min="0"
                         required
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">تاريخ البداية *</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-0.5">تاريخ البداية *</label>
                         <input
                             type="date"
                             name="start_date"
                             x-model="editData.start_date"
                             required
-                            class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         >
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">تاريخ النهاية</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-0.5">تاريخ النهاية</label>
                         <input
                             type="date"
                             name="end_date"
                             x-model="editData.end_date"
-                            class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         >
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">ملاحظات</label>
+                    <label class="block text-xs font-medium text-slate-700 mb-0.5">ملاحظات</label>
                     <textarea
                         name="notes"
                         x-model="editData.notes"
                         rows="2"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
                     ></textarea>
-                </div>
-                <div class="flex gap-3 pt-4" x-show="!viewOnly">
-                    <button type="submit" class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
-                        حفظ
-                    </button>
-                    <button type="button" @click="open = false; viewOnly = false" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                        إلغاء
-                    </button>
                 </div>
             </form>
             </fieldset>
-            <div x-show="viewOnly" x-cloak class="pt-4">
-                <button type="button" @click="open = false; viewOnly = false" class="w-full px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+            </div>
+            <div class="px-4 py-3 border-t border-slate-100 flex-shrink-0" x-show="!viewOnly">
+                <div class="flex gap-2">
+                    <button type="submit" form="contract-modal-form" class="flex-1 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium">
+                        حفظ
+                    </button>
+                    <button type="button" @click="open = false; viewOnly = false" class="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                        إلغاء
+                    </button>
+                </div>
+            </div>
+            <div x-show="viewOnly" x-cloak class="px-4 py-3 border-t border-slate-100 flex-shrink-0">
+                <button type="button" @click="open = false; viewOnly = false" class="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                     إغلاق
                 </button>
             </div>
