@@ -1,25 +1,12 @@
 {% load custom_tags %}
 {% with ns=request.resolver_match.namespace %}
-<div
-    class="pt-3"
-    x-data="{ open: {% if ns == 'contracts' or ns == 'items' or ns == 'space_rentals' %}true{% else %}false{% endif %} }"
->
-    <button
-        type="button"
-        @click="if (sidebarOpen) open = !open"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-slate-50 {% if ns == 'contracts' or ns == 'items' or ns == 'space_rentals' %}text-primary-700{% else %}text-slate-500{% endif %}"
-    >
+<div class="pt-3">
+    <div class="w-full flex items-center gap-3 px-3 py-2 {% if ns == 'contracts' or ns == 'items' or ns == 'space_rentals' %}text-primary-700{% else %}text-slate-500{% endif %}">
         <i data-lucide="layers" class="w-5 h-5 flex-shrink-0"></i>
         <span x-show="sidebarOpen" class="flex-1 text-xs font-bold tracking-wide text-start">العقود والإيجارات</span>
-        <i
-            x-show="sidebarOpen"
-            data-lucide="chevron-down"
-            class="w-4 h-4 flex-shrink-0 transition-transform duration-200"
-            :class="open ? 'rotate-180' : ''"
-        ></i>
-    </button>
+    </div>
 
-    <div x-show="sidebarOpen && open" x-cloak class="mt-1 mr-2 border-r-2 border-slate-100 space-y-0.5">
+    <div x-show="sidebarOpen" class="mt-1 mr-2 border-r-2 border-slate-100 space-y-0.5">
         {% include "components/nav_sub_item.html" with url="contracts:list" icon="file-signature" label="العقود" path="/contracts/" %}
         {% include "components/nav_sub_item.html" with url="space_rentals:list" icon="store" label="إيجارات المساحات" path="/space-rentals/" %}
         {% include "components/nav_sub_item.html" with url="items:list" icon="package" label="الأصناف" path="/items/" %}

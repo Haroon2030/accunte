@@ -33,15 +33,17 @@ def admin_required(view_func):
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('auth:login')
-        
-        # التحقق من دور الأدمن
+
+        if request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+
         try:
             user_role = request.user.profile.role
             if user_role and user_role.role_type == Role.RoleType.ADMIN:
                 return view_func(request, *args, **kwargs)
-        except:
+        except Exception:
             pass
-        
+
         messages.error(request, 'ليس لديك صلاحية للوصول إلى هذه الصفحة')
         return redirect('dashboard')
     return wrapper
@@ -52,14 +54,17 @@ class AdminRequiredMixin:
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('auth:login')
-        
+
+        if request.user.is_superuser:
+            return super().dispatch(request, *args, **kwargs)
+
         try:
             user_role = request.user.profile.role
             if user_role and user_role.role_type == Role.RoleType.ADMIN:
                 return super().dispatch(request, *args, **kwargs)
-        except:
+        except Exception:
             pass
-        
+
         messages.error(request, 'ليس لديك صلاحية للوصول إلى هذه الصفحة')
         return redirect('dashboard')
 
@@ -446,7 +451,14 @@ class ContractListView(LoginRequiredMixin, ListView):
         context['add_button_text'] = 'إضافة عقد'
         context['search_placeholder'] = 'البحث عن عقد...'
         context['suppliers'] = Supplier.objects.filter(is_active=True).order_by('name')
+        context['suppliers_json'] = list(
+            Supplier.objects.filter(is_active=True).order_by('name').values('id', 'code', 'name')
+        )
         context['contract_types'] = Contract.ContractType.choices
+        context['contract_types_json'] = [
+            {'value': value, 'label': label}
+            for value, label in Contract.ContractType.choices
+        ]
         return context
 
 
