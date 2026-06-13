@@ -15,7 +15,11 @@
         <p class="text-slate-500">{% if payment %}تعديل الطلب{% else %}إنشاء طلب دفع جديد{% endif %}</p>
     </div>
 
-    <form method="post" class="space-y-6">
+    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <strong>تنبيه:</strong> الموردون الذين لديهم ملف أصناف بحالة <strong>غير مدفوع</strong> لا يظهرون هنا ولا يمكن إدراجهم في طلب الدفع حتى تغيير حالتهم إلى <strong>مدفوع</strong> من صفحة الأصناف.
+    </div>
+
+    <form method="post" class="space-y-6" @submit="return validateSuppliers($event)">
         {% csrf_token %}
         
         <!-- Main Info -->
@@ -428,6 +432,11 @@ function paymentForm() {
             { id: '{{ supplier.id }}', code: '{{ supplier.code }}', name: '{{ supplier.name }}' },
             {% endfor %}
         ],
+        blockedSupplierIds: [
+            {% for supplier_id in blocked_supplier_ids %}
+            '{{ supplier_id }}',
+            {% endfor %}
+        ],
         filteredSuppliers: [],
         
         // Items
@@ -595,12 +604,28 @@ function paymentForm() {
         },
         
         selectSupplier(supplier) {
+            if (this.blockedSupplierIds.includes(String(supplier.id))) {
+                alert('لا يمكن اختيار هذا المورد: لديه ملف أصناف غير مدفوع. غيّر الحالة إلى مدفوع من صفحة الأصناف.');
+                return;
+            }
             if (this.currentItemIndex !== null) {
                 this.items[this.currentItemIndex].supplier = supplier.id;
                 this.items[this.currentItemIndex].supplier_code = supplier.code;
                 this.items[this.currentItemIndex].supplier_name = supplier.name;
             }
             this.showSupplierModal = false;
+        },
+
+        validateSuppliers(event) {
+            const blocked = this.items.filter(
+                item => item.supplier && this.blockedSupplierIds.includes(String(item.supplier))
+            );
+            if (blocked.length) {
+                event.preventDefault();
+                alert('لا يمكن حفظ الطلب: أحد الموردين لديه ملف أصناف غير مدفوع. أزل البند أو غيّر حالة الدفع من صفحة الأصناف.');
+                return false;
+            }
+            return true;
         },
         
         addItem() {

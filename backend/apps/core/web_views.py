@@ -96,6 +96,42 @@ def unique_suppliers_for_select(suppliers_qs, limit=20):
     return unique
 
 
+def _supplier_ids_with_unpaid_item_batches():
+    return ItemBatch.objects.filter(
+        payment_status=ItemBatch.PaymentStatus.UNPAID,
+    ).values_list('supplier_id', flat=True).distinct()
+
+
+def suppliers_eligible_for_payment_qs():
+    """موردون مسموح إدراجهم في طلب دفع (بدون ملف أصناف غير مدفوع)."""
+    return Supplier.objects.filter(is_active=True).exclude(
+        id__in=_supplier_ids_with_unpaid_item_batches(),
+    )
+
+
+def supplier_eligible_for_payment(supplier_id):
+    if not supplier_id:
+        return True
+    return not ItemBatch.objects.filter(
+        supplier_id=supplier_id,
+        payment_status=ItemBatch.PaymentStatus.UNPAID,
+    ).exists()
+
+
+def _validate_payment_suppliers(supplier_ids):
+    """يرجع أسماء الموردين غير المسموح بهم في طلب الدفع."""
+    blocked = []
+    seen = set()
+    for supplier_id in supplier_ids:
+        if not supplier_id or supplier_id in seen:
+            continue
+        seen.add(supplier_id)
+        if not supplier_eligible_for_payment(supplier_id):
+            name = Supplier.objects.filter(pk=supplier_id).values_list('name', flat=True).first()
+            blocked.append(name or f'#{supplier_id}')
+    return blocked
+
+
 def _chart_percent(value, total):
     if not total:
         return 0
@@ -1281,6 +1317,21 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
 def payment_create(request):
     """إنشاء طلب دفع جديد"""
     if request.method == 'POST':
+        items_count = int(request.POST.get('items_count', 0))
+        supplier_ids = [
+            request.POST.get(f'items-{i}-supplier')
+            for i in range(items_count)
+            if request.POST.get(f'items-{i}-supplier')
+        ]
+        blocked_suppliers = _validate_payment_suppliers(supplier_ids)
+        if blocked_suppliers:
+            messages.error(
+                request,
+                'لا يمكن إصدار طلب دفع لمورد لديه ملف أصناف غير مدفوع: '
+                + '، '.join(blocked_suppliers),
+            )
+            return redirect('payments:create')
+
         payment = PaymentRequest.objects.create(
             branch_id=request.POST.get('branch'),
             bank_id=request.POST.get('bank') or None,
@@ -1346,7 +1397,8 @@ def payment_create(request):
         'banks': unique_banks,
         'banks_json': banks_json_for_payment(banks_qs),
         'cost_centers': CostCenter.objects.filter(is_active=True),
-        'suppliers': Supplier.objects.filter(is_active=True),
+        'suppliers': suppliers_eligible_for_payment_qs(),
+        'blocked_supplier_ids': list(_supplier_ids_with_unpaid_item_batches()),
         'user_branch': user_branch,
     }
     return render(request, 'pages/payments/form.html', context)
@@ -1362,6 +1414,21 @@ def payment_update(request, pk):
         return redirect('payments:detail', pk=pk)
     
     if request.method == 'POST':
+        items_count = int(request.POST.get('items_count', 0))
+        supplier_ids = [
+            request.POST.get(f'items-{i}-supplier')
+            for i in range(items_count)
+            if request.POST.get(f'items-{i}-supplier')
+        ]
+        blocked_suppliers = _validate_payment_suppliers(supplier_ids)
+        if blocked_suppliers:
+            messages.error(
+                request,
+                'لا يمكن إصدار طلب دفع لمورد لديه ملف أصناف غير مدفوع: '
+                + '، '.join(blocked_suppliers),
+            )
+            return redirect('payments:update', pk=pk)
+
         payment.branch_id = request.POST.get('branch')
         payment.bank_id = request.POST.get('bank') or None
         payment.cost_center = request.POST.get('cost_center', '')
@@ -1429,7 +1496,8 @@ def payment_update(request, pk):
         'banks': unique_banks,
         'banks_json': banks_json_for_payment(banks_qs, payment.bank_id),
         'cost_centers': CostCenter.objects.filter(is_active=True),
-        'suppliers': Supplier.objects.filter(is_active=True),
+        'suppliers': suppliers_eligible_for_payment_qs(),
+        'blocked_supplier_ids': list(_supplier_ids_with_unpaid_item_batches()),
         'user_branch': user_branch,
     }
     return render(request, 'pages/payments/form.html', context)
