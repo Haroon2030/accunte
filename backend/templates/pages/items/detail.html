@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}ملف أصناف #{{ batch.id }} - نظام المدفوعات{% endblock %}
+
+{% block page_title %}ملف أصناف #{{ batch.id }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'items:list' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <i data-lucide="arrow-right" class="w-5 h-5 text-slate-600"></i>
+            </a>
+            <div>
+                <p class="text-slate-500">محتوى ملف الأصناف</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-4">معلومات الملف</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+                <p class="text-xs text-slate-500 mb-1">الشركة / المورد</p>
+                <p class="font-medium text-slate-800">{{ batch.supplier.name }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 mb-1">عدد الأصناف</p>
+                <p class="font-medium text-slate-800">{{ items_count }} صنف</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 mb-1">المبلغ الإجمالي</p>
+                <p class="font-medium text-slate-800">{{ total_amount }} ر.س</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 mb-1">التاريخ</p>
+                <p class="font-medium text-slate-800">{{ batch.created_at|date:"Y/m/d H:i" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-4 border-b border-slate-200">
+            <h3 class="font-bold text-slate-800">الأصناف</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">#</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الباركود</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">اسم الصنف</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">العبوة</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">المبلغ</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in items %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-3 py-2 text-xs text-slate-500">{{ forloop.counter }}</td>
+                        <td class="px-3 py-2">
+                            <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-mono">{{ item.barcode }}</span>
+                        </td>
+                        <td class="px-3 py-2 text-slate-800">{{ item.name }}</td>
+                        <td class="px-3 py-2 text-slate-600">{{ item.package }}</td>
+                        <td class="px-3 py-2 text-slate-800 font-medium">{{ item.amount }} ر.س</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">لا توجد أصناف في هذا الملف</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if items %}
+                <tfoot class="bg-slate-50">
+                    <tr>
+                        <td colspan="4" class="px-3 py-2 text-xs font-bold text-slate-800 text-left">المجموع</td>
+                        <td class="px-3 py-2 text-xs font-bold text-slate-800">{{ total_amount }} ر.س</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

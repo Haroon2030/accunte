@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}الأصناف - نظام المدفوعات{% endblock %}
+
+{% block page_title %}الأصناف{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <p class="text-slate-500">ملفات أصناف الشركات والموردين</p>
+        </div>
+        <a
+            href="{% url 'items:create' %}"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+        >
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            إضافة ملف أصناف
+        </a>
+    </div>
+
+    <div class="relative w-full sm:max-w-md">
+        <i data-lucide="search" class="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        <input
+            type="search"
+            name="search"
+            value="{{ request.GET.search }}"
+            placeholder="البحث بالمورد أو الباركود..."
+            hx-get="{{ request.path }}"
+            hx-trigger="keyup changed delay:300ms"
+            hx-target="#table-container"
+            hx-select="#table-container"
+            hx-push-url="true"
+            class="w-full pr-10 pl-4 py-2.5 bg-white border border-slate-200 rounded-lg shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        >
+    </div>
+
+    <div id="table-container" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">#</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الشركة / المورد</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">عدد الأصناف</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">المبلغ الإجمالي</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">التاريخ</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for batch in object_list %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-3 py-2 text-xs text-slate-500">{{ forloop.counter }}</td>
+                        <td class="px-3 py-2 text-slate-800 max-w-[180px] truncate" title="{{ batch.supplier.name }}">{{ batch.supplier.name }}</td>
+                        <td class="px-3 py-2">
+                            <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{{ batch.items_count }} صنف</span>
+                        </td>
+                        <td class="px-3 py-2 text-slate-800 font-medium">{{ batch.total_amount|default:0 }} ر.س</td>
+                        <td class="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">{{ batch.created_at|date:"Y/m/d" }}</td>
+                        <td class="px-3 py-2">
+                            <div class="flex items-center justify-center gap-0.5">
+                                <a
+                                    href="{% url 'items:detail' batch.id %}"
+                                    class="p-1.5 text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                                    title="عرض المحتوى"
+                                >
+                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                </a>
+                                <button
+                                    @click="$dispatch('open-delete', { url: '{% url 'items:delete' batch.id %}' })"
+                                    class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    title="حذف الملف"
+                                >
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center">
+                            <div class="flex flex-col items-center">
+                                <i data-lucide="package" class="w-10 h-10 text-slate-300 mb-2"></i>
+                                <p class="text-slate-500 text-sm">لا توجد ملفات أصناف</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if page_obj %}
+    <div class="flex items-center justify-between">
+        <p class="text-sm text-slate-500">
+            عرض {{ page_obj.start_index }} - {{ page_obj.end_index }} من {{ page_obj.paginator.count }}
+        </p>
+        <div class="flex items-center gap-2">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">السابق</a>
+            {% endif %}
+            <span class="px-4 py-2 text-sm text-slate-600">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">التالي</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div
+    x-data="{ open: false, deleteUrl: '' }"
+    @open-delete.window="open = true; deleteUrl = $event.detail.url"
+    @keydown.escape.window="open = false"
+>
+    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 text-center" @click.stop>
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="trash-2" class="w-8 h-8 text-red-600"></i>
+            </div>
+            <h3 class="text-lg font-bold mb-2">تأكيد الحذف</h3>
+            <p class="text-slate-500 mb-6">هل أنت متأكد من حذف هذا الملف وجميع أصنافه؟</p>
+            <div class="flex gap-3">
+                <form :action="deleteUrl" method="post" class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">حذف</button>
+                </form>
+                <button @click="open = false" class="flex-1 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">إلغاء</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

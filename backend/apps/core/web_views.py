@@ -16,6 +16,9 @@ from apps.branches.models import Branch
 from apps.banks.models import Bank
 from apps.cost_centers.models import CostCenter
 from apps.suppliers.models import Supplier
+from apps.contracts.models import Contract
+from apps.items.models import Item, ItemBatch
+from apps.space_rentals.models import SpaceRental
 from apps.payments.models import PaymentRequest, PaymentRequestItem
 from apps.core.models import Role
 
@@ -113,12 +116,30 @@ def dashboard_view(request):
         'total_banks': Bank.objects.filter(is_active=True).count(),
         'total_suppliers': Supplier.objects.filter(is_active=True).count(),
         'total_cost_centers': CostCenter.objects.filter(is_active=True).count(),
+        'total_contracts': Contract.objects.count(),
+        'active_contracts': Contract.objects.filter(is_active=True).count(),
+        'total_item_batches': ItemBatch.objects.count(),
+        'total_items': Item.objects.filter(is_active=True).count(),
+        'total_items_amount': Item.objects.filter(is_active=True).aggregate(total=Sum('amount'))['total'] or 0,
+        'total_space_rentals': SpaceRental.objects.count(),
+        'active_space_rentals': SpaceRental.objects.filter(is_active=True).count(),
+        'total_monthly_rent': SpaceRental.objects.filter(is_active=True).aggregate(total=Sum('monthly_rent'))['total'] or 0,
     }
     recent_payments = PaymentRequest.objects.select_related('branch', 'bank').order_by('-created_at')[:6]
-    
+    recent_contracts = Contract.objects.select_related('supplier').order_by('-created_at')[:5]
+    recent_space_rentals = SpaceRental.objects.select_related('branch', 'supplier').order_by('-created_at')[:5]
+    recent_item_batches = (
+        ItemBatch.objects.select_related('supplier')
+        .annotate(items_count=Count('items'), total_amount=Sum('items__amount'))
+        .order_by('-created_at')[:5]
+    )
+
     context = {
         'stats': stats,
         'recent_payments': recent_payments,
+        'recent_contracts': recent_contracts,
+        'recent_space_rentals': recent_space_rentals,
+        'recent_item_batches': recent_item_batches,
     }
     return render(request, 'pages/dashboard.html', context)
 
@@ -391,6 +412,289 @@ def supplier_delete(request, pk):
         supplier.delete()
         messages.success(request, 'تم حذف المورد بنجاح')
     return redirect('suppliers:list')
+
+
+# =============================================================================
+# Contract Views
+# =============================================================================
+
+class ContractListView(LoginRequiredMixin, ListView):
+    """قائمة العقود"""
+    model = Contract
+    template_name = 'pages/contracts/list.html'
+    context_object_name = 'object_list'
+    paginate_by = 15
+
+    def get_queryset(self):
+        queryset = Contract.objects.select_related('supplier').all()
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search)
+                | Q(code__icontains=search)
+                | Q(supplier__name__icontains=search)
+            )
+        contract_type = self.request.GET.get('contract_type')
+        if contract_type:
+            queryset = queryset.filter(contract_type=contract_type)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'العقود'
+        context['page_subtitle'] = 'إدارة عقود الموردين (خصم ثابت، حافز شهري، حافز سنوي)'
+        context['add_button_text'] = 'إضافة عقد'
+        context['search_placeholder'] = 'البحث عن عقد...'
+        context['suppliers'] = Supplier.objects.filter(is_active=True).order_by('name')
+        context['contract_types'] = Contract.ContractType.choices
+        return context
+
+
+@login_required
+def contract_create(request):
+    """إنشاء عقد جديد"""
+    if request.method == 'POST':
+        end_date = request.POST.get('end_date') or None
+        Contract.objects.create(
+            title=request.POST.get('title'),
+            code=request.POST.get('code'),
+            supplier_id=request.POST.get('supplier'),
+            contract_type=request.POST.get('contract_type'),
+            value=request.POST.get('value'),
+            start_date=request.POST.get('start_date'),
+            end_date=end_date,
+            notes=request.POST.get('notes', ''),
+        )
+        messages.success(request, 'تم إضافة العقد بنجاح')
+    return redirect('contracts:list')
+
+
+@login_required
+def contract_update(request, pk):
+    """تعديل عقد"""
+    contract = get_object_or_404(Contract, pk=pk)
+    if request.method == 'POST':
+        contract.title = request.POST.get('title')
+        contract.code = request.POST.get('code')
+        contract.supplier_id = request.POST.get('supplier')
+        contract.contract_type = request.POST.get('contract_type')
+        contract.value = request.POST.get('value')
+        contract.start_date = request.POST.get('start_date')
+        contract.end_date = request.POST.get('end_date') or None
+        contract.notes = request.POST.get('notes', '')
+        contract.save()
+        messages.success(request, 'تم تعديل العقد بنجاح')
+    return redirect('contracts:list')
+
+
+@login_required
+def contract_delete(request, pk):
+    """حذف عقد"""
+    contract = get_object_or_404(Contract, pk=pk)
+    if request.method == 'POST':
+        contract.delete()
+        messages.success(request, 'تم حذف العقد بنجاح')
+    return redirect('contracts:list')
+
+
+# =============================================================================
+# Space Rental Views
+# =============================================================================
+
+class SpaceRentalListView(LoginRequiredMixin, ListView):
+    """قائمة إيجارات المساحات"""
+    model = SpaceRental
+    template_name = 'pages/space_rentals/list.html'
+    context_object_name = 'object_list'
+    paginate_by = 15
+
+    def get_queryset(self):
+        queryset = SpaceRental.objects.select_related('branch', 'supplier').all()
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(code__icontains=search)
+                | Q(title__icontains=search)
+                | Q(supplier__name__icontains=search)
+                | Q(branch__name__icontains=search)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'إيجارات المساحات'
+        context['page_subtitle'] = 'إدارة إيجارات المساحات والمحلات'
+        context['add_button_text'] = 'إضافة إيجار'
+        context['search_placeholder'] = 'البحث عن إيجار...'
+        context['branches'] = Branch.objects.filter(is_active=True).order_by('name')
+        context['suppliers'] = Supplier.objects.filter(is_active=True).order_by('name')
+        context['suppliers_json'] = list(
+            Supplier.objects.filter(is_active=True).order_by('name').values('id', 'code', 'name')
+        )
+        context['rental_types'] = SpaceRental.RentalType.choices
+        return context
+
+
+@login_required
+def space_rental_create(request):
+    """إنشاء إيجار مساحة"""
+    if request.method == 'POST':
+        SpaceRental.objects.create(
+            code=request.POST.get('code'),
+            title=request.POST.get('title'),
+            branch_id=request.POST.get('branch'),
+            supplier_id=request.POST.get('supplier'),
+            rental_type=request.POST.get('rental_type'),
+            monthly_rent=request.POST.get('monthly_rent'),
+            start_date=request.POST.get('start_date'),
+            end_date=request.POST.get('end_date') or None,
+            notes=request.POST.get('notes', ''),
+        )
+        messages.success(request, 'تم إضافة الإيجار بنجاح')
+    return redirect('space_rentals:list')
+
+
+@login_required
+def space_rental_update(request, pk):
+    """تعديل إيجار مساحة"""
+    rental = get_object_or_404(SpaceRental, pk=pk)
+    if request.method == 'POST':
+        rental.code = request.POST.get('code')
+        rental.title = request.POST.get('title')
+        rental.branch_id = request.POST.get('branch')
+        rental.supplier_id = request.POST.get('supplier')
+        rental.rental_type = request.POST.get('rental_type')
+        rental.monthly_rent = request.POST.get('monthly_rent')
+        rental.start_date = request.POST.get('start_date')
+        rental.end_date = request.POST.get('end_date') or None
+        rental.notes = request.POST.get('notes', '')
+        rental.save()
+        messages.success(request, 'تم تعديل الإيجار بنجاح')
+    return redirect('space_rentals:list')
+
+
+@login_required
+def space_rental_delete(request, pk):
+    """حذف إيجار مساحة"""
+    rental = get_object_or_404(SpaceRental, pk=pk)
+    if request.method == 'POST':
+        rental.delete()
+        messages.success(request, 'تم حذف الإيجار بنجاح')
+    return redirect('space_rentals:list')
+
+
+# =============================================================================
+# Item Views
+# =============================================================================
+
+class ItemListView(LoginRequiredMixin, ListView):
+    """قائمة ملفات الأصناف"""
+    model = ItemBatch
+    template_name = 'pages/items/list.html'
+    context_object_name = 'object_list'
+    paginate_by = 15
+
+    def get_queryset(self):
+        queryset = ItemBatch.objects.select_related('supplier').annotate(
+            items_count=Count('items'),
+            total_amount=Sum('items__amount'),
+        ).order_by('-created_at')
+
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(supplier__name__icontains=search)
+                | Q(items__barcode__icontains=search)
+                | Q(items__name__icontains=search)
+            ).distinct()
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'الأصناف'
+        context['page_subtitle'] = 'ملفات أصناف الشركات والموردين'
+        return context
+
+
+class ItemBatchDetailView(LoginRequiredMixin, DetailView):
+    """عرض محتوى ملف أصناف"""
+    model = ItemBatch
+    template_name = 'pages/items/detail.html'
+    context_object_name = 'batch'
+
+    def get_queryset(self):
+        return ItemBatch.objects.select_related('supplier', 'created_by').prefetch_related('items')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        items = self.object.items.all()
+        context['items'] = items
+        context['items_count'] = items.count()
+        context['total_amount'] = items.aggregate(total=Sum('amount'))['total'] or 0
+        return context
+
+
+@login_required
+def item_create(request):
+    """إنشاء ملف أصناف جديد"""
+    if request.method == 'POST':
+        supplier_id = request.POST.get('supplier')
+        if not supplier_id:
+            messages.error(request, 'يجب اختيار الشركة أو المورد')
+            return redirect('items:create')
+
+        items_count = int(request.POST.get('items_count', 0))
+        batch_items = []
+
+        for i in range(items_count):
+            barcode = request.POST.get(f'items-{i}-barcode', '').strip()
+            name = request.POST.get(f'items-{i}-name', '').strip()
+            package = request.POST.get(f'items-{i}-package', '').strip()
+            amount = request.POST.get(f'items-{i}-amount', '')
+
+            if not (barcode and name and package and amount):
+                continue
+
+            if Item.objects.filter(barcode=barcode).exists():
+                messages.warning(request, f'الباركود {barcode} موجود مسبقاً وتم تخطيه')
+                continue
+
+            batch_items.append({
+                'barcode': barcode,
+                'name': name,
+                'package': package,
+                'amount': amount,
+            })
+
+        if not batch_items:
+            messages.error(request, 'لم يتم إضافة أي صنف، تأكد من تعبئة البيانات')
+            return redirect('items:create')
+
+        batch = ItemBatch.objects.create(
+            supplier_id=supplier_id,
+            created_by=request.user,
+        )
+        for item_data in batch_items:
+            Item.objects.create(batch=batch, **item_data)
+
+        messages.success(request, f'تم حفظ ملف بـ {len(batch_items)} صنف بنجاح')
+        return redirect('items:detail', pk=batch.pk)
+
+    context = {
+        'suppliers': Supplier.objects.filter(is_active=True).order_by('name'),
+    }
+    return render(request, 'pages/items/form.html', context)
+
+
+@login_required
+def item_batch_delete(request, pk):
+    """حذف ملف أصناف"""
+    batch = get_object_or_404(ItemBatch, pk=pk)
+    if request.method == 'POST':
+        count = batch.items.count()
+        batch.delete()
+        messages.success(request, f'تم حذف الملف و{count} صنف')
+    return redirect('items:list')
 
 
 # =============================================================================

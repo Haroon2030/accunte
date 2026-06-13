@@ -51,6 +51,9 @@ INSTALLED_APPS = [
     'apps.banks',
     'apps.cost_centers',
     'apps.suppliers',
+    'apps.contracts',
+    'apps.items',
+    'apps.space_rentals',
     'apps.payments',
 ]
 

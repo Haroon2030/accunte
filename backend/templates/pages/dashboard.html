@@ -6,58 +6,99 @@
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Total Payments -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
-                    <i data-lucide="file-text" class="w-6 h-6 text-primary-600"></i>
+    <!-- Payment Stats -->
+    <div>
+        <h3 class="text-sm font-bold text-slate-500 mb-3">المدفوعات والموردين</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <a href="{% url 'payments:list' %}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:border-primary-200 hover:shadow-md transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
+                        <i data-lucide="file-text" class="w-6 h-6 text-primary-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">إجمالي الطلبات</p>
+                        <p class="text-2xl font-bold text-slate-800">{{ stats.total_payments }}</p>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-sm text-slate-500">إجمالي الطلبات</p>
-                    <p class="text-2xl font-bold text-slate-800">{{ stats.total_payments }}</p>
-                </div>
-            </div>
-        </div>
+            </a>
 
-        <!-- Pending -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                    <i data-lucide="clock" class="w-6 h-6 text-yellow-600"></i>
+            <a href="{% url 'payments:list' %}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:border-yellow-200 hover:shadow-md transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                        <i data-lucide="clock" class="w-6 h-6 text-yellow-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">قيد المراجعة</p>
+                        <p class="text-2xl font-bold text-slate-800">{{ stats.pending_payments }}</p>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-sm text-slate-500">قيد المراجعة</p>
-                    <p class="text-2xl font-bold text-slate-800">{{ stats.pending_payments }}</p>
-                </div>
-            </div>
-        </div>
+            </a>
 
-        <!-- Approved -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                    <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+            <a href="{% url 'payments:list' %}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:border-green-200 hover:shadow-md transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                        <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">معتمدة</p>
+                        <p class="text-2xl font-bold text-slate-800">{{ stats.approved_payments }}</p>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-sm text-slate-500">معتمدة</p>
-                    <p class="text-2xl font-bold text-slate-800">{{ stats.approved_payments }}</p>
-                </div>
-            </div>
-        </div>
+            </a>
 
-        <!-- Total Amount -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <i data-lucide="banknote" class="w-6 h-6 text-blue-600"></i>
+            <a href="{% url 'payments:list' %}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:border-blue-200 hover:shadow-md transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <i data-lucide="banknote" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500">إجمالي المبالغ</p>
+                        <p class="text-2xl font-bold text-slate-800">{{ stats.total_amount|floatformat:0 }}</p>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-sm text-slate-500">إجمالي المبالغ</p>
-                    <p class="text-2xl font-bold text-slate-800">{{ stats.total_amount|floatformat:0 }}</p>
+            </a>
+        </div>
+    </div>
+
+    <!-- Contracts & Rentals Stats -->
+    <div>
+        <h3 class="text-sm font-bold text-slate-500 mb-3">العقود والإيجارات</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'contracts:list' %}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:border-indigo-200 hover:shadow-md transition-all">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                        <i data-lucide="file-signature" class="w-6 h-6 text-indigo-600"></i>
+                    </div>
+                    <i data-lucide="arrow-left" class="w-5 h-5 text-slate-400"></i>
                 </div>
-            </div>
+                <p class="font-bold text-slate-800 mb-1">العقود</p>
+                <p class="text-2xl font-bold text-slate-800">{{ stats.total_contracts }}</p>
+                <p class="text-sm text-slate-500 mt-1">{{ stats.active_contracts }} عقد نشط</p>
+            </a>
+
+            <a href="{% url 'items:list' %}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:border-amber-200 hover:shadow-md transition-all">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                        <i data-lucide="package" class="w-6 h-6 text-amber-600"></i>
+                    </div>
+                    <i data-lucide="arrow-left" class="w-5 h-5 text-slate-400"></i>
+                </div>
+                <p class="font-bold text-slate-800 mb-1">الأصناف</p>
+                <p class="text-2xl font-bold text-slate-800">{{ stats.total_items }}</p>
+                <p class="text-sm text-slate-500 mt-1">{{ stats.total_item_batches }} ملف · {{ stats.total_items_amount|floatformat:0 }} ر.س</p>
+            </a>
+
+            <a href="{% url 'space_rentals:list' %}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:border-teal-200 hover:shadow-md transition-all">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
+                        <i data-lucide="store" class="w-6 h-6 text-teal-600"></i>
+                    </div>
+                    <i data-lucide="arrow-left" class="w-5 h-5 text-slate-400"></i>
+                </div>
+                <p class="font-bold text-slate-800 mb-1">إيجارات المساحات</p>
+                <p class="text-2xl font-bold text-slate-800">{{ stats.total_space_rentals }}</p>
+                <p class="text-sm text-slate-500 mt-1">{{ stats.active_space_rentals }} نشط · {{ stats.total_monthly_rent|floatformat:0 }} ر.س/شهر</p>
+            </a>
         </div>
     </div>
 
@@ -65,7 +106,7 @@
         <!-- Recent Payments -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200">
             <div class="p-4 border-b border-slate-200 flex items-center justify-between">
-                <h3 class="font-bold text-slate-800">آخر الطلبات</h3>
+                <h3 class="font-bold text-slate-800">آخر طلبات الدفع</h3>
                 <a href="{% url 'payments:list' %}" class="text-sm text-primary-600 hover:text-primary-700">عرض الكل</a>
             </div>
             <div class="divide-y divide-slate-100">
@@ -99,10 +140,114 @@
             </div>
         </div>
 
-        <!-- Quick Stats -->
+        <!-- Recent Contracts & Rentals -->
         <div class="space-y-4">
-            <!-- Branches -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800">آخر العقود</h3>
+                    <a href="{% url 'contracts:list' %}" class="text-sm text-primary-600 hover:text-primary-700">عرض الكل</a>
+                </div>
+                <div class="divide-y divide-slate-100">
+                    {% for contract in recent_contracts %}
+                    <a href="{% url 'contracts:list' %}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="file-signature" class="w-5 h-5 text-indigo-600"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-medium text-slate-800 truncate">{{ contract.title }}</p>
+                                <p class="text-sm text-slate-500 truncate">{{ contract.supplier.name }}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs text-slate-400 flex-shrink-0 mr-2">{{ contract.code }}</span>
+                    </a>
+                    {% empty %}
+                    <div class="p-6 text-center text-slate-500">
+                        <p class="text-sm">لا توجد عقود</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800">آخر إيجارات المساحات</h3>
+                    <a href="{% url 'space_rentals:list' %}" class="text-sm text-primary-600 hover:text-primary-700">عرض الكل</a>
+                </div>
+                <div class="divide-y divide-slate-100">
+                    {% for rental in recent_space_rentals %}
+                    <a href="{% url 'space_rentals:list' %}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="store" class="w-5 h-5 text-teal-600"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-medium text-slate-800 truncate">{{ rental.title }}</p>
+                                <p class="text-sm text-slate-500 truncate">{{ rental.branch.name }} · {{ rental.supplier.name }}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs font-medium text-teal-700 flex-shrink-0 mr-2">{{ rental.monthly_rent|floatformat:0 }} ر.س</span>
+                    </a>
+                    {% empty %}
+                    <div class="p-6 text-center text-slate-500">
+                        <p class="text-sm">لا توجد إيجارات</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Recent Item Batches -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+            <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800">آخر ملفات الأصناف</h3>
+                <a href="{% url 'items:list' %}" class="text-sm text-primary-600 hover:text-primary-700">عرض الكل</a>
+            </div>
+            <div class="divide-y divide-slate-100">
+                {% for batch in recent_item_batches %}
+                <a href="{% url 'items:detail' batch.id %}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="package" class="w-5 h-5 text-amber-600"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-medium text-slate-800 truncate">{{ batch.supplier.name }}</p>
+                            <p class="text-sm text-slate-500">{{ batch.items_count }} صنف</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-medium text-amber-700 flex-shrink-0 mr-2">{{ batch.total_amount|default:0|floatformat:0 }} ر.س</span>
+                </a>
+                {% empty %}
+                <div class="p-8 text-center text-slate-500">
+                    <i data-lucide="package" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                    <p>لا توجد ملفات أصناف</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- System Setup Quick Stats -->
+        <div class="space-y-4">
+            <h3 class="text-sm font-bold text-slate-500">تهيئة النظام</h3>
+
+            <a href="{% url 'suppliers:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:border-orange-200 hover:shadow-md transition-all">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="truck" class="w-5 h-5 text-orange-600"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-800">الموردين</p>
+                            <p class="text-sm text-slate-500">{{ stats.total_suppliers }} مورد</p>
+                        </div>
+                    </div>
+                    <i data-lucide="arrow-left" class="w-5 h-5 text-primary-600"></i>
+                </div>
+            </a>
+
+            <a href="{% url 'branches:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:border-purple-200 hover:shadow-md transition-all">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -113,14 +258,11 @@
                             <p class="text-sm text-slate-500">{{ stats.total_branches }} فرع</p>
                         </div>
                     </div>
-                    <a href="{% url 'branches:list' %}" class="text-primary-600 hover:text-primary-700">
-                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
-                    </a>
+                    <i data-lucide="arrow-left" class="w-5 h-5 text-primary-600"></i>
                 </div>
-            </div>
+            </a>
 
-            <!-- Banks -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <a href="{% url 'banks:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:border-emerald-200 hover:shadow-md transition-all">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
@@ -131,32 +273,11 @@
                             <p class="text-sm text-slate-500">{{ stats.total_banks }} بنك</p>
                         </div>
                     </div>
-                    <a href="{% url 'banks:list' %}" class="text-primary-600 hover:text-primary-700">
-                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
-                    </a>
+                    <i data-lucide="arrow-left" class="w-5 h-5 text-primary-600"></i>
                 </div>
-            </div>
+            </a>
 
-            <!-- Suppliers -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <i data-lucide="users" class="w-5 h-5 text-orange-600"></i>
-                        </div>
-                        <div>
-                            <p class="font-medium text-slate-800">الموردين</p>
-                            <p class="text-sm text-slate-500">{{ stats.total_suppliers }} مورد</p>
-                        </div>
-                    </div>
-                    <a href="{% url 'suppliers:list' %}" class="text-primary-600 hover:text-primary-700">
-                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Cost Centers -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <a href="{% url 'cost_centers:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:border-pink-200 hover:shadow-md transition-all">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
@@ -167,11 +288,9 @@
                             <p class="text-sm text-slate-500">{{ stats.total_cost_centers }} مركز</p>
                         </div>
                     </div>
-                    <a href="{% url 'cost_centers:list' %}" class="text-primary-600 hover:text-primary-700">
-                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
-                    </a>
+                    <i data-lucide="arrow-left" class="w-5 h-5 text-primary-600"></i>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 </div>

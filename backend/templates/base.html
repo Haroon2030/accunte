@@ -88,15 +88,12 @@
             <!-- Navigation -->
             <nav class="flex-1 overflow-y-auto p-4 space-y-1">
                 {% include "components/nav_item.html" with url="dashboard" icon="layout-dashboard" label="لوحة التحكم" %}
-                {% include "components/nav_item.html" with url="payments:list" icon="file-text" label="طلبات الدفع" %}
-                {% include "components/nav_item.html" with url="suppliers:list" icon="truck" label="الموردين" %}
-                {% include "components/nav_item.html" with url="branches:list" icon="building-2" label="الفروع" %}
-                {% include "components/nav_item.html" with url="banks:list" icon="landmark" label="البنوك" %}
-                {% include "components/nav_item.html" with url="cost_centers:list" icon="bar-chart-3" label="مراكز التكلفة" %}
-                {% if user.profile.role.role_type == 'admin' %}
-                    {% include "components/nav_item.html" with url="roles:list" icon="shield" label="الأدوار" %}
-                    {% include "components/nav_item.html" with url="users:list" icon="users" label="المستخدمين" %}
-                {% endif %}
+
+                {% include "components/nav_group_payments_suppliers.html" %}
+
+                {% include "components/nav_group_contracts_rentals.html" %}
+
+                {% include "components/nav_group_system_setup.html" %}
             </nav>
             
             <!-- User Info -->

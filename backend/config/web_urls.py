@@ -43,6 +43,30 @@ supplier_patterns = [
     path('<int:pk>/delete/', web_views.supplier_delete, name='delete'),
 ]
 
+# Contract URLs
+contract_patterns = [
+    path('', web_views.ContractListView.as_view(), name='list'),
+    path('create/', web_views.contract_create, name='create'),
+    path('<int:pk>/update/', web_views.contract_update, name='update'),
+    path('<int:pk>/delete/', web_views.contract_delete, name='delete'),
+]
+
+# Item URLs
+item_patterns = [
+    path('', web_views.ItemListView.as_view(), name='list'),
+    path('create/', web_views.item_create, name='create'),
+    path('<int:pk>/', web_views.ItemBatchDetailView.as_view(), name='detail'),
+    path('<int:pk>/delete/', web_views.item_batch_delete, name='delete'),
+]
+
+# Space Rental URLs
+space_rental_patterns = [
+    path('', web_views.SpaceRentalListView.as_view(), name='list'),
+    path('create/', web_views.space_rental_create, name='create'),
+    path('<int:pk>/update/', web_views.space_rental_update, name='update'),
+    path('<int:pk>/delete/', web_views.space_rental_delete, name='delete'),
+]
+
 # Payment URLs
 payment_patterns = [
     path('', web_views.PaymentListView.as_view(), name='list'),
@@ -86,6 +110,9 @@ urlpatterns = [
     path('banks/', include((bank_patterns, 'banks'))),
     path('cost-centers/', include((cost_center_patterns, 'cost_centers'))),
     path('suppliers/', include((supplier_patterns, 'suppliers'))),
+    path('contracts/', include((contract_patterns, 'contracts'))),
+    path('items/', include((item_patterns, 'items'))),
+    path('space-rentals/', include((space_rental_patterns, 'space_rentals'))),
     path('payments/', include((payment_patterns, 'payments'))),
     path('users/', include((user_patterns, 'users'))),
     path('roles/', include((role_patterns, 'roles'))),

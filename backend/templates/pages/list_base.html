@@ -74,6 +74,7 @@
 </div>
 
 <!-- Create/Edit Modal -->
+{% block create_edit_modal %}
 <div 
     x-data="{ open: false, editId: null, editData: {} }"
     @open-modal.window="if ($event.detail.id === 'create-modal') { open = true; editId = $event.detail.editId || null; editData = $event.detail.data || {}; }"
@@ -81,12 +82,16 @@
 >
     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
         <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+        <div class="relative bg-white rounded-xl shadow-xl w-full {% block modal_size %}max-w-md{% endblock %} mx-4 p-6 max-h-[90vh] overflow-y-auto" @click.stop>
             <h3 class="text-lg font-bold mb-4" x-text="editId ? 'تعديل' : 'إضافة جديد'"></h3>
             {% block modal_form %}{% endblock %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_modals %}{% endblock %}
+{% block page_scripts %}{% endblock %}
 
 <!-- Delete Confirmation Modal -->
 <div 
