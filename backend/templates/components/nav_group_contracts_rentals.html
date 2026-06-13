@@ -1,11 +1,11 @@
 {% load custom_tags %}
 <div class="pt-3">
-    <div class="nav-group-header {% nav_group_class request '/contracts/' '/space-rentals/' '/items/' %}" x-show="sidebarOpen" x-cloak>
+    <div class="nav-group-header nav-group-title {% nav_group_class request '/contracts/' '/space-rentals/' '/items/' %}">
         <i data-lucide="layers" class="w-5 h-5 flex-shrink-0"></i>
         <span class="flex-1 text-xs font-bold tracking-wide text-start">العقود والإيجارات</span>
     </div>
 
-    <div :class="sidebarOpen ? 'mt-1 mr-2 border-r-2 border-slate-200/80 space-y-0.5' : 'space-y-1'">
+    <div class="nav-sub-wrap mt-1 mr-2 border-r-2 border-slate-200/80 space-y-0.5">
         {% include "components/nav_sub_item.html" with url="contracts:list" icon="file-signature" label="العقود" path="/contracts/" %}
         {% include "components/nav_sub_item.html" with url="space_rentals:list" icon="store" label="إيجارات المساحات" path="/space-rentals/" %}
         {% include "components/nav_sub_item.html" with url="items:list" icon="package" label="الأصناف" path="/items/" %}

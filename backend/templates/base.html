@@ -61,11 +61,35 @@
         .fade-in { animation: fadeIn 0.2s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .page-enter { animation: pageEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+        .page-enter { animation: pageEnter 0.25s cubic-bezier(0.22, 1, 0.36, 1); }
         @keyframes pageEnter {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { transform: translateY(6px); }
+            to { transform: translateY(0); }
         }
+
+        /* Sidebar: CSS-first (no Alpine wait) */
+        #app-sidebar.sidebar-collapsed,
+        html.sidebar-collapsed-init #app-sidebar { width: 5rem; }
+        #app-sidebar.sidebar-collapsed .sidebar-brand-text,
+        #app-sidebar.sidebar-collapsed .nav-text,
+        #app-sidebar.sidebar-collapsed .nav-group-title,
+        #app-sidebar.sidebar-collapsed .sidebar-user-block,
+        html.sidebar-collapsed-init .sidebar-brand-text,
+        html.sidebar-collapsed-init .nav-text,
+        html.sidebar-collapsed-init .nav-group-title,
+        html.sidebar-collapsed-init .sidebar-user-block { display: none !important; }
+        #app-sidebar.sidebar-collapsed .nav-link-adaptive,
+        html.sidebar-collapsed-init .nav-link-adaptive {
+            justify-content: center;
+            padding: 0.625rem;
+        }
+        #app-sidebar.sidebar-collapsed .nav-sub-wrap,
+        html.sidebar-collapsed-init .nav-sub-wrap {
+            margin: 0 !important;
+            border: none !important;
+        }
+        #app-sidebar.sidebar-collapsed .nav-icon,
+        html.sidebar-collapsed-init .nav-icon { width: 1.25rem; height: 1.25rem; }
 
         /* Sidebar navigation */
         .nav-link {
@@ -233,26 +257,31 @@
     </style>
     
     {% block extra_css %}{% endblock %}
+    <script>
+        try {
+            if (sessionStorage.getItem('sidebarOpen') === '0') {
+                document.documentElement.classList.add('sidebar-collapsed-init');
+            }
+        } catch (e) {}
+    </script>
 </head>
-<body class="bg-slate-50 min-h-screen" x-data="{ sidebarOpen: true, mobileMenuOpen: false }">
+<body class="bg-slate-50 min-h-screen" x-data="appShell()" x-init="initShell()">
     <div id="htmx-progress" aria-hidden="true"><div id="htmx-progress-bar"></div></div>
     <!-- Main Layout with Sidebar -->
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
         <aside 
-            class="bg-white border-l border-slate-200 shadow-xl shadow-slate-300/40 z-20 transition-all duration-300 flex flex-col"
-            :class="sidebarOpen ? 'w-64' : 'w-20'"
+            id="app-sidebar"
+            class="bg-white border-l border-slate-200 shadow-xl shadow-slate-300/40 z-20 transition-all duration-300 flex flex-col w-64"
+            :class="sidebarOpen ? '' : 'sidebar-collapsed'"
         >
             <!-- Logo -->
             <div class="h-16 flex items-center justify-center border-b border-slate-200 px-4">
-                <div class="flex items-center gap-3" x-show="sidebarOpen">
-                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
+                <div class="flex items-center gap-3 w-full justify-center">
+                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center flex-shrink-0">
                         <i data-lucide="landmark" class="w-6 h-6 text-white"></i>
                     </div>
-                    <span class="font-bold text-xl text-slate-800">نظام المدفوعات</span>
-                </div>
-                <div x-show="!sidebarOpen" class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-                    <i data-lucide="landmark" class="w-6 h-6 text-white"></i>
+                    <span class="sidebar-brand-text font-bold text-xl text-slate-800 truncate">نظام المدفوعات</span>
                 </div>
             </div>
             
@@ -269,8 +298,8 @@
             
             <!-- User Info -->
             <div class="border-t border-slate-200 p-4 mb-8">
-                <div class="flex items-center gap-3" x-show="sidebarOpen">
-                    <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                <div class="sidebar-user-block flex items-center gap-3">
+                    <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
                         <i data-lucide="user" class="w-5 h-5 text-primary-600"></i>
                     </div>
                     <div class="flex-1 min-w-0">
@@ -286,7 +315,7 @@
             <!-- Header -->
             <header class="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm flex items-center justify-between px-6">
                 <div class="flex items-center gap-4">
-                    <button @click="sidebarOpen = !sidebarOpen" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                    <button @click="toggleSidebar()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
                         <i data-lucide="menu" class="w-5 h-5 text-slate-600"></i>
                     </button>
                     <h1 class="text-xl font-bold text-slate-800">{% block page_title %}{% endblock %}</h1>
@@ -323,6 +352,30 @@
     <div id="toast-container" class="fixed top-20 left-4 z-[60] space-y-3"></div>
     
     <script>
+        function appShell() {
+            return {
+                sidebarOpen: true,
+                mobileMenuOpen: false,
+                initShell() {
+                    try {
+                        const stored = sessionStorage.getItem('sidebarOpen');
+                        if (stored === '0') this.sidebarOpen = false;
+                    } catch (e) {}
+                    document.documentElement.classList.remove('sidebar-collapsed-init');
+                    this.syncSidebarClass();
+                },
+                toggleSidebar() {
+                    this.sidebarOpen = !this.sidebarOpen;
+                    this.syncSidebarClass();
+                },
+                syncSidebarClass() {
+                    try {
+                        sessionStorage.setItem('sidebarOpen', this.sidebarOpen ? '1' : '0');
+                    } catch (e) {}
+                },
+            };
+        }
+
         lucide.createIcons();
 
         const TOAST_META = {
