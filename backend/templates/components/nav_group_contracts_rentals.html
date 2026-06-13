@@ -1,13 +1,23 @@
-{% load custom_tags %}
-<div class="pt-3">
-    <div class="nav-group-header nav-group-title {% nav_group_class request '/contracts/' '/space-rentals/' '/items/' %}">
-        <i data-lucide="layers" class="w-5 h-5 flex-shrink-0"></i>
-        <span class="flex-1 text-xs font-bold tracking-wide text-start">العقود والإيجارات</span>
-    </div>
-
-    <div class="nav-sub-wrap mt-1 mr-2 border-r-2 border-slate-200/80 space-y-0.5">
-        {% include "components/nav_sub_item.html" with url="contracts:list" icon="file-signature" label="العقود" path="/contracts/" %}
-        {% include "components/nav_sub_item.html" with url="space_rentals:list" icon="store" label="إيجارات المساحات" path="/space-rentals/" %}
-        {% include "components/nav_sub_item.html" with url="items:list" icon="package" label="الأصناف" path="/items/" %}
-    </div>
-</div>
+{% load custom_tags %}
+<div class="nav-group">
+    <button
+        type="button"
+        class="nav-group-trigger {% nav_group_class request '/contracts/' '/space-rentals/' '/items/' %}"
+        @click="toggleGroup('contracts')"
+        :aria-expanded="isOpen('contracts')"
+    >
+        <span class="nav-group-leading">
+            <span class="nav-group-icon-box">
+                <i data-lucide="layers" class="nav-group-main-icon"></i>
+            </span>
+            <span class="nav-group-title-text">العقود والإيجارات</span>
+        </span>
+        <i data-lucide="chevron-down" class="nav-group-chevron" :class="isOpen('contracts') && 'is-open'"></i>
+    </button>
+
+    <div class="nav-group-panel space-y-0.5" x-show="isOpen('contracts')" x-cloak>
+        {% include "components/nav_sub_item.html" with url="contracts:list" icon="file-signature" label="العقود" path="/contracts/" %}
+        {% include "components/nav_sub_item.html" with url="space_rentals:list" icon="store" label="إيجارات المساحات" path="/space-rentals/" %}
+        {% include "components/nav_sub_item.html" with url="items:list" icon="package" label="الأصناف" path="/items/" %}
+    </div>
+</div>

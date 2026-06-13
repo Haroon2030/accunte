@@ -1,12 +1,22 @@
-{% load custom_tags %}
-<div class="pt-3">
-    <div class="nav-group-header nav-group-title {% nav_group_class request '/payments/' '/suppliers/' %}">
-        <i data-lucide="wallet" class="w-5 h-5 flex-shrink-0"></i>
-        <span class="flex-1 text-xs font-bold tracking-wide text-start">المدفوعات والموردين</span>
-    </div>
-
-    <div class="nav-sub-wrap mt-1 mr-2 border-r-2 border-slate-200/80 space-y-0.5">
-        {% include "components/nav_sub_item.html" with url="payments:list" icon="file-text" label="طلبات الدفع" path="/payments/" %}
-        {% include "components/nav_sub_item.html" with url="suppliers:list" icon="truck" label="الموردين" path="/suppliers/" %}
-    </div>
-</div>
+{% load custom_tags %}
+<div class="nav-group">
+    <button
+        type="button"
+        class="nav-group-trigger {% nav_group_class request '/payments/' '/suppliers/' %}"
+        @click="toggleGroup('payments')"
+        :aria-expanded="isOpen('payments')"
+    >
+        <span class="nav-group-leading">
+            <span class="nav-group-icon-box">
+                <i data-lucide="wallet" class="nav-group-main-icon"></i>
+            </span>
+            <span class="nav-group-title-text">المدفوعات</span>
+        </span>
+        <i data-lucide="chevron-down" class="nav-group-chevron" :class="isOpen('payments') && 'is-open'"></i>
+    </button>
+
+    <div class="nav-group-panel space-y-0.5" x-show="isOpen('payments')" x-cloak>
+        {% include "components/nav_sub_item.html" with url="payments:list" icon="file-text" label="طلبات الدفع" path="/payments/" %}
+        {% include "components/nav_sub_item.html" with url="suppliers:list" icon="truck" label="الموردين" path="/suppliers/" %}
+    </div>
+</div>

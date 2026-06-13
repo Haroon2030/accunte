@@ -1,18 +1,28 @@
-{% load custom_tags %}
-{% is_admin_user user as user_is_admin %}
-<div class="pt-3">
-    <div class="nav-group-header nav-group-title {% nav_group_class request '/branches/' '/banks/' '/cost-centers/' '/roles/' '/users/' %}">
-        <i data-lucide="settings" class="w-5 h-5 flex-shrink-0"></i>
-        <span class="flex-1 text-xs font-bold tracking-wide text-start">تهيئة النظام</span>
-    </div>
-
-    <div class="nav-sub-wrap mt-1 mr-2 border-r-2 border-slate-200/80 space-y-0.5">
-        {% include "components/nav_sub_item.html" with url="branches:list" icon="building-2" label="الفروع" path="/branches/" %}
-        {% include "components/nav_sub_item.html" with url="banks:list" icon="landmark" label="البنوك" path="/banks/" %}
-        {% include "components/nav_sub_item.html" with url="cost_centers:list" icon="bar-chart-3" label="مراكز التكلفة" path="/cost-centers/" %}
-        {% if user_is_admin %}
-            {% include "components/nav_sub_item.html" with url="roles:list" icon="shield" label="الأدوار" path="/roles/" %}
-            {% include "components/nav_sub_item.html" with url="users:list" icon="users" label="المستخدمين" path="/users/" %}
-        {% endif %}
-    </div>
-</div>
+{% load custom_tags %}
+{% is_admin_user user as user_is_admin %}
+<div class="nav-group">
+    <button
+        type="button"
+        class="nav-group-trigger {% nav_group_class request '/branches/' '/banks/' '/cost-centers/' '/roles/' '/users/' %}"
+        @click="toggleGroup('system')"
+        :aria-expanded="isOpen('system')"
+    >
+        <span class="nav-group-leading">
+            <span class="nav-group-icon-box">
+                <i data-lucide="settings" class="nav-group-main-icon"></i>
+            </span>
+            <span class="nav-group-title-text">تهيئة النظام</span>
+        </span>
+        <i data-lucide="chevron-down" class="nav-group-chevron" :class="isOpen('system') && 'is-open'"></i>
+    </button>
+
+    <div class="nav-group-panel space-y-0.5" x-show="isOpen('system')" x-cloak>
+        {% include "components/nav_sub_item.html" with url="branches:list" icon="building-2" label="الفروع" path="/branches/" %}
+        {% include "components/nav_sub_item.html" with url="banks:list" icon="landmark" label="البنوك" path="/banks/" %}
+        {% include "components/nav_sub_item.html" with url="cost_centers:list" icon="bar-chart-3" label="مراكز التكلفة" path="/cost-centers/" %}
+        {% if user_is_admin %}
+            {% include "components/nav_sub_item.html" with url="roles:list" icon="shield" label="الأدوار" path="/roles/" %}
+            {% include "components/nav_sub_item.html" with url="users:list" icon="users" label="المستخدمين" path="/users/" %}
+        {% endif %}
+    </div>
+</div>

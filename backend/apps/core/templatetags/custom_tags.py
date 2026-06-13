@@ -42,6 +42,38 @@ def nav_dashboard_class(request):
 
 
 @register.simple_tag
+def nav_sub_active_class(request, prefix):
+    """Return sub-nav active/idle class if current path is under prefix"""
+    if _path_is_active(request, prefix):
+        return 'nav-sub-link-active'
+    return 'nav-sub-link-idle'
+
+
+@register.simple_tag
+def nav_group_open(request, *prefixes):
+    """Whether a nav group should start expanded for the current route."""
+    for prefix in prefixes:
+        if _path_is_active(request, prefix):
+            return True
+    return False
+
+
+@register.simple_tag
+def nav_group_initial(request):
+    """Return the id of the nav group that should start expanded."""
+    groups = (
+        ('payments', ('/payments/', '/suppliers/')),
+        ('contracts', ('/contracts/', '/space-rentals/', '/items/')),
+        ('system', ('/branches/', '/banks/', '/cost-centers/', '/roles/', '/users/')),
+    )
+    for group_id, prefixes in groups:
+        for prefix in prefixes:
+            if _path_is_active(request, prefix):
+                return group_id
+    return ''
+
+
+@register.simple_tag
 def nav_group_class(request, *prefixes):
     """Highlight nav group header when any child route is active"""
     for prefix in prefixes:
