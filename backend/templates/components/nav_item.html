@@ -2,7 +2,9 @@
 <a 
     href="{% url url %}" 
     class="nav-link {% nav_dashboard_class request %}"
+    :class="!sidebarOpen && 'nav-link-icon justify-center'"
+    :title="sidebarOpen ? '' : '{{ label }}'"
 >
-    <i data-lucide="{{ icon }}" class="w-5 h-5 flex-shrink-0"></i>
-    <span x-show="sidebarOpen" class="font-semibold text-base">{{ label }}</span>
+    <i data-lucide="{{ icon }}" class="flex-shrink-0" :class="sidebarOpen ? 'w-5 h-5' : 'w-5 h-5'"></i>
+    <span x-show="sidebarOpen" x-cloak class="font-semibold text-base">{{ label }}</span>
 </a>

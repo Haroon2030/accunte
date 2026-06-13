@@ -1,8 +1,10 @@
 {% load custom_tags %}
 <a
     href="{% url url %}"
-    class="nav-link nav-link-sub text-sm {% active_class request path %}"
+    class="nav-link text-sm {% active_class request path %}"
+    :class="sidebarOpen ? 'nav-link-sub' : 'nav-link-icon justify-center'"
+    :title="sidebarOpen ? '' : '{{ label }}'"
 >
-    <i data-lucide="{{ icon }}" class="w-4 h-4 flex-shrink-0"></i>
-    <span class="font-medium">{{ label }}</span>
+    <i data-lucide="{{ icon }}" class="flex-shrink-0" :class="sidebarOpen ? 'w-4 h-4' : 'w-5 h-5'"></i>
+    <span x-show="sidebarOpen" x-cloak class="font-medium">{{ label }}</span>
 </a>
