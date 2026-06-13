@@ -5,6 +5,7 @@
 {% block page_title %}{% if payment %}تعديل طلب دفع #{{ payment.id }}{% else %}طلب دفع جديد{% endif %}{% endblock %}
 
 {% block content %}
+{{ banks_json|json_script:"payment-banks-data" }}
 <div x-data="paymentForm()" class="space-y-6">
     <!-- Header -->
     <div class="flex items-center gap-4">
@@ -42,18 +43,46 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">البنك</label>
-                    <select 
-                        name="bank"
-                        x-ref="bankSelect"
-                        x-model="selectedBank"
-                        @change="onBankChange($event.target.value)"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    <input type="hidden" name="bank" :value="selectedBank || ''">
+                    <button
+                        type="button"
+                        @click.prevent.stop="toggleBankList()"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-right flex items-center justify-between gap-2"
                     >
-                        <option value="">-- اختر البنك --</option>
-                        {% for bank in banks %}
-                        <option value="{{ bank.id }}" data-branch="{{ bank.branch_id|default:'' }}" {% if payment and payment.bank_id == bank.id %}selected{% endif %}>{{ bank.name }}</option>
-                        {% endfor %}
-                    </select>
+                        <span class="truncate" x-text="selectedBankName || '-- اختر البنك --'" :class="selectedBankName ? 'text-slate-800' : 'text-slate-400'"></span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200" :class="showBankList && 'rotate-180'"></i>
+                    </button>
+                    <div
+                        x-show="showBankList"
+                        x-cloak
+                        x-transition
+                        class="mt-1.5 border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden"
+                    >
+                        <div class="p-2 border-b border-slate-100 bg-slate-50">
+                            <input
+                                type="text"
+                                x-model="bankSearch"
+                                @input="filterBanks()"
+                                x-ref="bankSearchInput"
+                                placeholder="ابحث باسم البنك أو الكود..."
+                                class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            >
+                        </div>
+                        <div class="max-h-36 overflow-y-auto">
+                            <template x-for="bank in filteredBanks" :key="bank.id">
+                                <button
+                                    type="button"
+                                    @click="selectBank(bank)"
+                                    class="w-full px-3 py-2 text-right hover:bg-primary-50 flex items-center gap-2 border-b border-slate-50 text-sm"
+                                    :class="selectedBank === bank.id ? 'bg-primary-50 text-primary-700' : 'text-slate-800'"
+                                >
+                                    <span class="text-slate-400 font-mono w-16 truncate" x-text="bank.code"></span>
+                                    <span class="flex-1 truncate" x-text="bank.name"></span>
+                                </button>
+                            </template>
+                            <div x-show="filteredBanks.length === 0" class="p-3 text-center text-slate-400 text-sm">لا توجد نتائج</div>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">مركز التكلفة</label>
@@ -371,18 +400,15 @@ function paymentForm() {
             },
             {% endfor %}
         },
-        banks: {
-            {% for bank in banks %}
-            '{{ bank.id }}': { 
-                branch_id: '{{ bank.branch_id|default:"" }}',
-                account_number: '{{ bank.account_number|default:"" }}',
-                analytical_number: '{{ bank.analytical_number|default:"" }}'
-            },
-            {% endfor %}
-        },
+        bankList: [],
+        filteredBanks: [],
+        showBankList: false,
+        bankSearch: '',
+        selectedBranch: '{% if user_branch %}{{ user_branch.id }}{% elif payment %}{{ payment.branch_id|default:"" }}{% endif %}',
         
         // Form fields
         selectedBank: '{% if payment %}{{ payment.bank_id|default:"" }}{% endif %}',
+        selectedBankName: '{% if payment and payment.bank %}{{ payment.bank.name|escapejs }}{% endif %}',
         costCenter: '{% if payment %}{{ payment.cost_center }}{% endif %}',
         bankAccountNumber: '{% if payment %}{{ payment.bank_account_number }}{% endif %}',
         supplierAccount: '{% if payment %}{{ payment.supplier_account }}{% else %}21101001{% endif %}',
@@ -442,26 +468,81 @@ function paymentForm() {
         ],
         
         init() {
+            const banksEl = document.getElementById('payment-banks-data');
+            if (banksEl) {
+                this.bankList = JSON.parse(banksEl.textContent);
+            }
             this.filteredSuppliers = this.suppliers;
+            this.syncSelectedBankName();
+            this.filterBanks();
             {% if user_branch %}
             // موظف فرع — تهيئة تلقائية
             this.$nextTick(() => {
                 {% if not payment %}
-                // تعبئة مركز التكلفة من الفرع
                 const branchData = this.branches['{{ user_branch.id }}'];
                 if (branchData) this.costCenter = branchData.cost_center;
-                // اختيار أول بنك تلقائياً
-                const bankSelect = this.$refs.bankSelect;
-                if (bankSelect) {
-                    const firstOpt = bankSelect.querySelector('option[value]:not([value=""])');
-                    if (firstOpt) {
-                        this.selectedBank = firstOpt.value;
-                        this.onBankChange(firstOpt.value);
-                    }
+                if (this.filteredBanks.length === 1) {
+                    this.selectBank(this.filteredBanks[0]);
                 }
                 {% endif %}
             });
             {% endif %}
+        },
+        
+        syncSelectedBankName() {
+            if (!this.selectedBank) {
+                this.selectedBankName = '';
+                return;
+            }
+            const match = this.bankList.find(b => b.id === String(this.selectedBank));
+            if (match) {
+                this.selectedBankName = match.name;
+            }
+        },
+
+        toggleBankList() {
+            this.showBankList = !this.showBankList;
+            if (this.showBankList) {
+                this.bankSearch = '';
+                this.filterBanks();
+                this.$nextTick(() => {
+                    if (this.$refs.bankSearchInput) {
+                        this.$refs.bankSearchInput.focus();
+                    }
+                });
+            }
+        },
+
+        filterBanks() {
+            const branchId = String(this.selectedBranch || '');
+            const search = this.bankSearch.toLowerCase().trim();
+            const seen = new Set();
+
+            this.filteredBanks = this.bankList.filter(bank => {
+                if (branchId && String(bank.branch_id) !== branchId) {
+                    return false;
+                }
+                const nameKey = bank.name.trim().toLowerCase();
+                if (seen.has(nameKey)) {
+                    return false;
+                }
+                seen.add(nameKey);
+                if (search) {
+                    return (
+                        nameKey.includes(search) ||
+                        (bank.code && bank.code.toLowerCase().includes(search))
+                    );
+                }
+                return true;
+            }).slice(0, 12);
+        },
+
+        selectBank(bank) {
+            this.selectedBank = bank.id;
+            this.selectedBankName = bank.name;
+            this.bankAccountNumber = bank.account_number || '';
+            this.analyticalAccount = bank.analytical_number || '';
+            this.showBankList = false;
         },
         
         get grandTotal() {
@@ -473,40 +554,20 @@ function paymentForm() {
         },
         
         onBranchChange(branchId) {
-            // Filter banks by branch
-            const bankSelect = this.$refs.bankSelect;
-            const options = bankSelect.querySelectorAll('option[data-branch]');
-            let firstBankId = null;
-            
-            options.forEach(opt => {
-                if (!branchId || opt.dataset.branch === branchId) {
-                    opt.style.display = '';
-                    if (!firstBankId && opt.value) firstBankId = opt.value;
-                } else {
-                    opt.style.display = 'none';
-                }
-            });
-            
-            // Auto-fill branch data
+            this.selectedBranch = branchId;
+            this.filterBanks();
+
             if (branchId && this.branches[branchId]) {
                 this.costCenter = this.branches[branchId].cost_center;
             }
-            
-            // Auto-select first bank if available
-            if (firstBankId) {
-                this.selectedBank = firstBankId;
-                this.onBankChange(firstBankId);
+
+            if (this.filteredBanks.length === 1) {
+                this.selectBank(this.filteredBanks[0]);
             } else {
                 this.selectedBank = '';
+                this.selectedBankName = '';
                 this.bankAccountNumber = '';
                 this.analyticalAccount = '';
-            }
-        },
-        
-        onBankChange(bankId) {
-            if (bankId && this.banks[bankId]) {
-                this.bankAccountNumber = this.banks[bankId].account_number;
-                this.analyticalAccount = this.banks[bankId].analytical_number;
             }
         },
         

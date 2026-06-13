@@ -81,8 +81,28 @@
     @keydown.escape.window="open = false"
 >
     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
-        <div class="relative bg-white rounded-xl shadow-xl w-full {% block modal_size %}max-w-md{% endblock %} mx-4 p-6 max-h-[90vh] overflow-y-auto" @click.stop>
+        <div
+            x-show="open"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            @click="open = false"
+        ></div>
+        <div
+            x-show="open"
+            x-transition:enter="transition ease-out duration-250"
+            x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+            x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="relative bg-white rounded-xl shadow-2xl w-full {% block modal_size %}max-w-md{% endblock %} mx-4 p-6 max-h-[90vh] overflow-y-auto"
+            @click.stop
+        >
             <h3 class="text-lg font-bold mb-4" x-text="editId ? 'تعديل' : 'إضافة جديد'"></h3>
             {% block modal_form %}{% endblock %}
         </div>
@@ -100,8 +120,22 @@
     @keydown.escape.window="open = false"
 >
     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 text-center" @click.stop>
+        <div
+            x-show="open"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            @click="open = false"
+        ></div>
+        <div
+            x-show="open"
+            x-transition:enter="transition ease-out duration-250"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            class="relative bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 text-center"
+            @click.stop
+        >
             <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i data-lucide="trash-2" class="w-8 h-8 text-red-600"></i>
             </div>

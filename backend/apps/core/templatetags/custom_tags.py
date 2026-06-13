@@ -16,14 +16,38 @@ def get_item(dictionary, key):
         return dictionary.get(key)
     return None
 
-@register.simple_tag
-def active_class(request, prefix):
-    """Return active class if current path is under prefix"""
+def _path_is_active(request, prefix):
     path = request.path
     normalized = prefix if prefix.endswith('/') else f'{prefix}/'
-    if path == normalized.rstrip('/') or path.startswith(normalized):
-        return 'bg-primary-50 text-primary-700'
-    return 'text-slate-600 hover:bg-slate-100'
+    return path == normalized.rstrip('/') or path.startswith(normalized)
+
+
+@register.simple_tag
+def active_class(request, prefix):
+    """Return nav active/idle class if current path is under prefix"""
+    if _path_is_active(request, prefix):
+        return 'nav-link-active'
+    return 'nav-link-idle'
+
+
+@register.simple_tag
+def nav_dashboard_class(request):
+    """Active class for dashboard nav item"""
+    try:
+        if request.resolver_match.url_name == 'dashboard':
+            return 'nav-link-active'
+    except Exception:
+        pass
+    return 'nav-link-idle'
+
+
+@register.simple_tag
+def nav_group_class(request, *prefixes):
+    """Highlight nav group header when any child route is active"""
+    for prefix in prefixes:
+        if _path_is_active(request, prefix):
+            return 'nav-group-active'
+    return 'nav-group-idle'
 
 
 @register.simple_tag

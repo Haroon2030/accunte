@@ -1,13 +1,12 @@
 {% load custom_tags %}
 {% is_admin_user user as user_is_admin %}
-{% with ns=request.resolver_match.namespace %}
 <div class="pt-3">
-    <div class="w-full flex items-center gap-3 px-3 py-2 {% if ns == 'branches' or ns == 'banks' or ns == 'cost_centers' or ns == 'roles' or ns == 'users' %}text-primary-700{% else %}text-slate-500{% endif %}">
+    <div class="nav-group-header {% nav_group_class request '/branches/' '/banks/' '/cost-centers/' '/roles/' '/users/' %}" x-show="sidebarOpen">
         <i data-lucide="settings" class="w-5 h-5 flex-shrink-0"></i>
-        <span x-show="sidebarOpen" class="flex-1 text-xs font-bold tracking-wide text-start">تهيئة النظام</span>
+        <span class="flex-1 text-xs font-bold tracking-wide text-start">تهيئة النظام</span>
     </div>
 
-    <div x-show="sidebarOpen" class="mt-1 mr-2 border-r-2 border-slate-100 space-y-0.5">
+    <div x-show="sidebarOpen" class="mt-1 mr-2 border-r-2 border-slate-200/80 space-y-0.5">
         {% include "components/nav_sub_item.html" with url="branches:list" icon="building-2" label="الفروع" path="/branches/" %}
         {% include "components/nav_sub_item.html" with url="banks:list" icon="landmark" label="البنوك" path="/banks/" %}
         {% include "components/nav_sub_item.html" with url="cost_centers:list" icon="bar-chart-3" label="مراكز التكلفة" path="/cost-centers/" %}
@@ -18,23 +17,22 @@
     </div>
 
     <div x-show="!sidebarOpen" class="space-y-1">
-        <a href="{% url 'branches:list' %}" class="flex items-center justify-center p-2.5 rounded-lg transition-colors {% active_class request '/branches/' %}" title="الفروع">
+        <a href="{% url 'branches:list' %}" class="nav-link nav-link-icon {% active_class request '/branches/' %}" title="الفروع">
             <i data-lucide="building-2" class="w-5 h-5"></i>
         </a>
-        <a href="{% url 'banks:list' %}" class="flex items-center justify-center p-2.5 rounded-lg transition-colors {% active_class request '/banks/' %}" title="البنوك">
+        <a href="{% url 'banks:list' %}" class="nav-link nav-link-icon {% active_class request '/banks/' %}" title="البنوك">
             <i data-lucide="landmark" class="w-5 h-5"></i>
         </a>
-        <a href="{% url 'cost_centers:list' %}" class="flex items-center justify-center p-2.5 rounded-lg transition-colors {% active_class request '/cost-centers/' %}" title="مراكز التكلفة">
+        <a href="{% url 'cost_centers:list' %}" class="nav-link nav-link-icon {% active_class request '/cost-centers/' %}" title="مراكز التكلفة">
             <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
         </a>
         {% if user_is_admin %}
-            <a href="{% url 'roles:list' %}" class="flex items-center justify-center p-2.5 rounded-lg transition-colors {% active_class request '/roles/' %}" title="الأدوار">
+            <a href="{% url 'roles:list' %}" class="nav-link nav-link-icon {% active_class request '/roles/' %}" title="الأدوار">
                 <i data-lucide="shield" class="w-5 h-5"></i>
             </a>
-            <a href="{% url 'users:list' %}" class="flex items-center justify-center p-2.5 rounded-lg transition-colors {% active_class request '/users/' %}" title="المستخدمين">
+            <a href="{% url 'users:list' %}" class="nav-link nav-link-icon {% active_class request '/users/' %}" title="المستخدمين">
                 <i data-lucide="users" class="w-5 h-5"></i>
             </a>
         {% endif %}
     </div>
 </div>
-{% endwith %}

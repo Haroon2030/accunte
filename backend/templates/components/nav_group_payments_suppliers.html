@@ -1,23 +1,21 @@
 {% load custom_tags %}
-{% with ns=request.resolver_match.namespace %}
 <div class="pt-3">
-    <div class="w-full flex items-center gap-3 px-3 py-2 {% if ns == 'payments' or ns == 'suppliers' %}text-primary-700{% else %}text-slate-500{% endif %}">
+    <div class="nav-group-header {% nav_group_class request '/payments/' '/suppliers/' %}" x-show="sidebarOpen">
         <i data-lucide="wallet" class="w-5 h-5 flex-shrink-0"></i>
-        <span x-show="sidebarOpen" class="flex-1 text-xs font-bold tracking-wide text-start">المدفوعات والموردين</span>
+        <span class="flex-1 text-xs font-bold tracking-wide text-start">المدفوعات والموردين</span>
     </div>
 
-    <div x-show="sidebarOpen" class="mt-1 mr-2 border-r-2 border-slate-100 space-y-0.5">
+    <div x-show="sidebarOpen" class="mt-1 mr-2 border-r-2 border-slate-200/80 space-y-0.5">
         {% include "components/nav_sub_item.html" with url="payments:list" icon="file-text" label="طلبات الدفع" path="/payments/" %}
         {% include "components/nav_sub_item.html" with url="suppliers:list" icon="truck" label="الموردين" path="/suppliers/" %}
     </div>
 
     <div x-show="!sidebarOpen" class="space-y-1">
-        <a href="{% url 'payments:list' %}" class="flex items-center justify-center p-2.5 rounded-lg transition-colors {% active_class request '/payments/' %}" title="طلبات الدفع">
+        <a href="{% url 'payments:list' %}" class="nav-link nav-link-icon {% active_class request '/payments/' %}" title="طلبات الدفع">
             <i data-lucide="file-text" class="w-5 h-5"></i>
         </a>
-        <a href="{% url 'suppliers:list' %}" class="flex items-center justify-center p-2.5 rounded-lg transition-colors {% active_class request '/suppliers/' %}" title="الموردين">
+        <a href="{% url 'suppliers:list' %}" class="nav-link nav-link-icon {% active_class request '/suppliers/' %}" title="الموردين">
             <i data-lucide="truck" class="w-5 h-5"></i>
         </a>
     </div>
 </div>
-{% endwith %}

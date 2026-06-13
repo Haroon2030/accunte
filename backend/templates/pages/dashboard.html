@@ -4,6 +4,91 @@
 
 {% block page_title %}لوحة التحكم{% endblock %}
 
+{% block extra_css %}
+<style>
+    .chart-donut-labeled { width: 7.5rem; height: 7.5rem; }
+    .chart-donut-labeled .donut-hole {
+        position: absolute;
+        inset: 1.35rem;
+        background: #fff;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        box-shadow: inset 0 0 0 1px #f1f5f9;
+    }
+    .chart-donut-labeled .donut-label {
+        position: absolute;
+        font-size: 0.625rem;
+        font-weight: 800;
+        color: #334155;
+        background: rgba(255,255,255,0.92);
+        border: 1px solid #e2e8f0;
+        border-radius: 9999px;
+        padding: 0.1rem 0.35rem;
+        line-height: 1.2;
+        box-shadow: 0 2px 6px rgba(15,23,42,0.08);
+        transform: translate(-50%, -50%);
+        white-space: nowrap;
+    }
+    .chart-columns-wrap { height: 7rem; }
+    .chart-column-track {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        background: #f8fafc;
+        border-radius: 0.5rem 0.5rem 0.125rem 0.125rem;
+        border: 1px solid #f1f5f9;
+        overflow: hidden;
+    }
+    .chart-column-fill {
+        width: 72%;
+        border-radius: 0.375rem 0.375rem 0.125rem 0.125rem;
+        transition: height 0.5s ease;
+        box-shadow: 0 -2px 8px rgba(15,23,42,0.12);
+    }
+    .chart-bars-wrap { height: 7rem; }
+    .chart-bar-track {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        align-items: flex-end;
+        background: #f8fafc;
+        border-radius: 0.375rem;
+        border: 1px solid #f1f5f9;
+        overflow: hidden;
+    }
+    .chart-bar-fill {
+        width: 100%;
+        border-radius: 0.25rem 0.25rem 0 0;
+        background-image: repeating-linear-gradient(
+            -45deg,
+            rgba(255,255,255,0.22) 0,
+            rgba(255,255,255,0.22) 4px,
+            transparent 4px,
+            transparent 8px
+        );
+        box-shadow: inset 0 -2px 0 rgba(0,0,0,0.06);
+        transition: height 0.5s ease;
+    }
+    .chart-hbar-track {
+        height: 0.85rem;
+        background: #f1f5f9;
+        border-radius: 9999px;
+        overflow: hidden;
+    }
+    .chart-hbar-fill {
+        height: 100%;
+        border-radius: 9999px;
+        transition: width 0.5s ease;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
     <!-- Payment Stats -->
@@ -323,69 +408,153 @@
             </div>
         </div>
 
-        <!-- System Setup Quick Stats -->
+        <!-- System Setup Charts -->
         <div class="space-y-4">
             <h3 class="text-sm font-bold text-slate-500">تهيئة النظام</h3>
-
-            <a href="{% url 'suppliers:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:border-orange-200 hover:shadow-md transition-all">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <a href="{% url 'suppliers:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:border-orange-200 hover:shadow-md transition-all group">
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                            <p class="font-bold text-slate-800">الموردين</p>
+                            <p class="text-3xl font-bold text-slate-800 mt-1">{{ charts.suppliers.total }}</p>
+                            <p class="text-sm text-slate-500 mt-1">{{ charts.suppliers.active }} نشط · {{ charts.suppliers.inactive }} غير نشط</p>
+                        </div>
+                        <div class="w-11 h-11 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
                             <i data-lucide="truck" class="w-5 h-5 text-orange-600"></i>
                         </div>
-                        <div>
-                            <p class="font-medium text-slate-800">الموردين</p>
-                            <p class="text-sm text-slate-500">{{ stats.total_suppliers }} مورد</p>
+                    </div>
+
+                    <!-- 1) دائري مع نسب الأجزاء -->
+                    <div class="flex items-center gap-4">
+                        <div class="chart-donut-labeled relative flex-shrink-0 mx-auto sm:mx-0">
+                            <div class="w-full h-full rounded-full" style="background: {{ charts.suppliers.pie_gradient }};"></div>
+                            <div class="donut-hole">
+                                <span class="text-lg font-bold text-slate-800">{{ charts.suppliers.total }}</span>
+                                <span class="text-[10px] text-slate-400">مورد</span>
+                            </div>
+                            {% for seg in charts.suppliers.pie_labels %}
+                            <span class="donut-label" style="left: {{ seg.left }}%; top: {{ seg.top }}%; color: {{ seg.color }}; border-color: {{ seg.color }}33;">{{ seg.percent }}%</span>
+                            {% endfor %}
+                        </div>
+                        <div class="flex-1 min-w-0 space-y-1.5">
+                            <p class="text-xs font-semibold text-slate-500">دائري — نسب الأجزاء</p>
+                            <div class="flex items-center gap-2 text-xs">
+                                <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                                <span class="text-slate-600">نشط</span>
+                                <span class="font-bold text-slate-800 mr-auto">{{ charts.suppliers.active }}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs">
+                                <span class="w-2.5 h-2.5 rounded-full bg-orange-200"></span>
+                                <span class="text-slate-600">غير نشط</span>
+                                <span class="font-bold text-slate-800 mr-auto">{{ charts.suppliers.inactive }}</span>
+                            </div>
+                            {% if charts.suppliers.usage %}
+                            <p class="text-xs font-semibold text-slate-500 pt-1 border-t border-slate-100">الاستخدام</p>
+                            {% for segment in charts.suppliers.usage %}
+                            <div class="flex items-center gap-2 text-xs">
+                                <span class="w-2 h-2 rounded-full flex-shrink-0" style="background: {{ segment.color }};"></span>
+                                <span class="text-slate-600 truncate flex-1">{{ segment.label }}</span>
+                                <span class="font-semibold text-orange-700">{{ segment.value }}</span>
+                            </div>
+                            {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
-                    <i data-lucide="arrow-left" class="w-5 h-5 text-primary-600"></i>
-                </div>
-            </a>
+                </a>
 
-            <a href="{% url 'branches:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:border-purple-200 hover:shadow-md transition-all">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <a href="{% url 'branches:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:border-purple-200 hover:shadow-md transition-all group">
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                            <p class="font-bold text-slate-800">الفروع</p>
+                            <p class="text-3xl font-bold text-slate-800 mt-1">{{ charts.branches.total }}</p>
+                            <p class="text-sm text-slate-500 mt-1">{{ charts.branches.active }} نشط · {{ charts.branches.inactive }} غير نشط</p>
+                        </div>
+                        <div class="w-11 h-11 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
                             <i data-lucide="building-2" class="w-5 h-5 text-purple-600"></i>
                         </div>
-                        <div>
-                            <p class="font-medium text-slate-800">الفروع</p>
-                            <p class="text-sm text-slate-500">{{ stats.total_branches }} فرع</p>
-                        </div>
                     </div>
-                    <i data-lucide="arrow-left" class="w-5 h-5 text-primary-600"></i>
-                </div>
-            </a>
 
-            <a href="{% url 'banks:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:border-emerald-200 hover:shadow-md transition-all">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <!-- 2) أعمدة عمودية -->
+                    <p class="text-xs font-semibold text-slate-500 mb-2">أعمدة — مقارنة الفروع</p>
+                    <div class="chart-columns-wrap flex items-end justify-center gap-2 sm:gap-3">
+                        {% for col in charts.branches.columns %}
+                        <div class="flex flex-col items-center gap-1 flex-1 min-w-0 max-w-[3.5rem] h-full">
+                            <span class="text-[10px] font-bold text-slate-700">{{ col.value }}</span>
+                            <div class="chart-column-track flex-1 w-full">
+                                <div class="chart-column-fill" style="height: {{ col.height_percent }}%; background: {{ col.color }};"></div>
+                            </div>
+                            <span class="text-[9px] text-slate-500 text-center leading-tight truncate w-full" title="{{ col.label }}">{{ col.label }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </a>
+
+                <a href="{% url 'banks:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:border-emerald-200 hover:shadow-md transition-all group">
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                            <p class="font-bold text-slate-800">البنوك</p>
+                            <p class="text-3xl font-bold text-slate-800 mt-1">{{ charts.banks.total }}</p>
+                            <p class="text-sm text-slate-500 mt-1">{{ charts.banks.active }} نشط · {{ charts.banks.inactive }} غير نشط</p>
+                        </div>
+                        <div class="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
                             <i data-lucide="landmark" class="w-5 h-5 text-emerald-600"></i>
                         </div>
-                        <div>
-                            <p class="font-medium text-slate-800">البنوك</p>
-                            <p class="text-sm text-slate-500">{{ stats.total_banks }} بنك</p>
-                        </div>
                     </div>
-                    <i data-lucide="arrow-left" class="w-5 h-5 text-primary-600"></i>
-                </div>
-            </a>
 
-            <a href="{% url 'cost_centers:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:border-pink-200 hover:shadow-md transition-all">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                    <!-- 3) أشرطة عمودية مخططة -->
+                    <p class="text-xs font-semibold text-slate-500 mb-2">شريطي — حسب نوع الحساب</p>
+                    <div class="chart-bars-wrap flex items-end justify-center gap-2 sm:gap-3">
+                        {% for bar in charts.banks.bars %}
+                        <div class="flex flex-col items-center gap-1 flex-1 min-w-0 max-w-[3.25rem] h-full">
+                            <span class="text-[10px] font-bold text-emerald-700">{{ bar.value }}</span>
+                            <div class="chart-bar-track flex-1 w-full">
+                                <div class="chart-bar-fill" style="height: {{ bar.height_percent }}%; background-color: {{ bar.color }};"></div>
+                            </div>
+                            <span class="text-[9px] text-slate-500 text-center leading-tight truncate w-full" title="{{ bar.label }}">{{ bar.label }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </a>
+
+                <a href="{% url 'cost_centers:list' %}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:border-pink-200 hover:shadow-md transition-all group">
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                            <p class="font-bold text-slate-800">مراكز التكلفة</p>
+                            <p class="text-3xl font-bold text-slate-800 mt-1">{{ charts.cost_centers.total }}</p>
+                            <p class="text-sm text-slate-500 mt-1">{{ charts.cost_centers.active }} نشط · {{ charts.cost_centers.inactive }} غير نشط</p>
+                        </div>
+                        <div class="w-11 h-11 bg-pink-100 rounded-xl flex items-center justify-center flex-shrink-0">
                             <i data-lucide="bar-chart-3" class="w-5 h-5 text-pink-600"></i>
                         </div>
-                        <div>
-                            <p class="font-medium text-slate-800">مراكز التكلفة</p>
-                            <p class="text-sm text-slate-500">{{ stats.total_cost_centers }} مركز</p>
-                        </div>
                     </div>
-                    <i data-lucide="arrow-left" class="w-5 h-5 text-primary-600"></i>
-                </div>
-            </a>
+
+                    <!-- 4) أشرطة أفقية -->
+                    <p class="text-xs font-semibold text-slate-500 mb-2">أفقي — الربط بالفروع</p>
+                    <div class="space-y-2.5">
+                        {% for row in charts.cost_centers.horizontal_bars %}
+                        <div>
+                            <div class="flex items-center justify-between text-xs mb-1">
+                                <span class="text-slate-600 truncate flex-1 ml-2">{{ row.label }}</span>
+                                <span class="font-bold text-pink-700">{{ row.value }}</span>
+                            </div>
+                            <div class="chart-hbar-track">
+                                <div class="chart-hbar-fill" style="width: {{ row.percent }}%; background: {{ row.color }};"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if charts.cost_centers.usage %}
+                    <div class="flex flex-wrap gap-2 mt-3 pt-2 border-t border-slate-100">
+                        {% for segment in charts.cost_centers.usage %}
+                        <span class="inline-flex items-center gap-1 text-[10px] text-slate-500">
+                            <span class="w-2 h-2 rounded-full" style="background: {{ segment.color }};"></span>
+                            {{ segment.label }} ({{ segment.percent }}%)
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </a>
+            </div>
         </div>
     </div>
 </div>

@@ -1,6 +1,9 @@
 """
 Django Template Views - واجهة الويب
 """
+import math
+import unicodedata
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -23,27 +26,52 @@ from apps.payments.models import PaymentRequest, PaymentRequestItem
 from apps.core.models import Role
 
 
+def _normalize_bank_name(name):
+    if not name:
+        return ''
+    text = unicodedata.normalize('NFKC', str(name))
+    return ' '.join(text.split()).casefold()
+
+
 def unique_banks_for_select(banks_qs, selected_bank_id=None):
-    """One entry per bank name within each branch (avoids duplicate dropdown labels)."""
+    """One entry per bank name (normalized) within each branch."""
     selected_id = int(selected_bank_id) if selected_bank_id else None
     seen = set()
     unique = []
     selected_bank = None
 
-    for bank in banks_qs.order_by('name', 'code'):
+    for bank in banks_qs.order_by('name', 'code', 'id'):
         if selected_id and bank.id == selected_id:
             selected_bank = bank
-        key = (bank.branch_id, bank.name.strip().casefold())
-        if key in seen:
+        name_key = _normalize_bank_name(bank.name)
+        if not name_key:
             continue
-        seen.add(key)
+        branch_key = bank.branch_id or 0
+        dedupe_key = (branch_key, name_key)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
         unique.append(bank)
 
-    if selected_bank and all(b.id != selected_bank.id for b in unique):
+    if selected_bank and not any(b.id == selected_bank.id for b in unique):
         unique.append(selected_bank)
         unique.sort(key=lambda b: ((b.name or '').casefold(), b.code or ''))
 
     return unique
+
+
+def banks_json_for_payment(banks_qs, selected_bank_id=None):
+    return [
+        {
+            'id': str(bank.id),
+            'name': bank.name,
+            'code': bank.code or '',
+            'branch_id': str(bank.branch_id) if bank.branch_id else '',
+            'account_number': bank.account_number or '',
+            'analytical_number': bank.analytical_number or '',
+        }
+        for bank in unique_banks_for_select(banks_qs, selected_bank_id)
+    ]
 
 
 def _chart_percent(value, total):
@@ -65,6 +93,59 @@ def _conic_gradient(segments):
         parts.append(f"{segment['color']} {angle}deg {end_angle}deg")
         angle = end_angle
     return f"conic-gradient({', '.join(parts)})"
+
+
+def _pie_segments_with_labels(segments):
+    """Donut segments with percentage label positions (0deg = top, clockwise)."""
+    cleaned = [s for s in segments if s.get('value', 0) > 0]
+    total = sum(s['value'] for s in cleaned)
+    if total <= 0:
+        return []
+
+    angle = 0
+    labeled = []
+    for seg in cleaned:
+        sweep = seg['value'] / total * 360
+        mid = angle + sweep / 2
+        rad = math.radians(mid)
+        labeled.append({
+            **seg,
+            'percent': _chart_percent(seg['value'], total),
+            'left': round(50 + 38 * math.sin(rad), 1),
+            'top': round(50 - 38 * math.cos(rad), 1),
+        })
+        angle += sweep
+    return labeled
+
+
+def _column_chart_data(segments, max_items=4, empty_label='لا بيانات'):
+    rows = [s for s in segments if s.get('value', 0) > 0][:max_items]
+    if not rows:
+        return [{'label': empty_label, 'value': 0, 'color': '#e2e8f0', 'height_percent': 10}]
+
+    max_val = max(row['value'] for row in rows)
+    return [
+        {
+            **row,
+            'height_percent': max(12, round(row['value'] / max_val * 100)),
+        }
+        for row in rows
+    ]
+
+
+def _horizontal_bar_data(segments, max_items=4, empty_label='لا بيانات'):
+    rows = [s for s in segments if s.get('value', 0) > 0][:max_items]
+    if not rows:
+        return [{'label': empty_label, 'value': 0, 'color': '#e2e8f0', 'percent': 0}]
+
+    max_val = max(row['value'] for row in rows)
+    return [
+        {
+            **row,
+            'percent': max(8, round(row['value'] / max_val * 100)),
+        }
+        for row in rows
+    ]
 
 
 def _build_dashboard_charts():
@@ -131,6 +212,162 @@ def _build_dashboard_charts():
         if row['count']
     ]
 
+    suppliers_total = Supplier.objects.count()
+    suppliers_active = Supplier.objects.filter(is_active=True).count()
+    suppliers_inactive = max(suppliers_total - suppliers_active, 0)
+    suppliers_with_contracts = Supplier.objects.filter(contracts__isnull=False).distinct().count()
+    suppliers_with_payments = Supplier.objects.filter(payment_items__isnull=False).distinct().count()
+    suppliers_with_items = Supplier.objects.filter(item_batches__isnull=False).distinct().count()
+    suppliers_usage = [
+        {'label': 'لديهم عقود', 'value': suppliers_with_contracts, 'color': '#f97316'},
+        {'label': 'لديهم مدفوعات', 'value': suppliers_with_payments, 'color': '#fb923c'},
+        {'label': 'لديهم أصناف', 'value': suppliers_with_items, 'color': '#fdba74'},
+    ]
+    suppliers_usage = [
+        {**row, 'percent': _chart_percent(row['value'], suppliers_total)}
+        for row in suppliers_usage
+        if row['value']
+    ]
+    top_suppliers_payments = list(
+        Supplier.objects.annotate(payment_count=Count('payment_items'))
+        .filter(payment_count__gt=0)
+        .order_by('-payment_count')[:3]
+        .values('name', 'payment_count')
+    )
+
+    branches_total = Branch.objects.count()
+    branches_active = Branch.objects.filter(is_active=True).count()
+    branches_inactive = max(branches_total - branches_active, 0)
+    branches_with_cc = Branch.objects.filter(cost_center__isnull=False).count()
+    branches_without_cc = max(branches_total - branches_with_cc, 0)
+    branches_setup = [
+        {'label': 'مرتبط بمركز تكلفة', 'value': branches_with_cc, 'color': '#a855f7'},
+        {'label': 'بدون مركز تكلفة', 'value': branches_without_cc, 'color': '#d8b4fe'},
+    ]
+    branches_setup = [
+        {**row, 'percent': _chart_percent(row['value'], branches_total)}
+        for row in branches_setup
+        if row['value']
+    ]
+    top_branches_banks = list(
+        Branch.objects.annotate(bank_count=Count('bank_accounts'))
+        .filter(bank_count__gt=0)
+        .order_by('-bank_count')[:3]
+        .values('name', 'bank_count')
+    )
+
+    banks_total = Bank.objects.count()
+    banks_active = Bank.objects.filter(is_active=True).count()
+    banks_inactive = max(banks_total - banks_active, 0)
+    bank_account_labels = dict(Bank.ACCOUNT_TYPE_CHOICES)
+    bank_account_colors = {
+        'current': '#10b981',
+        'savings': '#34d399',
+        'investment': '#059669',
+    }
+    banks_by_account_type = list(
+        Bank.objects.filter(is_active=True)
+        .values('account_type')
+        .annotate(count=Count('id'))
+        .order_by('account_type')
+    )
+    banks_account_segments = [
+        {
+            'label': bank_account_labels.get(row['account_type'], row['account_type']),
+            'value': row['count'],
+            'color': bank_account_colors.get(row['account_type'], '#94a3b8'),
+            'percent': _chart_percent(row['count'], banks_active or banks_total),
+        }
+        for row in banks_by_account_type
+        if row['count']
+    ]
+    bank_currency_labels = dict(Bank.CURRENCY_CHOICES)
+    bank_currency_colors = {'SAR': '#10b981', 'USD': '#3b82f6', 'EUR': '#8b5cf6'}
+    banks_by_currency = list(
+        Bank.objects.filter(is_active=True)
+        .values('currency')
+        .annotate(count=Count('id'))
+        .order_by('currency')
+    )
+    banks_currency_segments = [
+        {
+            'label': bank_currency_labels.get(row['currency'], row['currency']),
+            'value': row['count'],
+            'color': bank_currency_colors.get(row['currency'], '#94a3b8'),
+            'percent': _chart_percent(row['count'], banks_active or banks_total),
+        }
+        for row in banks_by_currency
+        if row['count']
+    ]
+
+    cost_centers_total = CostCenter.objects.count()
+    cost_centers_active = CostCenter.objects.filter(is_active=True).count()
+    cost_centers_inactive = max(cost_centers_total - cost_centers_active, 0)
+    top_cost_centers_branches = list(
+        CostCenter.objects.annotate(branch_count=Count('branches'))
+        .filter(branch_count__gt=0)
+        .order_by('-branch_count')[:3]
+        .values('name', 'branch_count')
+    )
+    cost_centers_linked = CostCenter.objects.filter(branches__isnull=False).distinct().count()
+    cost_centers_unlinked = max(cost_centers_total - cost_centers_linked, 0)
+    cost_centers_usage = [
+        {'label': 'مرتبط بفروع', 'value': cost_centers_linked, 'color': '#ec4899'},
+        {'label': 'غير مرتبط', 'value': cost_centers_unlinked, 'color': '#f9a8d4'},
+    ]
+    cost_centers_usage = [
+        {**row, 'percent': _chart_percent(row['value'], cost_centers_total)}
+        for row in cost_centers_usage
+        if row['value']
+    ]
+
+    suppliers_pie_raw = [
+        {'label': 'نشط', 'value': suppliers_active, 'color': '#f97316'},
+        {'label': 'غير نشط', 'value': suppliers_inactive, 'color': '#fed7aa'},
+    ]
+    if not suppliers_total:
+        suppliers_pie_raw = [{'label': 'لا بيانات', 'value': 1, 'color': '#e2e8f0'}]
+    suppliers_pie_gradient = _conic_gradient(
+        suppliers_pie_raw if suppliers_total else [{'value': 1, 'color': '#e2e8f0'}]
+    )
+    suppliers_pie_labels = _pie_segments_with_labels(suppliers_pie_raw) if suppliers_total else []
+
+    branches_columns = _column_chart_data([
+        {'label': 'نشط', 'value': branches_active, 'color': '#a855f7'},
+        {'label': 'غير نشط', 'value': branches_inactive, 'color': '#d8b4fe'},
+        {'label': 'مركز تكلفة', 'value': branches_with_cc, 'color': '#7c3aed'},
+        {'label': 'حسابات بنك', 'value': banks_total, 'color': '#c084fc'},
+    ], empty_label='لا فروع')
+
+    banks_bar_segments = banks_account_segments or banks_currency_segments
+    if not banks_bar_segments and banks_total:
+        banks_bar_segments = [
+            {'label': 'نشط', 'value': banks_active, 'color': '#10b981', 'percent': _chart_percent(banks_active, banks_total)},
+            {'label': 'غير نشط', 'value': banks_inactive, 'color': '#a7f3d0', 'percent': _chart_percent(banks_inactive, banks_total)},
+        ]
+    banks_bars = _column_chart_data(
+        [{'label': s['label'], 'value': s['value'], 'color': s['color']} for s in banks_bar_segments],
+        max_items=5,
+        empty_label='لا بنوك',
+    )
+
+    if cost_centers_usage:
+        cost_centers_horizontal = _horizontal_bar_data(cost_centers_usage)
+    elif top_cost_centers_branches:
+        cost_centers_horizontal = _horizontal_bar_data([
+            {
+                'label': (row['name'][:14] + '…') if len(row['name']) > 14 else row['name'],
+                'value': row['branch_count'],
+                'color': '#ec4899',
+            }
+            for row in top_cost_centers_branches
+        ], max_items=3)
+    else:
+        cost_centers_horizontal = _horizontal_bar_data([
+            {'label': 'نشط', 'value': cost_centers_active, 'color': '#ec4899'},
+            {'label': 'غير نشط', 'value': cost_centers_inactive, 'color': '#fbcfe8'},
+        ], empty_label='لا مراكز')
+
     return {
         'contracts': {
             'total': contracts_total,
@@ -169,6 +406,63 @@ def _build_dashboard_charts():
             ]),
             'type_gradient': _conic_gradient(rentals_type_segments or [{'value': 1, 'color': '#e2e8f0'}]),
             'active_percent': _chart_percent(rentals_active, rentals_total),
+        },
+        'suppliers': {
+            'total': suppliers_total,
+            'active': suppliers_active,
+            'inactive': suppliers_inactive,
+            'usage': suppliers_usage,
+            'top_payments': top_suppliers_payments,
+            'pie_gradient': suppliers_pie_gradient,
+            'pie_labels': suppliers_pie_labels,
+            'status_gradient': _conic_gradient([
+                {'value': suppliers_active, 'color': '#f97316'},
+                {'value': suppliers_inactive, 'color': '#fed7aa'},
+            ]),
+            'usage_gradient': _conic_gradient(suppliers_usage or [{'value': 1, 'color': '#e2e8f0'}]),
+            'active_percent': _chart_percent(suppliers_active, suppliers_total),
+        },
+        'branches': {
+            'total': branches_total,
+            'active': branches_active,
+            'inactive': branches_inactive,
+            'setup': branches_setup,
+            'top_banks': top_branches_banks,
+            'columns': branches_columns,
+            'status_gradient': _conic_gradient([
+                {'value': branches_active, 'color': '#a855f7'},
+                {'value': branches_inactive, 'color': '#e9d5ff'},
+            ]),
+            'setup_gradient': _conic_gradient(branches_setup or [{'value': 1, 'color': '#e2e8f0'}]),
+            'active_percent': _chart_percent(branches_active, branches_total),
+        },
+        'banks': {
+            'total': banks_total,
+            'active': banks_active,
+            'inactive': banks_inactive,
+            'by_account_type': banks_account_segments,
+            'by_currency': banks_currency_segments,
+            'bars': banks_bars,
+            'status_gradient': _conic_gradient([
+                {'value': banks_active, 'color': '#10b981'},
+                {'value': banks_inactive, 'color': '#a7f3d0'},
+            ]),
+            'type_gradient': _conic_gradient(banks_account_segments or [{'value': 1, 'color': '#e2e8f0'}]),
+            'active_percent': _chart_percent(banks_active, banks_total),
+        },
+        'cost_centers': {
+            'total': cost_centers_total,
+            'active': cost_centers_active,
+            'inactive': cost_centers_inactive,
+            'usage': cost_centers_usage,
+            'top_branches': top_cost_centers_branches,
+            'horizontal_bars': cost_centers_horizontal,
+            'status_gradient': _conic_gradient([
+                {'value': cost_centers_active, 'color': '#ec4899'},
+                {'value': cost_centers_inactive, 'color': '#fbcfe8'},
+            ]),
+            'usage_gradient': _conic_gradient(cost_centers_usage or [{'value': 1, 'color': '#e2e8f0'}]),
+            'active_percent': _chart_percent(cost_centers_active, cost_centers_total),
         },
     }
 
@@ -978,9 +1272,11 @@ def payment_create(request):
         branches_qs = Branch.objects.filter(is_active=True).select_related('cost_center')
         banks_qs = Bank.objects.filter(is_active=True).select_related('branch')
 
+    unique_banks = unique_banks_for_select(banks_qs)
     context = {
         'branches': branches_qs,
-        'banks': unique_banks_for_select(banks_qs),
+        'banks': unique_banks,
+        'banks_json': banks_json_for_payment(banks_qs),
         'cost_centers': CostCenter.objects.filter(is_active=True),
         'suppliers': Supplier.objects.filter(is_active=True),
         'user_branch': user_branch,
@@ -1058,10 +1354,12 @@ def payment_update(request, pk):
         branches_qs = Branch.objects.filter(is_active=True).select_related('cost_center')
         banks_qs = Bank.objects.filter(is_active=True).select_related('branch')
 
+    unique_banks = unique_banks_for_select(banks_qs, payment.bank_id)
     context = {
         'payment': payment,
         'branches': branches_qs,
-        'banks': unique_banks_for_select(banks_qs, payment.bank_id),
+        'banks': unique_banks,
+        'banks_json': banks_json_for_payment(banks_qs, payment.bank_id),
         'cost_centers': CostCenter.objects.filter(is_active=True),
         'suppliers': Supplier.objects.filter(is_active=True),
         'user_branch': user_branch,
