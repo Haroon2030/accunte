@@ -5,7 +5,7 @@
 {% block page_title %}إدارة المستخدمين{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
+<div class="space-y-4" x-data="{ viewOpen: false, viewUser: {} }">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <p class="text-slate-500">إدارة المستخدمين والصلاحيات</p>
@@ -67,7 +67,14 @@
                         <td class="px-4 py-3 text-slate-500 text-xs">{{ user_item.date_joined|date:"Y/m/d" }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-1">
-                                <a href="{% url 'users:update' user_item.pk %}" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors" title="تعديل">
+                                <button
+                                    @click="viewUser = { username: '{{ user_item.username|escapejs }}', full_name: '{{ user_item.get_full_name|default:'-'|escapejs }}', role: '{% if user_item.profile.role %}{{ user_item.profile.role.name|escapejs }}{% else %}-{% endif %}', branch: '{% if user_item.profile.branch %}{{ user_item.profile.branch.name|escapejs }}{% else %}-{% endif %}', status: '{% if user_item.is_active %}نشط{% else %}معطل{% endif %}', joined: '{{ user_item.date_joined|date:'Y/m/d' }}' }; viewOpen = true"
+                                    class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                                    title="عرض"
+                                >
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                                <a href="{% url 'users:update' user_item.pk %}" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="تعديل">
                                     <i data-lucide="edit-2" class="w-4 h-4"></i>
                                 </a>
                                 {% if user_item != request.user %}
@@ -90,6 +97,43 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- View Modal -->
+    <div x-show="viewOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="viewOpen = false"></div>
+        <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" @click.stop>
+            <h3 class="text-lg font-bold mb-4">عرض التفاصيل</h3>
+            <dl class="space-y-3 text-sm">
+                <div class="flex justify-between gap-4 border-b border-slate-100 pb-2">
+                    <dt class="text-slate-500">اسم المستخدم</dt>
+                    <dd class="font-medium text-slate-800" x-text="viewUser.username"></dd>
+                </div>
+                <div class="flex justify-between gap-4 border-b border-slate-100 pb-2">
+                    <dt class="text-slate-500">الاسم الكامل</dt>
+                    <dd class="text-slate-800" x-text="viewUser.full_name"></dd>
+                </div>
+                <div class="flex justify-between gap-4 border-b border-slate-100 pb-2">
+                    <dt class="text-slate-500">الدور</dt>
+                    <dd class="text-slate-800" x-text="viewUser.role"></dd>
+                </div>
+                <div class="flex justify-between gap-4 border-b border-slate-100 pb-2">
+                    <dt class="text-slate-500">الفرع</dt>
+                    <dd class="text-slate-800" x-text="viewUser.branch"></dd>
+                </div>
+                <div class="flex justify-between gap-4 border-b border-slate-100 pb-2">
+                    <dt class="text-slate-500">الحالة</dt>
+                    <dd class="text-slate-800" x-text="viewUser.status"></dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-slate-500">تاريخ الانضمام</dt>
+                    <dd class="text-slate-800" x-text="viewUser.joined"></dd>
+                </div>
+            </dl>
+            <button type="button" @click="viewOpen = false" class="w-full mt-6 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                إغلاق
+            </button>
         </div>
     </div>
 </div>

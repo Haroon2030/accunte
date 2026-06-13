@@ -5,12 +5,12 @@
 {% block page_title %}إدارة الأدوار{% endblock %}
 
 {% block content %}
-<div class="space-y-4" x-data="{ showModal: false, editId: null, editData: {} }">
+<div class="space-y-4" x-data="{ showModal: false, editId: null, editData: {}, viewOnly: false }">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <p class="text-slate-500">إدارة أدوار المستخدمين وصلاحياتهم</p>
         <button 
-            @click="showModal = true; editId = null; editData = {};"
+            @click="showModal = true; viewOnly = false; editId = null; editData = {};"
             class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2"
         >
             <i data-lucide="plus" class="w-4 h-4"></i>
@@ -74,10 +74,17 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-1">
+                                <button
+                                    @click="showModal = true; viewOnly = true; editId = {{ role.pk }}; editData = { name: '{{ role.name|escapejs }}', role_type: '{{ role.role_type }}', description: '{{ role.description|escapejs }}' };"
+                                    class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                                    title="عرض"
+                                >
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
                                 {% if not role.is_system_role %}
                                 <button 
-                                    @click="showModal = true; editId = {{ role.pk }}; editData = { name: '{{ role.name }}', role_type: '{{ role.role_type }}', description: '{{ role.description|escapejs }}' };"
-                                    class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors" 
+                                    @click="showModal = true; viewOnly = false; editId = {{ role.pk }}; editData = { name: '{{ role.name|escapejs }}', role_type: '{{ role.role_type }}', description: '{{ role.description|escapejs }}' };"
+                                    class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors" 
                                     title="تعديل"
                                 >
                                     <i data-lucide="edit-2" class="w-4 h-4"></i>
@@ -88,8 +95,6 @@
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
                                 </form>
-                                {% else %}
-                                <span class="text-slate-300">-</span>
                                 {% endif %}
                             </div>
                         </td>
@@ -111,16 +116,17 @@
         x-show="showModal" 
         x-cloak
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        @click.self="showModal = false"
+        @click.self="showModal = false; viewOnly = false"
     >
         <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" @click.stop>
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-bold text-slate-900" x-text="editId ? 'تعديل الدور' : 'إضافة دور جديد'"></h3>
-                <button @click="showModal = false" class="text-slate-400 hover:text-slate-600">
+                <h3 class="text-xl font-bold text-slate-900" x-text="viewOnly ? 'عرض التفاصيل' : (editId ? 'تعديل الدور' : 'إضافة دور جديد')"></h3>
+                <button @click="showModal = false; viewOnly = false" class="text-slate-400 hover:text-slate-600">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
+            <fieldset :disabled="viewOnly">
             <form :action="editId ? '{% url 'roles:list' %}' + editId + '/update/' : '{% url 'roles:create' %}'" method="post" class="space-y-4">
                 {% csrf_token %}
                 
@@ -163,7 +169,7 @@
                     ></textarea>
                 </div>
 
-                <div class="flex gap-3 pt-4">
+                <div class="flex gap-3 pt-4" x-show="!viewOnly">
                     <button 
                         type="submit"
                         class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
@@ -172,13 +178,19 @@
                     </button>
                     <button 
                         type="button"
-                        @click="showModal = false"
+                        @click="showModal = false; viewOnly = false"
                         class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
                     >
                         إلغاء
                     </button>
                 </div>
             </form>
+            </fieldset>
+            <div x-show="viewOnly" x-cloak class="pt-4">
+                <button type="button" @click="showModal = false; viewOnly = false" class="w-full px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                    إغلاق
+                </button>
+            </div>
         </div>
     </div>
 </div>

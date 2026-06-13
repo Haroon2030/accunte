@@ -315,8 +315,15 @@
         }
         main table.data-table:not(.data-table-wide) thead th:last-child,
         main table.data-table:not(.data-table-wide) tbody td:last-child {
-            width: 6.5rem;
+            width: 8.5rem;
             text-align: center !important;
+        }
+        main fieldset:disabled input,
+        main fieldset:disabled select,
+        main fieldset:disabled textarea {
+            background-color: #f8fafc;
+            color: #334155;
+            cursor: default;
         }
 
         /* Editable form tables */

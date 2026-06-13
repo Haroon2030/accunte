@@ -76,9 +76,9 @@
 <!-- Create/Edit Modal -->
 {% block create_edit_modal %}
 <div 
-    x-data="{ open: false, editId: null, editData: {} }"
-    @open-modal.window="if ($event.detail.id === 'create-modal') { open = true; editId = $event.detail.editId || null; editData = $event.detail.data || {}; }"
-    @keydown.escape.window="open = false"
+    x-data="{ open: false, editId: null, editData: {}, viewOnly: false }"
+    @open-modal.window="if ($event.detail.id === 'create-modal') { open = true; editId = $event.detail.editId || null; editData = $event.detail.data || {}; viewOnly = $event.detail.viewOnly || false; }"
+    @keydown.escape.window="open = false; viewOnly = false"
 >
     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
         <div
@@ -90,7 +90,7 @@
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
             class="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            @click="open = false"
+            @click="open = false; viewOnly = false"
         ></div>
         <div
             x-show="open"
@@ -103,8 +103,15 @@
             class="relative bg-white rounded-xl shadow-2xl w-full {% block modal_size %}max-w-md{% endblock %} mx-4 p-6 max-h-[90vh] overflow-y-auto"
             @click.stop
         >
-            <h3 class="text-lg font-bold mb-4" x-text="editId ? 'تعديل' : 'إضافة جديد'"></h3>
-            {% block modal_form %}{% endblock %}
+            <h3 class="text-lg font-bold mb-4" x-text="viewOnly ? 'عرض التفاصيل' : (editId ? 'تعديل' : 'إضافة جديد')"></h3>
+            <fieldset :disabled="viewOnly">
+                {% block modal_form %}{% endblock %}
+            </fieldset>
+            <div x-show="viewOnly" x-cloak class="flex pt-4">
+                <button type="button" @click="open = false; viewOnly = false" class="flex-1 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                    إغلاق
+                </button>
+            </div>
         </div>
     </div>
 </div>

@@ -28,6 +28,13 @@
                 <td class="px-3 py-2">
                     <div class="flex items-center justify-center gap-0.5">
                         <button 
+                            @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ supplier.id }}, viewOnly: true, data: { name: '{{ supplier.name }}', code: '{{ supplier.code }}', phone: '{{ supplier.phone|default:"" }}', email: '{{ supplier.email|default:"" }}', bank_name: '{{ supplier.bank_name|default:"" }}', bank_account: '{{ supplier.bank_account|default:"" }}', iban: '{{ supplier.iban|default:"" }}' } })"
+                            class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                            title="عرض"
+                        >
+                            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button 
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ supplier.id }}, data: { name: '{{ supplier.name }}', code: '{{ supplier.code }}', phone: '{{ supplier.phone|default:"" }}', email: '{{ supplier.email|default:"" }}', bank_name: '{{ supplier.bank_name|default:"" }}', bank_account: '{{ supplier.bank_account|default:"" }}', iban: '{{ supplier.iban|default:"" }}' } })"
                             class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="تعديل"

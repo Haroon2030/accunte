@@ -47,6 +47,13 @@
                 <td class="px-3 py-2">
                     <div class="flex items-center justify-center gap-0.5">
                         <button
+                            @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ contract.id }}, viewOnly: true, data: { title: '{{ contract.title|escapejs }}', code: '{{ contract.code|escapejs }}', supplier: '{{ contract.supplier_id }}', supplier_name: '{{ contract.supplier.name|escapejs }}', contract_type: '{{ contract.contract_type }}', contract_type_name: '{{ contract.get_contract_type_display|escapejs }}', value: '{{ contract.value }}', start_date: '{{ contract.start_date|date:'Y-m-d' }}', end_date: '{% if contract.end_date %}{{ contract.end_date|date:'Y-m-d' }}{% endif %}', notes: '{{ contract.notes|escapejs|default:'' }}' } })"
+                            class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                            title="عرض"
+                        >
+                            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ contract.id }}, data: { title: '{{ contract.title|escapejs }}', code: '{{ contract.code|escapejs }}', supplier: '{{ contract.supplier_id }}', supplier_name: '{{ contract.supplier.name|escapejs }}', contract_type: '{{ contract.contract_type }}', contract_type_name: '{{ contract.get_contract_type_display|escapejs }}', value: '{{ contract.value }}', start_date: '{{ contract.start_date|date:'Y-m-d' }}', end_date: '{% if contract.end_date %}{{ contract.end_date|date:'Y-m-d' }}{% endif %}', notes: '{{ contract.notes|escapejs|default:'' }}' } })"
                             class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="تعديل"
@@ -82,13 +89,14 @@
 {{ contract_types_json|json_script:"contract-types-data" }}
 <div
     x-data="contractModal()"
-    @open-modal.window="if ($event.detail.id === 'create-modal') { open = true; editId = $event.detail.editId || null; editData = $event.detail.data || {}; showContractTypeList = false; showSupplierList = false; syncContractTypeName(); syncSupplierName(); }"
-    @keydown.escape.window="if (showSupplierList) { showSupplierList = false; } else if (showContractTypeList) { showContractTypeList = false; } else { open = false; }"
+    @open-modal.window="if ($event.detail.id === 'create-modal') { open = true; editId = $event.detail.editId || null; editData = $event.detail.data || {}; viewOnly = $event.detail.viewOnly || false; showContractTypeList = false; showSupplierList = false; syncContractTypeName(); syncSupplierName(); }"
+    @keydown.escape.window="if (showSupplierList) { showSupplierList = false; } else if (showContractTypeList) { showContractTypeList = false; } else { open = false; viewOnly = false; }"
 >
     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="fixed inset-0 bg-black/50" @click="open = false; viewOnly = false"></div>
         <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" @click.stop>
-            <h3 class="text-lg font-bold mb-4" x-text="editId ? 'تعديل' : 'إضافة جديد'"></h3>
+            <h3 class="text-lg font-bold mb-4" x-text="viewOnly ? 'عرض التفاصيل' : (editId ? 'تعديل' : 'إضافة جديد')"></h3>
+            <fieldset :disabled="viewOnly">
             <form
                 :action="editId ? '{% url 'contracts:list' %}' + editId + '/update/' : '{% url 'contracts:create' %}'"
                 method="post"
@@ -238,15 +246,21 @@
                         class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     ></textarea>
                 </div>
-                <div class="flex gap-3 pt-4">
+                <div class="flex gap-3 pt-4" x-show="!viewOnly">
                     <button type="submit" class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
                         حفظ
                     </button>
-                    <button type="button" @click="open = false" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                    <button type="button" @click="open = false; viewOnly = false" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                         إلغاء
                     </button>
                 </div>
             </form>
+            </fieldset>
+            <div x-show="viewOnly" x-cloak class="pt-4">
+                <button type="button" @click="open = false; viewOnly = false" class="w-full px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                    إغلاق
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -261,6 +275,7 @@ function contractModal() {
         open: false,
         editId: null,
         editData: {},
+        viewOnly: false,
         showContractTypeList: false,
         showSupplierList: false,
         supplierSearch: '',

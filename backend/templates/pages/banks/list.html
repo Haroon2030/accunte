@@ -32,6 +32,13 @@
                 <td class="px-3 py-2">
                     <div class="flex items-center justify-center gap-0.5">
                         <button 
+                            @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ bank.id }}, viewOnly: true, data: { name: '{{ bank.name }}', code: '{{ bank.code }}', branch: '{{ bank.branch_id|default:"" }}', account_number: '{{ bank.account_number|default:"" }}', iban: '{{ bank.iban|default:"" }}' } })"
+                            class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                            title="عرض"
+                        >
+                            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button 
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ bank.id }}, data: { name: '{{ bank.name }}', code: '{{ bank.code }}', branch: '{{ bank.branch_id|default:"" }}', account_number: '{{ bank.account_number|default:"" }}', iban: '{{ bank.iban|default:"" }}' } })"
                             class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="تعديل"
