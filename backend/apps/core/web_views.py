@@ -23,6 +23,29 @@ from apps.payments.models import PaymentRequest, PaymentRequestItem
 from apps.core.models import Role
 
 
+def unique_banks_for_select(banks_qs, selected_bank_id=None):
+    """One entry per bank name within each branch (avoids duplicate dropdown labels)."""
+    selected_id = int(selected_bank_id) if selected_bank_id else None
+    seen = set()
+    unique = []
+    selected_bank = None
+
+    for bank in banks_qs.order_by('name', 'code'):
+        if selected_id and bank.id == selected_id:
+            selected_bank = bank
+        key = (bank.branch_id, bank.name.strip().casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(bank)
+
+    if selected_bank and all(b.id != selected_bank.id for b in unique):
+        unique.append(selected_bank)
+        unique.sort(key=lambda b: ((b.name or '').casefold(), b.code or ''))
+
+    return unique
+
+
 # =============================================================================
 # Custom Decorators
 # =============================================================================
@@ -829,7 +852,7 @@ def payment_create(request):
 
     context = {
         'branches': branches_qs,
-        'banks': banks_qs,
+        'banks': unique_banks_for_select(banks_qs),
         'cost_centers': CostCenter.objects.filter(is_active=True),
         'suppliers': Supplier.objects.filter(is_active=True),
         'user_branch': user_branch,
@@ -910,7 +933,7 @@ def payment_update(request, pk):
     context = {
         'payment': payment,
         'branches': branches_qs,
-        'banks': banks_qs,
+        'banks': unique_banks_for_select(banks_qs, payment.bank_id),
         'cost_centers': CostCenter.objects.filter(is_active=True),
         'suppliers': Supplier.objects.filter(is_active=True),
         'user_branch': user_branch,
