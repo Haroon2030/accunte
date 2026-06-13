@@ -280,6 +280,20 @@
             vertical-align: middle;
             text-align: right;
             line-height: 1.45;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        main table tbody td:has(input),
+        main table tbody td:has(select),
+        main table tbody td:has(textarea),
+        main table tbody td:has(button),
+        main table tbody td:has(.flex),
+        main table tfoot td:has(input),
+        main table tfoot td:has(select),
+        main table tfoot td:has(button) {
+            overflow: visible;
+            text-overflow: clip;
         }
         main table tfoot td {
             background: #f8fafc;
@@ -300,13 +314,19 @@
 
         /* List tables */
         main table.data-table {
-            table-layout: fixed;
+            table-layout: auto;
         }
         main table.data-table tbody td {
             min-height: 3.25rem;
             height: 3.25rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        }
+        main table.data-table tbody td > * {
+            max-width: 100%;
+        }
+        main table.data-table tbody td .truncate {
+            display: inline-block;
+            max-width: 100%;
+            vertical-align: middle;
         }
         main table.data-table thead th:first-child,
         main table.data-table:not(.data-table-wide):not(.data-table-form) tbody td:first-child {
@@ -331,17 +351,74 @@
             table-layout: auto;
         }
         main table.data-table-form thead th,
-        main table.data-table-form tbody td {
+        main table.data-table-form tbody td,
+        main table.data-table-form tfoot td {
             height: auto;
-            min-height: 2.75rem;
+            min-height: 2.5rem;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        main table.data-table-form tbody td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        main table.data-table-form tbody td:has(input),
+        main table.data-table-form tbody td:has(select),
+        main table.data-table-form tbody td:has(button),
+        main table.data-table-form tbody td:has(textarea) {
             overflow: visible;
-            white-space: normal;
+            text-overflow: clip;
         }
         main table.data-table-form thead th:last-child,
         main table.data-table-form tbody td:last-child {
             width: 3.5rem;
             text-align: center !important;
         }
+        main table.data-table-form input:not([type="hidden"]),
+        main table.data-table-form select,
+        main table.data-table-form textarea {
+            max-width: 100%;
+        }
+        main table.data-table-form .table-picker-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.25rem;
+            width: 100%;
+            min-width: 9rem;
+            max-width: 14rem;
+            white-space: nowrap;
+        }
+        main table.data-table-form .table-picker-btn span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Payment items form table — keep each row on one line */
+        main table.data-table-payment-form thead th:nth-child(1),
+        main table.data-table-payment-form tbody td:nth-child(1) { min-width: 5.5rem; }
+        main table.data-table-payment-form thead th:nth-child(2),
+        main table.data-table-payment-form tbody td:nth-child(2) { min-width: 11rem; }
+        main table.data-table-payment-form thead th:nth-child(3),
+        main table.data-table-payment-form tbody td:nth-child(3),
+        main table.data-table-payment-form thead th:nth-child(4),
+        main table.data-table-payment-form tbody td:nth-child(4),
+        main table.data-table-payment-form thead th:nth-child(9),
+        main table.data-table-payment-form tbody td:nth-child(9) { min-width: 6.5rem; }
+        main table.data-table-payment-form thead th:nth-child(5),
+        main table.data-table-payment-form tbody td:nth-child(5),
+        main table.data-table-payment-form thead th:nth-child(6),
+        main table.data-table-payment-form tbody td:nth-child(6),
+        main table.data-table-payment-form thead th:nth-child(8),
+        main table.data-table-payment-form tbody td:nth-child(8),
+        main table.data-table-payment-form thead th:nth-child(10),
+        main table.data-table-payment-form tbody td:nth-child(10) { min-width: 6rem; }
+        main table.data-table-payment-form thead th:nth-child(7),
+        main table.data-table-payment-form tbody td:nth-child(7) { min-width: 7.5rem; }
+        main table.data-table-payment-form thead th:nth-child(7),
+        main table.data-table-payment-form tbody td:nth-child(7) { min-width: 7.5rem; }
 
         /* Wide read-only tables */
         main table.data-table-wide {
@@ -349,11 +426,13 @@
             font-size: 0.75rem;
         }
         main table.data-table-wide thead th,
-        main table.data-table-wide tbody td {
+        main table.data-table-wide tbody td,
+        main table.data-table-wide tfoot td {
             height: auto;
             min-height: 3rem;
-            overflow: visible;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         main tr.data-table-empty td {
@@ -364,6 +443,9 @@
             background: #fafbfc;
             border: 1px solid #edf2f7 !important;
             vertical-align: middle;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
         }
 
         /* Site-wide modals */

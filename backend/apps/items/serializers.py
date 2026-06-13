@@ -26,7 +26,7 @@ class ItemBatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = ItemBatch
         fields = [
-            'id', 'supplier', 'supplier_name', 'items_count', 'total_amount',
+            'id', 'supplier', 'supplier_name', 'payment_status', 'items_count', 'total_amount',
             'items', 'created_by', 'created_at',
         ]
         read_only_fields = ['created_by', 'created_at']

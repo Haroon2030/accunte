@@ -60,6 +60,7 @@ item_patterns = [
     path('export-excel/', web_views.items_export_excel, name='export_excel'),
     path('create/', web_views.item_create, name='create'),
     path('<int:pk>/', web_views.ItemBatchDetailView.as_view(), name='detail'),
+    path('<int:pk>/payment-status/', web_views.item_batch_update_payment_status, name='update_payment_status'),
     path('<int:pk>/delete/', web_views.item_batch_delete, name='delete'),
 ]
 

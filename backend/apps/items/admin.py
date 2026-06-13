@@ -9,8 +9,8 @@ class ItemInline(admin.TabularInline):
 
 @admin.register(ItemBatch)
 class ItemBatchAdmin(admin.ModelAdmin):
-    list_display = ['id', 'supplier', 'created_at', 'created_by']
-    list_filter = ['supplier', 'created_at']
+    list_display = ['id', 'supplier', 'payment_status', 'created_at', 'created_by']
+    list_filter = ['payment_status', 'supplier', 'created_at']
     search_fields = ['supplier__name']
     inlines = [ItemInline]
 

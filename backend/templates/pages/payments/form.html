@@ -137,7 +137,7 @@
                 </button>
             </div>
             <div class="data-table-wrap overflow-x-auto">
-                <table class="data-table data-table-form w-full text-sm">
+                <table class="data-table data-table-form data-table-payment-form w-full text-sm">
                     <thead>
                         <tr>
                             <th class="whitespace-nowrap">رقم المورد</th>
@@ -162,15 +162,15 @@
                                     <span class="text-xs text-slate-600 font-mono" x-text="item.supplier_code || '-'"></span>
                                 </td>
                                 <!-- اسم المورد -->
-                                <td class="px-2 py-2">
+                                <td class="px-2 py-2 whitespace-nowrap">
                                     <input type="hidden" :name="'items-' + index + '-supplier'" x-model="item.supplier">
                                     <button 
                                         type="button"
                                         @click="openSupplierModal(index)"
-                                        class="w-full px-2 py-1.5 text-xs border border-slate-200 rounded bg-white hover:bg-slate-50 text-right flex items-center justify-between gap-1"
+                                        class="table-picker-btn px-2 py-1.5 text-xs border border-slate-200 rounded bg-white hover:bg-slate-50 text-right"
                                     >
                                         <span x-text="item.supplier_name || 'اختر المورد'" :class="item.supplier_name ? 'text-slate-800' : 'text-slate-400'"></span>
-                                        <i data-lucide="search" class="w-3 h-3 text-slate-400"></i>
+                                        <i data-lucide="search" class="w-3 h-3 text-slate-400 flex-shrink-0"></i>
                                     </button>
                                 </td>
                                 <!-- رصيد المورد -->
@@ -219,12 +219,12 @@
                                     </select>
                                 </td>
                                 <!-- ملاحظات -->
-                                <td class="px-2 py-2">
+                                <td class="px-2 py-2 whitespace-nowrap">
                                     <input type="hidden" :name="'items-' + index + '-notes'" x-model="item.notes">
-                                    <div class="flex items-center gap-1">
+                                    <div class="inline-flex items-center gap-1 max-w-[7.5rem]">
                                         <span
-                                            class="text-xs text-slate-700 truncate max-w-[80px]"
-                                            x-text="item.notes ? item.notes.trim().split(/\s+/).slice(0,2).join(' ') + (item.notes.trim().split(/\s+/).length > 2 ? '...' : '') : '-'"
+                                            class="text-xs text-slate-700 truncate"
+                                            x-text="item.notes ? item.notes.trim() : '-'"
                                         ></span>
                                         <button
                                             type="button"

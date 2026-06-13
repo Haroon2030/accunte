@@ -1176,9 +1176,14 @@ def item_create(request):
             messages.error(request, 'لم يتم إضافة أي صنف، تأكد من تعبئة البيانات')
             return redirect('items:create')
 
+        payment_status = request.POST.get('payment_status', ItemBatch.PaymentStatus.UNPAID)
+        if payment_status not in ItemBatch.PaymentStatus.values:
+            payment_status = ItemBatch.PaymentStatus.UNPAID
+
         batch = ItemBatch.objects.create(
             supplier_id=supplier_id,
             created_by=request.user,
+            payment_status=payment_status,
         )
         for item_data in batch_items:
             Item.objects.create(batch=batch, **item_data)
@@ -1190,6 +1195,20 @@ def item_create(request):
         'suppliers': Supplier.objects.filter(is_active=True).order_by('name'),
     }
     return render(request, 'pages/items/form.html', context)
+
+
+@login_required
+def item_batch_update_payment_status(request, pk):
+    """تحديث حالة دفع ملف أصناف"""
+    batch = get_object_or_404(ItemBatch, pk=pk)
+    if request.method == 'POST':
+        status = request.POST.get('payment_status')
+        if status in ItemBatch.PaymentStatus.values:
+            batch.payment_status = status
+            batch.save(update_fields=['payment_status'])
+            label = batch.get_payment_status_display()
+            messages.success(request, f'تم تحديث حالة الدفع إلى: {label}')
+    return redirect(request.POST.get('next') or 'items:list')
 
 
 @login_required
@@ -1616,7 +1635,7 @@ def items_export_excel(request):
     batches = list(_items_batches_queryset(request))
     batch_ids = [batch.id for batch in batches]
 
-    summary_headers = ['#', 'رقم الملف', 'المورد / الشركة', 'عدد الأصناف', 'المبلغ الإجمالي', 'تاريخ الإنشاء']
+    summary_headers = ['#', 'رقم الملف', 'المورد / الشركة', 'عدد الأصناف', 'المبلغ الإجمالي', 'حالة الدفع', 'تاريخ الإنشاء']
     summary_rows = []
     grand_total = 0
     grand_count = 0
@@ -1631,6 +1650,7 @@ def items_export_excel(request):
             batch.supplier.name,
             count,
             amount,
+            batch.get_payment_status_display(),
             batch.created_at.strftime('%Y/%m/%d'),
         ])
 
@@ -1660,8 +1680,8 @@ def items_export_excel(request):
     start_row = builder.write_report_header(len(summary_headers), meta)
     builder.write_table(
         start_row, summary_headers, summary_rows,
-        col_widths=[6, 10, 26, 14, 16, 14],
-        totals_row=['', '', 'المجموع', grand_count, grand_total, ''],
+        col_widths=[6, 10, 26, 14, 16, 12, 14],
+        totals_row=['', '', 'المجموع', grand_count, grand_total, '', ''],
     )
 
     detail_ws = builder.add_sheet('تفاصيل الأصناف')

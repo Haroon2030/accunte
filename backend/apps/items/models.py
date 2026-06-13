@@ -9,11 +9,21 @@ from django.db import models
 class ItemBatch(models.Model):
     """ملف أصناف - مجموعة أصناف محفوظة معاً"""
 
+    class PaymentStatus(models.TextChoices):
+        UNPAID = 'unpaid', 'غير مدفوع'
+        PAID = 'paid', 'مدفوع'
+
     supplier = models.ForeignKey(
         'suppliers.Supplier',
         on_delete=models.PROTECT,
         verbose_name="الشركة / المورد",
         related_name="item_batches",
+    )
+    payment_status = models.CharField(
+        "حالة الدفع",
+        max_length=10,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.UNPAID,
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
