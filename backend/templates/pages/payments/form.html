@@ -322,11 +322,11 @@
          x-transition:leave="transition ease-in duration-75"
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
-         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay"
          @click.self="showSupplierModal = false"
          @keydown.escape.window="showSupplierModal = false"
          style="display: none;">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm">
+        <div class="modal-panel w-full max-w-sm">
             <!-- Search Input -->
             <div class="p-3 border-b border-slate-100">
                 <input 
@@ -363,11 +363,11 @@
     <div
         x-show="showNotesModal"
         x-cloak
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        class="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4"
         @click.self="showNotesModal = false"
         style="display:none;"
     >
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" @click.stop>
+        <div class="modal-panel max-w-lg w-full p-6" @click.stop>
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-bold text-slate-900">ملاحظات البند</h3>
                 <button type="button" @click="showNotesModal = false" class="text-slate-400 hover:text-slate-600 transition-colors">

@@ -115,10 +115,10 @@
     <div 
         x-show="showModal" 
         x-cloak
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        class="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4"
         @click.self="showModal = false; viewOnly = false"
     >
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" @click.stop>
+        <div class="modal-panel max-w-lg w-full p-6" @click.stop>
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-xl font-bold text-slate-900" x-text="viewOnly ? 'عرض التفاصيل' : (editId ? 'تعديل الدور' : 'إضافة دور جديد')"></h3>
                 <button @click="showModal = false; viewOnly = false" class="text-slate-400 hover:text-slate-600">

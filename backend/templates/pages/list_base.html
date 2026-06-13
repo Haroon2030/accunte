@@ -89,7 +89,7 @@
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            class="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            class="fixed inset-0 modal-overlay"
             @click="open = false; viewOnly = false"
         ></div>
         <div
@@ -100,7 +100,7 @@
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="opacity-100 scale-100"
             x-transition:leave-end="opacity-0 scale-95"
-            class="relative bg-white rounded-xl shadow-2xl w-full {% block modal_size %}max-w-md{% endblock %} mx-4 p-6 max-h-[90vh] overflow-y-auto"
+            class="modal-panel relative w-full {% block modal_size %}max-w-md{% endblock %} mx-4 p-6 max-h-[90vh] overflow-y-auto"
             @click.stop
         >
             <h3 class="text-lg font-bold mb-4" x-text="viewOnly ? 'عرض التفاصيل' : (editId ? 'تعديل' : 'إضافة جديد')"></h3>
@@ -132,7 +132,7 @@
             x-transition:enter="transition ease-out duration-200"
             x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100"
-            class="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            class="fixed inset-0 modal-overlay"
             @click="open = false"
         ></div>
         <div
@@ -140,7 +140,7 @@
             x-transition:enter="transition ease-out duration-250"
             x-transition:enter-start="opacity-0 scale-95"
             x-transition:enter-end="opacity-100 scale-100"
-            class="relative bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 text-center"
+            class="modal-panel relative w-full max-w-sm mx-4 p-6 text-center"
             @click.stop
         >
             <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">

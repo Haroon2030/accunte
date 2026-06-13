@@ -93,8 +93,8 @@
     @keydown.escape.window="if (showSupplierList) { showSupplierList = false; } else if (showContractTypeList) { showContractTypeList = false; } else { open = false; viewOnly = false; }"
 >
     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="fixed inset-0 bg-black/50" @click="open = false; viewOnly = false"></div>
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" @click.stop>
+        <div class="fixed inset-0 modal-overlay" @click="open = false; viewOnly = false"></div>
+        <div class="modal-panel relative w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" @click.stop>
             <h3 class="text-lg font-bold mb-4" x-text="viewOnly ? 'عرض التفاصيل' : (editId ? 'تعديل' : 'إضافة جديد')"></h3>
             <fieldset :disabled="viewOnly">
             <form

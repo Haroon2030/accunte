@@ -94,8 +94,8 @@
     @keydown.escape.window="if (showSupplierList) { showSupplierList = false; } else { open = false; viewOnly = false; }"
 >
     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="fixed inset-0 bg-black/50" @click="open = false; viewOnly = false"></div>
-        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-auto flex flex-col max-h-[min(540px,85vh)]" @click.stop>
+        <div class="fixed inset-0 modal-overlay" @click="open = false; viewOnly = false"></div>
+        <div class="modal-panel relative w-full max-w-md mx-auto flex flex-col max-h-[min(540px,85vh)]" @click.stop>
             <div class="px-4 pt-4 pb-2 border-b border-slate-100 flex-shrink-0">
                 <h3 class="text-base font-bold text-slate-800" x-text="viewOnly ? 'عرض التفاصيل' : (editId ? 'تعديل' : 'إضافة جديد')"></h3>
             </div>
