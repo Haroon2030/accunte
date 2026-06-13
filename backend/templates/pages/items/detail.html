@@ -43,21 +43,21 @@
         <div class="p-4 border-b border-slate-200">
             <h3 class="font-bold text-slate-800">الأصناف</h3>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-slate-50 border-b border-slate-200">
+        <div class="data-table-wrap overflow-x-auto">
+            <table class="data-table w-full text-sm">
+                <thead>
                     <tr>
-                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">#</th>
-                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الباركود</th>
-                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">اسم الصنف</th>
-                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">العبوة</th>
-                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">المبلغ</th>
+                        <th>#</th>
+                        <th class="whitespace-nowrap">الباركود</th>
+                        <th class="whitespace-nowrap">اسم الصنف</th>
+                        <th class="whitespace-nowrap">العبوة</th>
+                        <th class="whitespace-nowrap">المبلغ</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody>
                     {% for item in items %}
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-3 py-2 text-xs text-slate-500">{{ forloop.counter }}</td>
+                    <tr>
+                        <td class="text-xs text-slate-500">{{ forloop.counter }}</td>
                         <td class="px-3 py-2">
                             <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-mono">{{ item.barcode }}</span>
                         </td>
@@ -66,16 +66,16 @@
                         <td class="px-3 py-2 text-slate-800 font-medium">{{ item.amount }} ر.س</td>
                     </tr>
                     {% empty %}
-                    <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-slate-500 text-sm">لا توجد أصناف في هذا الملف</td>
+                    <tr class="data-table-empty">
+                        <td colspan="5">لا توجد أصناف في هذا الملف</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 {% if items %}
-                <tfoot class="bg-slate-50">
+                <tfoot>
                     <tr>
-                        <td colspan="4" class="px-3 py-2 text-xs font-bold text-slate-800 text-left">المجموع</td>
-                        <td class="px-3 py-2 text-xs font-bold text-slate-800">{{ total_amount }} ر.س</td>
+                        <td colspan="4" class="text-left">المجموع</td>
+                        <td>{{ total_amount }} ر.س</td>
                     </tr>
                 </tfoot>
                 {% endif %}

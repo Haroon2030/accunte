@@ -41,19 +41,19 @@
                     إضافة صنف
                 </button>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-slate-50 border-b border-slate-200">
+            <div class="data-table-wrap overflow-x-auto">
+                <table class="data-table data-table-form w-full text-sm">
+                    <thead>
                         <tr>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">#</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">باركود الصنف</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">اسم الصنف</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">العبوة</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">المبلغ</th>
-                            <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-10"></th>
+                            <th>#</th>
+                            <th class="whitespace-nowrap">باركود الصنف</th>
+                            <th class="whitespace-nowrap">اسم الصنف</th>
+                            <th class="whitespace-nowrap">العبوة</th>
+                            <th class="whitespace-nowrap">المبلغ</th>
+                            <th class="w-10"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody>
                         <template x-for="(item, index) in items" :key="index">
                             <tr>
                                 <td class="px-3 py-2 text-xs text-slate-500" x-text="index + 1"></td>
@@ -108,10 +108,10 @@
                             </tr>
                         </template>
                     </tbody>
-                    <tfoot class="bg-slate-50">
+                    <tfoot>
                         <tr>
-                            <td colspan="4" class="px-3 py-2 text-xs font-bold text-slate-800 text-left">المجموع</td>
-                            <td class="px-3 py-2 text-xs font-bold text-slate-800" x-text="totalAmount.toFixed(2) + ' ر.س'"></td>
+                            <td colspan="4" class="text-left">المجموع</td>
+                            <td x-text="totalAmount.toFixed(2) + ' ر.س'"></td>
                             <td></td>
                         </tr>
                     </tfoot>

@@ -254,6 +254,110 @@
             vertical-align: middle;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Site-wide tables */
+        main table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+        main table thead th {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            color: #475569;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.75rem 1rem !important;
+            border: 1px solid #e2e8f0;
+            text-align: right;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        main table tbody td,
+        main table tfoot td {
+            padding: 0.75rem 1rem !important;
+            border: 1px solid #edf2f7;
+            color: #334155;
+            vertical-align: middle;
+            text-align: right;
+            line-height: 1.45;
+        }
+        main table tfoot td {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+        main table tbody tr {
+            transition: background-color 0.15s ease;
+        }
+        main table tbody tr:nth-child(even) {
+            background-color: #fafbfc;
+        }
+        main table tbody tr:hover {
+            background-color: #f1f5f9;
+        }
+        main .data-table-wrap {
+            overflow-x: auto;
+        }
+
+        /* List tables */
+        main table.data-table {
+            table-layout: fixed;
+        }
+        main table.data-table tbody td {
+            min-height: 3.25rem;
+            height: 3.25rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        main table.data-table thead th:first-child,
+        main table.data-table:not(.data-table-wide):not(.data-table-form) tbody td:first-child {
+            width: 3.25rem;
+            text-align: center !important;
+        }
+        main table.data-table:not(.data-table-wide) thead th:last-child,
+        main table.data-table:not(.data-table-wide) tbody td:last-child {
+            width: 6.5rem;
+            text-align: center !important;
+        }
+
+        /* Editable form tables */
+        main table.data-table-form {
+            table-layout: auto;
+        }
+        main table.data-table-form thead th,
+        main table.data-table-form tbody td {
+            height: auto;
+            min-height: 2.75rem;
+            overflow: visible;
+            white-space: normal;
+        }
+        main table.data-table-form thead th:last-child,
+        main table.data-table-form tbody td:last-child {
+            width: 3.5rem;
+            text-align: center !important;
+        }
+
+        /* Wide read-only tables */
+        main table.data-table-wide {
+            table-layout: auto;
+            font-size: 0.75rem;
+        }
+        main table.data-table-wide thead th,
+        main table.data-table-wide tbody td {
+            height: auto;
+            min-height: 3rem;
+            overflow: visible;
+            white-space: nowrap;
+        }
+
+        main tr.data-table-empty td {
+            height: auto !important;
+            min-height: 8rem;
+            padding: 2rem 1rem !important;
+            text-align: center !important;
+            background: #fafbfc;
+            border: 1px solid #edf2f7 !important;
+            vertical-align: middle;
+        }
     </style>
     
     {% block extra_css %}{% endblock %}

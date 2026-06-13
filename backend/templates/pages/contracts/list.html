@@ -1,9 +1,9 @@
 {% extends "pages/list_base.html" %}
 
 {% block table_content %}
-<div class="overflow-x-auto">
-    <table class="w-full text-sm">
-        <thead class="bg-slate-50 border-b border-slate-200">
+<div class="data-table-wrap overflow-x-auto">
+    <table class="data-table w-full text-sm">
+        <thead>
             <tr>
                 <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">#</th>
                 <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">رقم العقد</th>
@@ -16,9 +16,9 @@
                 <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">إجراءات</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
+        <tbody>
             {% for contract in object_list %}
-            <tr class="hover:bg-slate-50 transition-colors">
+            <tr>
                 <td class="px-3 py-2 text-xs text-slate-500">{{ forloop.counter }}</td>
                 <td class="px-3 py-2">
                     <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-mono">{{ contract.code }}</span>
@@ -64,8 +64,8 @@
                 </td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="9" class="px-4 py-8 text-center">
+            <tr class="data-table-empty">
+                <td colspan="9">
                     <div class="flex flex-col items-center">
                         <i data-lucide="file-signature" class="w-10 h-10 text-slate-300 mb-2"></i>
                         <p class="text-slate-500 text-sm">لا توجد عقود</p>
