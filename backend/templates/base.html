@@ -378,6 +378,680 @@
             background: rgba(15, 23, 42, 0.5);
             backdrop-filter: blur(2px);
         }
+
+        /* Page toolbar */
+        .page-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        }
+        .page-toolbar-leading {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            min-width: 0;
+            flex: 1;
+        }
+        .page-toolbar-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.75rem;
+            height: 2.75rem;
+            border-radius: 0.625rem;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 1px solid #bfdbfe;
+            color: #2563eb;
+            flex-shrink: 0;
+        }
+        .page-toolbar-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+        .page-toolbar-subtitle {
+            font-size: 0.8125rem;
+            color: #64748b;
+            margin-top: 0.125rem;
+            line-height: 1.4;
+        }
+        .page-toolbar-actions {
+            display: inline-flex;
+            align-items: stretch;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.625rem;
+            overflow: hidden;
+            background: #fff;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+        .page-toolbar-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #475569;
+            background: #fff;
+            border: none;
+            border-inline-start: 1px solid #e2e8f0;
+            transition: background-color 0.15s ease, color 0.15s ease;
+            text-decoration: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .page-toolbar-actions > .page-toolbar-btn:first-child {
+            border-inline-start: none;
+        }
+        .page-toolbar-btn:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        .page-toolbar-btn--export {
+            color: #15803d;
+        }
+        .page-toolbar-btn--export:hover {
+            background: #f0fdf4;
+            color: #166534;
+        }
+        .page-toolbar-btn--primary {
+            color: #fff;
+            background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+        }
+        .page-toolbar-btn--primary:hover {
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+            color: #fff;
+        }
+        .page-toolbar-btn svg,
+        .page-toolbar-btn i {
+            width: 1rem;
+            height: 1rem;
+            flex-shrink: 0;
+        }
+
+        /* Form action buttons */
+        .form-actions {
+            display: flex;
+            align-items: stretch;
+            gap: 0.75rem;
+            padding-top: 0.5rem;
+        }
+        .form-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            line-height: 1.25;
+            border-radius: 0.75rem;
+            transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, color 0.15s ease;
+            cursor: pointer;
+            text-decoration: none;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+        .form-btn--primary {
+            flex: 1;
+            color: #fff;
+            background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+            border-color: #1d4ed8;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+        .form-btn--primary:hover {
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.34);
+            transform: translateY(-1px);
+        }
+        .form-btn--primary:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+        }
+        .form-btn--ghost {
+            color: #475569;
+            background: #fff;
+            border-color: #e2e8f0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+        .form-btn--ghost:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        .form-btn svg,
+        .form-btn i {
+            width: 1.125rem;
+            height: 1.125rem;
+            flex-shrink: 0;
+        }
+
+        /* Glass password form */
+        .glass-auth-wrap {
+            position: relative;
+            max-width: 32rem;
+            margin: 0 auto;
+            padding: 1.5rem 0 2rem;
+        }
+        .glass-auth-bg {
+            position: absolute;
+            inset: -1rem -0.5rem auto;
+            height: 18rem;
+            pointer-events: none;
+            overflow: hidden;
+            border-radius: 1.5rem;
+        }
+        .glass-auth-blob {
+            position: absolute;
+            border-radius: 9999px;
+            filter: blur(48px);
+            opacity: 0.55;
+        }
+        .glass-auth-blob--1 {
+            top: -2rem;
+            right: -1rem;
+            width: 14rem;
+            height: 14rem;
+            background: #93c5fd;
+        }
+        .glass-auth-blob--2 {
+            top: 2rem;
+            left: -2rem;
+            width: 12rem;
+            height: 12rem;
+            background: #c4b5fd;
+        }
+        .glass-auth-blob--3 {
+            bottom: -3rem;
+            right: 30%;
+            width: 10rem;
+            height: 10rem;
+            background: #7dd3fc;
+        }
+        .glass-card {
+            position: relative;
+            z-index: 1;
+            padding: 1.75rem;
+            border-radius: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            background: rgba(255, 255, 255, 0.42);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow:
+                0 8px 32px rgba(15, 23, 42, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.75);
+        }
+        .glass-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+        }
+        .glass-card-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 1rem;
+            color: #2563eb;
+            background: rgba(255, 255, 255, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
+        }
+        .glass-card-icon i,
+        .glass-card-icon svg {
+            width: 1.35rem;
+            height: 1.35rem;
+        }
+        .glass-card-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+        .glass-card-subtitle {
+            margin-top: 0.2rem;
+            font-size: 0.8125rem;
+            color: #64748b;
+        }
+        .glass-card-subtitle strong {
+            color: #334155;
+            font-weight: 600;
+        }
+        .glass-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+        }
+        .glass-field + .glass-field {
+            margin-top: 1rem;
+        }
+        .glass-label {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #334155;
+        }
+        .glass-input-wrap {
+            position: relative;
+        }
+        .glass-input {
+            width: 100%;
+            padding: 0.8rem 2.75rem 0.8rem 0.9rem;
+            font-size: 0.875rem;
+            color: #0f172a;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+        }
+        .glass-input::placeholder {
+            color: #94a3b8;
+        }
+        .glass-input:focus {
+            outline: none;
+            border-color: rgba(59, 130, 246, 0.65);
+            background: rgba(255, 255, 255, 0.72);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), inset 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+        .glass-input.is-error {
+            border-color: rgba(248, 113, 113, 0.75);
+            background: rgba(254, 242, 242, 0.65);
+        }
+        .glass-input-toggle {
+            position: absolute;
+            left: 0.65rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border: none;
+            border-radius: 0.5rem;
+            color: #64748b;
+            background: transparent;
+            cursor: pointer;
+            transition: color 0.15s ease, background-color 0.15s ease;
+        }
+        .glass-input-toggle:hover {
+            color: #2563eb;
+            background: rgba(255, 255, 255, 0.45);
+        }
+        .glass-input-toggle i,
+        .glass-input-toggle svg {
+            width: 1.125rem;
+            height: 1.125rem;
+        }
+        .glass-hint {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        .glass-error {
+            font-size: 0.75rem;
+            color: #dc2626;
+        }
+        .glass-form-actions {
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        /* Header user menu */
+        .header-user-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.375rem 0.625rem 0.375rem 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+            cursor: pointer;
+            max-width: 14rem;
+        }
+        .header-user-trigger:hover,
+        .header-user-trigger.is-open {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+        }
+        .header-user-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border: 1px solid #93c5fd;
+            color: #1d4ed8;
+            flex-shrink: 0;
+        }
+        .header-user-name {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+            text-align: right;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .header-user-role {
+            font-size: 0.6875rem;
+            color: #64748b;
+            line-height: 1.2;
+            text-align: right;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .header-user-chevron {
+            width: 1rem;
+            height: 1rem;
+            color: #94a3b8;
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+        }
+        .header-user-chevron.is-open {
+            transform: rotate(180deg);
+        }
+        .header-user-menu {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            min-width: 15rem;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+            z-index: 50;
+        }
+        .header-user-menu-head {
+            padding: 0.875rem 1rem;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .header-user-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #334155;
+            text-decoration: none;
+            border: none;
+            background: #fff;
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease;
+            text-align: right;
+        }
+        .header-user-menu-item:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        .header-user-menu-item + .header-user-menu-item {
+            border-top: 1px solid #f1f5f9;
+        }
+        .header-user-menu-item--danger {
+            color: #b91c1c;
+        }
+        .header-user-menu-item--danger:hover {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+        .header-user-menu-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+            background: #f1f5f9;
+            color: #475569;
+            flex-shrink: 0;
+        }
+        .header-user-menu-item--danger .header-user-menu-icon {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        /* Header icon buttons */
+        .header-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.375rem;
+            height: 2.375rem;
+            padding: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.625rem;
+            background: #fff;
+            color: #475569;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        .header-icon-btn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        .header-icon-btn.is-active {
+            background: #eff6ff;
+            border-color: #93c5fd;
+            color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+        }
+        .header-icon-btn i,
+        .header-icon-btn svg {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        /* Dark mode */
+        html.dark {
+            color-scheme: dark;
+        }
+        html.dark ::-webkit-scrollbar-track { background: #1e293b; }
+        html.dark ::-webkit-scrollbar-thumb { background: #475569; border-color: #1e293b; }
+        html.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        html.dark body,
+        html.dark .bg-slate-50 { background-color: #0f172a !important; }
+        html.dark .bg-white,
+        html.dark .bg-white\/90,
+        html.dark #app-sidebar,
+        html.dark .modal-panel,
+        html.dark .page-toolbar,
+        html.dark .header-user-trigger,
+        html.dark .header-user-menu,
+        html.dark .header-icon-btn,
+        html.dark .app-toast {
+            background-color: #1e293b !important;
+        }
+        html.dark header {
+            background: rgba(30, 41, 59, 0.92) !important;
+            border-color: #334155 !important;
+        }
+        html.dark .fixed.bottom-0 {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        html.dark .border-slate-200,
+        html.dark .border-slate-100,
+        html.dark .border-l,
+        html.dark #app-sidebar,
+        html.dark .modal-panel,
+        html.dark .page-toolbar,
+        html.dark .page-toolbar-actions,
+        html.dark .header-user-trigger,
+        html.dark .header-user-menu,
+        html.dark .header-icon-btn,
+        html.dark .header-user-menu-head {
+            border-color: #334155 !important;
+        }
+        html.dark .text-slate-800,
+        html.dark .text-slate-900,
+        html.dark .glass-card-title,
+        html.dark .toast-title {
+            color: #f1f5f9 !important;
+        }
+        html.dark .text-slate-700,
+        html.dark .text-slate-600,
+        html.dark .text-slate-500,
+        html.dark .text-slate-400,
+        html.dark .header-user-role,
+        html.dark .page-toolbar-subtitle,
+        html.dark .toast-message,
+        html.dark .glass-card-subtitle,
+        html.dark .glass-hint,
+        html.dark .glass-label {
+            color: #94a3b8 !important;
+        }
+        html.dark .header-user-name,
+        html.dark .page-toolbar-title {
+            color: #e2e8f0 !important;
+        }
+        html.dark .hover\:bg-slate-100:hover,
+        html.dark .header-icon-btn:hover,
+        html.dark .header-user-trigger:hover,
+        html.dark .header-user-trigger.is-open {
+            background-color: #334155 !important;
+        }
+        html.dark .header-icon-btn.is-active {
+            background-color: #1e3a5f !important;
+            border-color: #3b82f6 !important;
+            color: #93c5fd !important;
+        }
+        html.dark .shadow-xl,
+        html.dark .shadow-sm {
+            box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.45) !important;
+        }
+        html.dark .nav-link-idle { color: #cbd5e1; }
+        html.dark .nav-link-idle:hover {
+            color: #f8fafc;
+            background: linear-gradient(270deg, #334155 0%, #1e293b 100%);
+            box-shadow: 0 2px 10px -4px rgba(0, 0, 0, 0.35);
+        }
+        html.dark .nav-link-active {
+            color: #93c5fd;
+            background: linear-gradient(270deg, #1e3a5f 0%, #172554 100%);
+            box-shadow: 0 4px 18px -6px rgba(37, 99, 235, 0.35);
+            border-right-color: #3b82f6;
+        }
+        html.dark .nav-group-idle { color: #94a3b8; }
+        html.dark .nav-group-active {
+            color: #93c5fd;
+            background: linear-gradient(270deg, rgba(30, 58, 95, 0.9), rgba(23, 37, 84, 0.5));
+        }
+        html.dark main table thead th {
+            background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
+            color: #94a3b8;
+            border-color: #334155;
+        }
+        html.dark main table tbody td,
+        html.dark main table tfoot td {
+            color: #cbd5e1;
+            border-color: #334155;
+        }
+        html.dark main table tfoot td,
+        html.dark main table tbody tr:nth-child(even),
+        html.dark main tr.data-table-empty td {
+            background-color: #172033;
+        }
+        html.dark main table tbody tr:hover {
+            background-color: #243044;
+        }
+        html.dark .page-toolbar-btn {
+            background: #1e293b;
+            color: #cbd5e1;
+            border-color: #334155;
+        }
+        html.dark .page-toolbar-btn:hover {
+            background: #334155;
+            color: #f1f5f9;
+        }
+        html.dark .page-toolbar-actions {
+            background: #1e293b;
+        }
+        html.dark .header-user-menu-head {
+            background: linear-gradient(180deg, #243044 0%, #1e293b 100%);
+        }
+        html.dark .header-user-menu-item {
+            color: #cbd5e1;
+        }
+        html.dark .header-user-menu-item:hover {
+            background: #334155;
+            color: #f8fafc;
+        }
+        html.dark .header-user-menu-icon {
+            background: #334155;
+            color: #cbd5e1;
+        }
+        html.dark .header-user-avatar {
+            background: linear-gradient(135deg, #1e3a5f 0%, #172554 100%);
+            border-color: #3b82f6;
+            color: #93c5fd;
+        }
+        html.dark .glass-card {
+            background: rgba(30, 41, 59, 0.55);
+            border-color: rgba(148, 163, 184, 0.25);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+        html.dark .glass-input {
+            background: rgba(15, 23, 42, 0.55);
+            border-color: rgba(148, 163, 184, 0.25);
+            color: #f1f5f9;
+        }
+        html.dark .glass-input:focus {
+            background: rgba(15, 23, 42, 0.75);
+            border-color: rgba(59, 130, 246, 0.55);
+        }
+        html.dark input,
+        html.dark select,
+        html.dark textarea {
+            background-color: #172033;
+            border-color: #334155;
+            color: #e2e8f0;
+        }
+        html.dark input::placeholder,
+        html.dark textarea::placeholder {
+            color: #64748b;
+        }
+        html.dark .form-btn--ghost {
+            background: #1e293b;
+            border-color: #334155;
+            color: #cbd5e1;
+        }
+        html.dark .form-btn--ghost:hover {
+            background: #334155;
+            color: #f8fafc;
+        }
+        html.dark .modal-overlay {
+            background: rgba(2, 6, 23, 0.72);
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -385,6 +1059,9 @@
         try {
             if (sessionStorage.getItem('sidebarOpen') === '0') {
                 document.documentElement.classList.add('sidebar-collapsed-init');
+            }
+            if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.classList.add('dark');
             }
         } catch (e) {}
     </script>
@@ -439,23 +1116,93 @@
             <!-- Header -->
             <header class="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm flex items-center justify-between px-6">
                 <div class="flex items-center gap-4">
-                    <button @click="toggleSidebar()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                        <i data-lucide="menu" class="w-5 h-5 text-slate-600"></i>
+                    <button
+                        type="button"
+                        @click="toggleSidebar()"
+                        class="p-2 border border-slate-200 hover:bg-slate-100 rounded-lg transition-colors"
+                        :title="sidebarOpen ? 'طي القائمة الجانبية' : 'إظهار القائمة الجانبية'"
+                        :aria-label="sidebarOpen ? 'طي القائمة الجانبية' : 'إظهار القائمة الجانبية'"
+                    >
+                        <i :data-lucide="sidebarOpen ? 'sidebar-close' : 'sidebar-open'" class="w-5 h-5 text-slate-600"></i>
                     </button>
                     <h1 class="text-xl font-bold text-slate-800">{% block page_title %}{% endblock %}</h1>
                 </div>
                 
                 <div class="flex items-center gap-3">
-                    <!-- Notifications -->
-                    <button class="p-2 hover:bg-slate-100 rounded-lg transition-colors relative">
-                        <i data-lucide="bell" class="w-5 h-5 text-slate-600"></i>
-                        <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                    <button
+                        type="button"
+                        @click="toggleDarkMode()"
+                        class="header-icon-btn"
+                        :class="darkMode && 'is-active'"
+                        :title="darkMode ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الليلي'"
+                        :aria-label="darkMode ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الليلي'"
+                    >
+                        <i x-show="!darkMode" data-lucide="moon"></i>
+                        <i x-show="darkMode" data-lucide="sun"></i>
                     </button>
-                    
-                    <!-- Logout -->
-                    <a href="{% url 'auth:logout' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="تسجيل الخروج">
-                        <i data-lucide="log-out" class="w-5 h-5 text-slate-600"></i>
-                    </a>
+
+                    <!-- Notifications -->
+                    <button type="button" class="header-icon-btn" title="الإشعارات" aria-label="الإشعارات">
+                        <i data-lucide="bell" class="w-5 h-5"></i>
+                        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                    </button>
+
+                    <!-- User Menu -->
+                    <div
+                        class="relative"
+                        x-data="{ userMenuOpen: false }"
+                        @keydown.escape.window="userMenuOpen = false"
+                    >
+                        <button
+                            type="button"
+                            @click="userMenuOpen = !userMenuOpen; $nextTick(() => lucide.createIcons())"
+                            class="header-user-trigger"
+                            :class="userMenuOpen && 'is-open'"
+                            :aria-expanded="userMenuOpen"
+                            aria-haspopup="true"
+                        >
+                            <span class="header-user-avatar">
+                                <i data-lucide="user" class="w-4 h-4"></i>
+                            </span>
+                            <span class="hidden sm:block min-w-0">
+                                <span class="header-user-name block">{{ user.get_full_name|default:user.username }}</span>
+                                <span class="header-user-role block">
+                                    {% if user.profile.role %}{{ user.profile.role.name }}{% else %}مستخدم{% endif %}
+                                </span>
+                            </span>
+                            <i data-lucide="chevron-down" class="header-user-chevron" :class="userMenuOpen && 'is-open'"></i>
+                        </button>
+
+                        <div
+                            x-show="userMenuOpen"
+                            x-cloak
+                            x-transition:enter="transition ease-out duration-150"
+                            x-transition:enter-start="opacity-0 translate-y-1"
+                            x-transition:enter-end="opacity-100 translate-y-0"
+                            x-transition:leave="transition ease-in duration-100"
+                            x-transition:leave-start="opacity-100 translate-y-0"
+                            x-transition:leave-end="opacity-0 translate-y-1"
+                            @click.outside="userMenuOpen = false"
+                            class="header-user-menu"
+                        >
+                            <div class="header-user-menu-head">
+                                <p class="font-bold text-slate-800 text-sm truncate">{{ user.get_full_name|default:user.username }}</p>
+                                <p class="text-xs text-slate-500 mt-0.5 truncate">{{ user.username }}</p>
+                            </div>
+                            <a href="{% url 'auth:change_password' %}" class="header-user-menu-item" @click="userMenuOpen = false">
+                                <span class="header-user-menu-icon">
+                                    <i data-lucide="key-round" class="w-4 h-4"></i>
+                                </span>
+                                <span>تغيير كلمة المرور</span>
+                            </a>
+                            <a href="{% url 'auth:logout' %}" class="header-user-menu-item header-user-menu-item--danger" @click="userMenuOpen = false">
+                                <span class="header-user-menu-icon">
+                                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                                </span>
+                                <span>تسجيل الخروج</span>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </header>
             
@@ -480,21 +1227,37 @@
             return {
                 sidebarOpen: true,
                 mobileMenuOpen: false,
+                darkMode: false,
                 initShell() {
                     try {
                         const stored = sessionStorage.getItem('sidebarOpen');
                         if (stored === '0') this.sidebarOpen = false;
+                        this.darkMode = localStorage.getItem('theme') === 'dark';
                     } catch (e) {}
                     document.documentElement.classList.remove('sidebar-collapsed-init');
                     this.syncSidebarClass();
+                    this.syncDarkMode();
+                    this.$nextTick(() => lucide.createIcons());
                 },
                 toggleSidebar() {
                     this.sidebarOpen = !this.sidebarOpen;
                     this.syncSidebarClass();
+                    this.$nextTick(() => lucide.createIcons());
+                },
+                toggleDarkMode() {
+                    this.darkMode = !this.darkMode;
+                    this.syncDarkMode();
+                    this.$nextTick(() => lucide.createIcons());
                 },
                 syncSidebarClass() {
                     try {
                         sessionStorage.setItem('sidebarOpen', this.sidebarOpen ? '1' : '0');
+                    } catch (e) {}
+                },
+                syncDarkMode() {
+                    document.documentElement.classList.toggle('dark', this.darkMode);
+                    try {
+                        localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
                     } catch (e) {}
                 },
             };

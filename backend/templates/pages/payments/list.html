@@ -6,18 +6,32 @@
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-            <p class="text-slate-500">إدارة طلبات الدفع والمدفوعات</p>
+    <div class="page-toolbar">
+        <div class="page-toolbar-leading">
+            <span class="page-toolbar-icon">
+                <i data-lucide="wallet" class="w-5 h-5"></i>
+            </span>
+            <div class="page-toolbar-text min-w-0">
+                <h2 class="page-toolbar-title">طلبات الدفع</h2>
+                <p class="page-toolbar-subtitle">إدارة طلبات الدفع والمدفوعات</p>
+            </div>
         </div>
-        <a 
-            href="{% url 'payments:create' %}"
-            class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-        >
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            طلب دفع جديد
-        </a>
+        <div class="page-toolbar-actions">
+            <a
+                href="{% url 'payments:create' %}"
+                class="page-toolbar-btn page-toolbar-btn--primary"
+            >
+                <i data-lucide="plus"></i>
+                <span>طلب دفع جديد</span>
+            </a>
+            <a
+                href="{% url 'payments:list_export_excel' %}?{{ request.GET.urlencode }}"
+                class="page-toolbar-btn page-toolbar-btn--export"
+            >
+                <i data-lucide="file-spreadsheet"></i>
+                <span>تصدير Excel</span>
+            </a>
+        </div>
     </div>
 
     <!-- Filters -->

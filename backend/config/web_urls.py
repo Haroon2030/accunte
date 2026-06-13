@@ -9,6 +9,7 @@ from apps.core import web_views
 auth_patterns = [
     path('login/', web_views.login_view, name='login'),
     path('logout/', web_views.logout_view, name='logout'),
+    path('change-password/', web_views.change_password_view, name='change_password'),
 ]
 
 # Branch URLs
@@ -47,6 +48,7 @@ supplier_patterns = [
 # Contract URLs
 contract_patterns = [
     path('', web_views.ContractListView.as_view(), name='list'),
+    path('export-excel/', web_views.contracts_export_excel, name='export_excel'),
     path('create/', web_views.contract_create, name='create'),
     path('<int:pk>/update/', web_views.contract_update, name='update'),
     path('<int:pk>/delete/', web_views.contract_delete, name='delete'),
@@ -55,6 +57,7 @@ contract_patterns = [
 # Item URLs
 item_patterns = [
     path('', web_views.ItemListView.as_view(), name='list'),
+    path('export-excel/', web_views.items_export_excel, name='export_excel'),
     path('create/', web_views.item_create, name='create'),
     path('<int:pk>/', web_views.ItemBatchDetailView.as_view(), name='detail'),
     path('<int:pk>/delete/', web_views.item_batch_delete, name='delete'),
@@ -63,6 +66,7 @@ item_patterns = [
 # Space Rental URLs
 space_rental_patterns = [
     path('', web_views.SpaceRentalListView.as_view(), name='list'),
+    path('export-excel/', web_views.space_rentals_export_excel, name='export_excel'),
     path('create/', web_views.space_rental_create, name='create'),
     path('<int:pk>/update/', web_views.space_rental_update, name='update'),
     path('<int:pk>/delete/', web_views.space_rental_delete, name='delete'),
@@ -71,6 +75,7 @@ space_rental_patterns = [
 # Payment URLs
 payment_patterns = [
     path('', web_views.PaymentListView.as_view(), name='list'),
+    path('export-excel/', web_views.payments_list_export_excel, name='list_export_excel'),
     path('create/', web_views.payment_create, name='create'),
     path('<int:pk>/', web_views.PaymentDetailView.as_view(), name='detail'),
     path('<int:pk>/update/', web_views.payment_update, name='update'),

@@ -5,7 +5,8 @@ import math
 import unicodedata
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView, TemplateView
@@ -24,6 +25,8 @@ from apps.items.models import Item, ItemBatch
 from apps.space_rentals.models import SpaceRental
 from apps.payments.models import PaymentRequest, PaymentRequestItem
 from apps.core.models import Role
+from apps.core.excel_export import ModernExcelBuilder
+from apps.core.forms import SimplePasswordChangeForm
 
 
 def _normalize_bank_name(name):
@@ -542,8 +545,8 @@ def login_view(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        username = (request.POST.get('username') or '').strip()
+        password = (request.POST.get('password') or '').strip()
         remember = request.POST.get('remember')
         
         user = authenticate(request, username=username, password=password)
@@ -566,6 +569,29 @@ def logout_view(request):
         messages.success(request, 'تم تسجيل الخروج بنجاح')
         return redirect('auth:login')
     return redirect('dashboard')
+
+
+@login_required
+def change_password_view(request):
+    """تغيير كلمة مرور المستخدم الحالي"""
+    user = User.objects.get(pk=request.user.pk)
+    form = SimplePasswordChangeForm(user, request.POST or None)
+
+    if request.method == 'POST':
+        if form.is_valid():
+            updated_user = form.save()
+            update_session_auth_hash(request, updated_user)
+            messages.success(request, 'تم تغيير كلمة المرور بنجاح')
+            return redirect('dashboard')
+
+        first_error = next(iter(form.errors.values()), None)
+        if first_error:
+            messages.error(request, first_error[0])
+
+    return render(request, 'auth/change_password.html', {
+        'form': form,
+        'username': user.username,
+    })
 
 
 # =============================================================================
@@ -1425,135 +1451,338 @@ def payment_delete(request, pk):
     return redirect('payments:list')
 
 
+def _contracts_queryset(request):
+    queryset = Contract.objects.select_related('supplier').all()
+    search = request.GET.get('search')
+    if search:
+        queryset = queryset.filter(
+            Q(title__icontains=search)
+            | Q(code__icontains=search)
+            | Q(supplier__name__icontains=search)
+        )
+    contract_type = request.GET.get('contract_type')
+    if contract_type:
+        queryset = queryset.filter(contract_type=contract_type)
+    return queryset.order_by('-created_at')
+
+
+def _space_rentals_queryset(request):
+    queryset = SpaceRental.objects.select_related('branch', 'supplier').all()
+    search = request.GET.get('search')
+    if search:
+        queryset = queryset.filter(
+            Q(code__icontains=search)
+            | Q(title__icontains=search)
+            | Q(supplier__name__icontains=search)
+            | Q(branch__name__icontains=search)
+        )
+    return queryset.order_by('-created_at')
+
+
+def _items_batches_queryset(request):
+    queryset = ItemBatch.objects.select_related('supplier').annotate(
+        items_count=Count('items'),
+        total_amount=Sum('items__amount'),
+    ).order_by('-created_at')
+    search = request.GET.get('search')
+    if search:
+        queryset = queryset.filter(
+            Q(supplier__name__icontains=search)
+            | Q(items__barcode__icontains=search)
+            | Q(items__name__icontains=search)
+        ).distinct()
+    return queryset
+
+
+def _payments_queryset(request):
+    queryset = PaymentRequest.objects.select_related(
+        'branch', 'bank', 'created_by'
+    ).prefetch_related('items__supplier')
+
+    user_branch = getattr(getattr(request.user, 'profile', None), 'branch', None)
+    if user_branch:
+        queryset = queryset.filter(branch=user_branch)
+
+    search = request.GET.get('search')
+    if search:
+        queryset = queryset.filter(Q(pk__icontains=search) | Q(notes__icontains=search))
+
+    status = request.GET.get('status')
+    if status:
+        queryset = queryset.filter(status=status)
+
+    if not user_branch:
+        branch = request.GET.get('branch')
+        if branch:
+            queryset = queryset.filter(branch_id=branch)
+
+    return queryset.order_by('-created_at')
+
+
+def _payment_suppliers_label(payment):
+    names = []
+    seen = set()
+    for item in payment.items.all():
+        if item.supplier_id not in seen:
+            seen.add(item.supplier_id)
+            names.append(item.supplier.name)
+    return '، '.join(names) if names else '-'
+
+
+@login_required
+def contracts_export_excel(request):
+    """تصدير قائمة العقود إلى Excel"""
+    contracts = list(_contracts_queryset(request))
+    headers = [
+        '#', 'رقم العقد', 'العنوان', 'المورد', 'كود المورد', 'نوع العقد',
+        'القيمة', 'تاريخ البداية', 'تاريخ النهاية', 'الحالة', 'ملاحظات',
+    ]
+    rows = []
+    for idx, contract in enumerate(contracts, 1):
+        rows.append([
+            idx,
+            contract.code,
+            contract.title,
+            contract.supplier.name,
+            contract.supplier.code,
+            contract.get_contract_type_display(),
+            contract.value_display,
+            contract.start_date.strftime('%Y/%m/%d'),
+            contract.end_date.strftime('%Y/%m/%d') if contract.end_date else 'مفتوح',
+            'نشط' if contract.is_active else 'منتهي',
+            contract.notes or '-',
+        ])
+
+    search = request.GET.get('search', '')
+    contract_type = request.GET.get('contract_type', '')
+    meta = [('عدد العقود', len(contracts))]
+    if search:
+        meta.append(('بحث', search))
+    if contract_type:
+        meta.append(('نوع العقد', dict(Contract.ContractType.choices).get(contract_type, contract_type)))
+
+    builder = ModernExcelBuilder('تقرير العقود', sheet_name='العقود')
+    start_row = builder.write_report_header(len(headers), meta)
+    builder.write_table(
+        start_row, headers, rows,
+        col_widths=[6, 14, 28, 22, 12, 16, 14, 14, 14, 10, 24],
+    )
+    return builder.to_response('contracts')
+
+
+@login_required
+def space_rentals_export_excel(request):
+    """تصدير قائمة إيجارات المساحات إلى Excel"""
+    rentals = list(_space_rentals_queryset(request))
+    headers = [
+        '#', 'رقم العقد', 'المساحة', 'الفرع', 'المورد', 'نوع الإيجار',
+        'الإيجار الشهري', 'تاريخ البداية', 'تاريخ النهاية', 'الحالة', 'ملاحظات',
+    ]
+    rows = []
+    total_rent = 0
+    for idx, rental in enumerate(rentals, 1):
+        total_rent += float(rental.monthly_rent)
+        rows.append([
+            idx,
+            rental.code,
+            rental.title,
+            rental.branch.name,
+            rental.supplier.name,
+            rental.get_rental_type_display(),
+            float(rental.monthly_rent),
+            rental.start_date.strftime('%Y/%m/%d'),
+            rental.end_date.strftime('%Y/%m/%d') if rental.end_date else 'مفتوح',
+            'نشط' if rental.is_active else 'منتهي',
+            rental.notes or '-',
+        ])
+
+    meta = [('عدد الإيجارات', len(rentals))]
+    if request.GET.get('search'):
+        meta.append(('بحث', request.GET.get('search')))
+
+    builder = ModernExcelBuilder('تقرير إيجارات المساحات', sheet_name='إيجارات المساحات')
+    start_row = builder.write_report_header(len(headers), meta)
+    builder.write_table(
+        start_row, headers, rows,
+        col_widths=[6, 14, 22, 16, 22, 18, 14, 14, 14, 10, 24],
+        totals_row=['', '', '', '', '', 'المجموع الشهري', total_rent, '', '', '', ''],
+    )
+    return builder.to_response('space_rentals')
+
+
+@login_required
+def items_export_excel(request):
+    """تصدير الأصناف إلى Excel"""
+    batches = list(_items_batches_queryset(request))
+    batch_ids = [batch.id for batch in batches]
+
+    summary_headers = ['#', 'رقم الملف', 'المورد / الشركة', 'عدد الأصناف', 'المبلغ الإجمالي', 'تاريخ الإنشاء']
+    summary_rows = []
+    grand_total = 0
+    grand_count = 0
+    for idx, batch in enumerate(batches, 1):
+        amount = float(batch.total_amount or 0)
+        count = batch.items_count or 0
+        grand_total += amount
+        grand_count += count
+        summary_rows.append([
+            idx,
+            batch.id,
+            batch.supplier.name,
+            count,
+            amount,
+            batch.created_at.strftime('%Y/%m/%d'),
+        ])
+
+    items = Item.objects.filter(batch_id__in=batch_ids).select_related(
+        'batch', 'batch__supplier'
+    ).order_by('batch_id', 'name') if batch_ids else Item.objects.none()
+
+    detail_headers = ['#', 'رقم الملف', 'المورد', 'الباركود', 'اسم الصنف', 'العبوة', 'المبلغ']
+    detail_rows = []
+    for idx, item in enumerate(items, 1):
+        detail_rows.append([
+            idx,
+            item.batch_id,
+            item.batch.supplier.name,
+            item.barcode,
+            item.name,
+            item.package,
+            float(item.amount),
+        ])
+
+    search = request.GET.get('search', '')
+    meta = [('عدد الملفات', len(batches)), ('إجمالي الأصناف', grand_count)]
+    if search:
+        meta.append(('بحث', search))
+
+    builder = ModernExcelBuilder('تقرير الأصناف', sheet_name='ملخص الملفات')
+    start_row = builder.write_report_header(len(summary_headers), meta)
+    builder.write_table(
+        start_row, summary_headers, summary_rows,
+        col_widths=[6, 10, 26, 14, 16, 14],
+        totals_row=['', '', 'المجموع', grand_count, grand_total, ''],
+    )
+
+    detail_ws = builder.add_sheet('تفاصيل الأصناف')
+    builder.write_sheet_table(
+        detail_ws,
+        'تفاصيل الأصناف',
+        detail_headers,
+        detail_rows,
+        col_widths=[6, 10, 22, 16, 28, 14, 14],
+        totals_row=['', '', '', '', '', 'المجموع', grand_total] if detail_rows else None,
+    )
+    return builder.to_response('items')
+
+
+@login_required
+def payments_list_export_excel(request):
+    """تصدير قائمة طلبات الدفع إلى Excel"""
+    payments = list(_payments_queryset(request))
+    headers = [
+        '#', 'رقم الطلب', 'الفرع', 'البنك', 'عدد البنود', 'المبلغ الإجمالي',
+        'مقترح المشتريات', 'اقتراح أبو علاء', 'الموردون', 'التاريخ', 'الحالة',
+    ]
+    rows = []
+    total_amount = 0
+    total_proposed = 0
+    total_abu_alaa = 0
+    for idx, payment in enumerate(payments, 1):
+        amount = float(payment.total_amount)
+        proposed = float(payment.total_proposed_amount)
+        abu_alaa = float(payment.total_abu_alaa_proposed)
+        total_amount += amount
+        total_proposed += proposed
+        total_abu_alaa += abu_alaa
+        rows.append([
+            idx,
+            payment.id,
+            payment.branch.name,
+            payment.bank.name if payment.bank else '-',
+            payment.items_count,
+            amount,
+            proposed,
+            abu_alaa,
+            _payment_suppliers_label(payment),
+            payment.created_at.strftime('%Y/%m/%d'),
+            payment.get_status_display(),
+        ])
+
+    meta = [('عدد الطلبات', len(payments))]
+    if request.GET.get('search'):
+        meta.append(('بحث', request.GET.get('search')))
+    if request.GET.get('status'):
+        meta.append(('الحالة', dict(PaymentRequest.Status.choices).get(request.GET.get('status'), '')))
+    if request.GET.get('branch'):
+        branch = Branch.objects.filter(pk=request.GET.get('branch')).first()
+        if branch:
+            meta.append(('الفرع', branch.name))
+
+    builder = ModernExcelBuilder('تقرير طلبات الدفع', sheet_name='طلبات الدفع')
+    start_row = builder.write_report_header(len(headers), meta)
+    builder.write_table(
+        start_row, headers, rows,
+        col_widths=[6, 12, 16, 16, 10, 14, 16, 16, 28, 12, 14],
+        totals_row=['', '', '', '', 'المجموع', total_amount, total_proposed, total_abu_alaa, '', '', ''],
+    )
+    return builder.to_response('payments')
+
+
 @login_required
 def payment_export_excel(request, pk):
-    """تصدير طلب الدفع إلى Excel"""
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-    from django.http import HttpResponse
-    from datetime import datetime
-    
-    payment = get_object_or_404(PaymentRequest, pk=pk)
-    
-    # Create workbook
-    wb = Workbook()
-    ws = wb.active
-    ws.title = f"طلب دفع {payment.id}"
-    
-    # RTL direction
-    ws.sheet_view.rightToLeft = True
-    
-    # Styles
-    header_font = Font(name='Arial', size=12, bold=True, color='FFFFFF')
-    header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
-    header_alignment = Alignment(horizontal='center', vertical='center')
-    
-    title_font = Font(name='Arial', size=14, bold=True)
-    title_alignment = Alignment(horizontal='center', vertical='center')
-    
-    cell_font = Font(name='Arial', size=11)
-    cell_alignment = Alignment(horizontal='center', vertical='center')
-    
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
+    """تصدير طلب دفع واحد إلى Excel"""
+    payment = get_object_or_404(
+        PaymentRequest.objects.select_related('branch', 'bank', 'created_by').prefetch_related('items__supplier'),
+        pk=pk,
     )
-    
-    # Title
-    ws.merge_cells('A1:I1')
-    title_cell = ws['A1']
-    title_cell.value = f'طلب دفع رقم #{payment.id}'
-    title_cell.font = title_font
-    title_cell.alignment = title_alignment
-    
-    # Payment info
-    ws['A3'] = 'الفرع:'
-    ws['B3'] = payment.branch.name
-    ws['D3'] = 'التاريخ:'
-    ws['E3'] = payment.created_at.strftime('%Y/%m/%d')
-    ws['G3'] = 'الحالة:'
-    ws['H3'] = payment.get_status_display()
-    
-    # Headers
-    headers = ['رقم المورد', 'اسم المورد', 'رصيد المورد', 'دفعه المشتريات', 
-               'اعتماد سلطان', 'حالة المدقق', 'اعتماد المدير المالي', 'اقتراح السداد', 'اعتماد أبوعلاء']
-    
-    for col_num, header in enumerate(headers, 1):
-        cell = ws.cell(row=5, column=col_num)
-        cell.value = header
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = header_alignment
-        cell.border = border
-    
-    # Data rows
-    row_num = 6
+    headers = [
+        'رقم المورد', 'اسم المورد', 'رصيد المورد', 'دفعة المشتريات',
+        'اعتماد سلطان', 'حالة المدقق', 'اعتماد المدير المالي',
+        'اقتراح السداد', 'اعتماد أبو علاء', 'ملاحظات',
+    ]
+    rows = []
     for item in payment.items.all():
-        ws.cell(row=row_num, column=1, value=item.supplier.code).alignment = cell_alignment
-        ws.cell(row=row_num, column=2, value=item.supplier.name).alignment = cell_alignment
-        ws.cell(row=row_num, column=3, value=float(item.current_balance)).alignment = cell_alignment
-        ws.cell(row=row_num, column=4, value=float(item.proposed_amount)).alignment = cell_alignment
-        ws.cell(row=row_num, column=5, value=item.get_sultan_approval_display()).alignment = cell_alignment
-        ws.cell(row=row_num, column=6, value=item.get_auditor_status_display()).alignment = cell_alignment
-        ws.cell(row=row_num, column=7, value=item.get_cfo_approval_display()).alignment = cell_alignment
-        ws.cell(row=row_num, column=8, value=float(item.abu_alaa_proposed)).alignment = cell_alignment
-        ws.cell(row=row_num, column=9, value=item.get_abu_alaa_final_display()).alignment = cell_alignment
-        
-        # Apply borders
-        for col in range(1, 10):
-            ws.cell(row=row_num, column=col).border = border
-            ws.cell(row=row_num, column=col).font = cell_font
-        
-        row_num += 1
-    
-    # Total row
-    total_row = row_num
-    ws.merge_cells(f'A{total_row}:C{total_row}')
-    total_cell = ws.cell(row=total_row, column=1)
-    total_cell.value = 'المجموع الكلي'
-    total_cell.font = Font(name='Arial', size=12, bold=True)
-    total_cell.alignment = Alignment(horizontal='center', vertical='center')
-    total_cell.fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
-    
-    ws.cell(row=total_row, column=4, value=float(payment.total_proposed_amount)).font = Font(bold=True)
-    ws.cell(row=total_row, column=4).alignment = cell_alignment
-    ws.cell(row=total_row, column=8, value=float(payment.total_abu_alaa_proposed)).font = Font(bold=True)
-    ws.cell(row=total_row, column=8).alignment = cell_alignment
-    
-    # Apply borders to total row
-    for col in range(1, 10):
-        ws.cell(row=total_row, column=col).border = border
-        if col in [1, 4, 8]:
-            ws.cell(row=total_row, column=col).fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
-    
-    # Adjust column widths
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 30
-    ws.column_dimensions['C'].width = 15
-    ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 15
-    ws.column_dimensions['F'].width = 15
-    ws.column_dimensions['G'].width = 20
-    ws.column_dimensions['H'].width = 15
-    ws.column_dimensions['I'].width = 15
-    
-    # Create response
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        rows.append([
+            item.supplier.code,
+            item.supplier.name,
+            float(item.current_balance),
+            float(item.proposed_amount),
+            item.get_sultan_approval_display(),
+            item.get_auditor_status_display(),
+            item.get_cfo_approval_display(),
+            float(item.abu_alaa_proposed),
+            item.get_abu_alaa_final_display(),
+            item.notes or '-',
+        ])
+
+    meta = [
+        ('رقم الطلب', f'#{payment.id}'),
+        ('الفرع', payment.branch.name),
+        ('البنك', payment.bank.name if payment.bank else '-'),
+        ('الحالة', payment.get_status_display()),
+        ('التاريخ', payment.created_at.strftime('%Y/%m/%d')),
+        ('عدد البنود', payment.items_count),
+    ]
+    if payment.notes:
+        meta.append(('ملاحظات الطلب', payment.notes))
+
+    builder = ModernExcelBuilder(f'طلب دفع رقم #{payment.id}', sheet_name=f'طلب {payment.id}')
+    start_row = builder.write_report_header(len(headers), meta)
+    builder.write_table(
+        start_row, headers, rows,
+        col_widths=[14, 28, 14, 14, 14, 14, 18, 14, 14, 24],
+        totals_row=[
+            '', 'المجموع الكلي', '', float(payment.total_proposed_amount),
+            '', '', '', float(payment.total_abu_alaa_proposed), '', '',
+        ],
     )
-    response['Content-Disposition'] = f'attachment; filename="payment_{payment.id}_{datetime.now().strftime("%Y%m%d")}.xlsx"'
-    
-    wb.save(response)
-    return response
+    return builder.to_response(f'payment_{payment.id}')
 
 
 # =============================================================================
 # User Management Views
 # =============================================================================
-
-from django.contrib.auth.models import User
 
 class UserListView(AdminRequiredMixin, LoginRequiredMixin, ListView):
     """قائمة المستخدمين"""

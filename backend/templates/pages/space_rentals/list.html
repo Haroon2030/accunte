@@ -2,6 +2,22 @@
 
 {% block modal_size %}max-w-md{% endblock %}
 
+{% block header_extra_buttons %}
+<a
+    href="{% url 'space_rentals:export_excel' %}?{{ request.GET.urlencode }}"
+    class="page-toolbar-btn page-toolbar-btn--export"
+>
+    <i data-lucide="file-spreadsheet"></i>
+    <span>تصدير Excel</span>
+</a>
+{% endblock %}
+
+{% block page_toolbar_icon %}
+<span class="page-toolbar-icon">
+    <i data-lucide="store" class="w-5 h-5"></i>
+</span>
+{% endblock %}
+
 {% block table_content %}
 <div class="data-table-wrap overflow-x-auto">
     <table class="data-table w-full text-sm">
