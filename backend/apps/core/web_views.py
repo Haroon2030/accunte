@@ -24,9 +24,15 @@ from apps.contracts.models import Contract
 from apps.items.models import Item, ItemBatch
 from apps.space_rentals.models import SpaceRental
 from apps.payments.models import PaymentRequest, PaymentRequestItem
-from apps.core.models import Role
+from apps.core.models import Role, Notification
 from apps.core.excel_export import ModernExcelBuilder
 from apps.core.forms import SimplePasswordChangeForm
+from apps.core.notifications import (
+    mark_all_notifications_read,
+    mark_notification_read,
+    notify_payment_created,
+    notify_payment_status_changed,
+)
 
 
 def _normalize_bank_name(name):
@@ -1379,6 +1385,8 @@ def payment_create(request):
         # Update total amount
         payment.amount = total
         payment.save()
+
+        notify_payment_created(payment, request.user)
         
         messages.success(request, 'تم إنشاء طلب الدفع بنجاح')
         return redirect('payments:detail', pk=payment.pk)
@@ -1513,8 +1521,12 @@ def payment_change_status(request, pk):
         valid_statuses = ['proposed', 'first_approved', 'audited', 'final_approved', 'rejected']
         
         if new_status in valid_statuses:
+            old_status = payment.status
             payment.status = new_status
+            if new_status == 'rejected':
+                payment.rejection_reason = request.POST.get('rejection_reason', payment.rejection_reason)
             payment.save()
+            notify_payment_status_changed(payment, old_status, new_status, request.user)
             messages.success(request, f'تم تغيير الحالة إلى {payment.get_status_display()}')
         else:
             messages.error(request, 'حالة غير صالحة')
@@ -2078,3 +2090,67 @@ def role_delete(request, pk):
             messages.success(request, 'تم حذف الدور بنجاح')
     
     return redirect('roles:list')
+
+
+def _format_notification_time(dt):
+    from django.utils import timezone
+    now = timezone.localtime(timezone.now())
+    local_dt = timezone.localtime(dt)
+    diff = now - local_dt
+    seconds = int(diff.total_seconds())
+    if seconds < 60:
+        return 'الآن'
+    if seconds < 3600:
+        minutes = seconds // 60
+        return f'منذ {minutes} د'
+    if seconds < 86400:
+        hours = seconds // 3600
+        return f'منذ {hours} س'
+    return local_dt.strftime('%Y/%m/%d %H:%M')
+
+
+def _serialize_notification(notification):
+    return {
+        'id': notification.id,
+        'title': notification.title,
+        'message': notification.message,
+        'link': notification.link,
+        'category': notification.category,
+        'is_read': notification.is_read,
+        'time_ago': _format_notification_time(notification.created_at),
+    }
+
+
+@login_required
+def notifications_json(request):
+    """قائمة الإشعارات للمستخدم الحالي"""
+    limit = min(int(request.GET.get('limit', 20)), 50)
+    notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')[:limit]
+    unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+    return JsonResponse({
+        'unread_count': unread_count,
+        'notifications': [_serialize_notification(item) for item in notifications],
+    })
+
+
+@login_required
+def notifications_mark_read(request):
+    """تعليم إشعار أو جميع الإشعارات كمقروءة"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'طريقة غير مسموحة'}, status=405)
+
+    if request.POST.get('all'):
+        updated = mark_all_notifications_read(request.user)
+        return JsonResponse({'success': True, 'updated': updated})
+
+    notification_id = request.POST.get('id')
+    if not notification_id:
+        return JsonResponse({'error': 'معرّف الإشعار مطلوب'}, status=400)
+
+    notification = Notification.objects.filter(pk=notification_id, recipient=request.user).first()
+    if not notification:
+        return JsonResponse({'error': 'الإشعار غير موجود'}, status=404)
+
+    mark_notification_read(notification, request.user)
+    unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+    return JsonResponse({'success': True, 'unread_count': unread_count})

@@ -101,6 +101,12 @@ role_patterns = [
     path('<int:pk>/delete/', web_views.role_delete, name='delete'),
 ]
 
+# Notification URLs
+notification_patterns = [
+    path('json/', web_views.notifications_json, name='json'),
+    path('mark-read/', web_views.notifications_mark_read, name='mark_read'),
+]
+
 # Main URL patterns
 urlpatterns = [
     # Dashboard
@@ -123,4 +129,5 @@ urlpatterns = [
     path('payments/', include((payment_patterns, 'payments'))),
     path('users/', include((user_patterns, 'users'))),
     path('roles/', include((role_patterns, 'roles'))),
+    path('notifications/', include((notification_patterns, 'notifications'))),
 ]

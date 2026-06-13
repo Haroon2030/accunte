@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}نظام المدفوعات{% endblock %}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%232563eb' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>م</text></svg>">
     
@@ -1081,6 +1082,119 @@
             color: #dc2626;
         }
 
+        /* Header notifications */
+        .header-notifications-menu {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            width: 22rem;
+            max-width: calc(100vw - 2rem);
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+            z-index: 50;
+        }
+        .header-notifications-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.875rem 1rem;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .header-notifications-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .header-notifications-mark-all {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #2563eb;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+        .header-notifications-mark-all:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+        .header-notifications-mark-all:disabled {
+            color: #94a3b8;
+            cursor: not-allowed;
+            text-decoration: none;
+        }
+        .header-notifications-list {
+            max-height: 18rem;
+            overflow-y: auto;
+        }
+        .header-notification-item {
+            display: block;
+            width: 100%;
+            padding: 0.875rem 1rem;
+            text-align: right;
+            text-decoration: none;
+            border: none;
+            background: #fff;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        .header-notification-item + .header-notification-item {
+            border-top: 1px solid #f1f5f9;
+        }
+        .header-notification-item:hover {
+            background: #f8fafc;
+        }
+        .header-notification-item.is-unread {
+            background: #eff6ff;
+        }
+        .header-notification-item.is-unread:hover {
+            background: #dbeafe;
+        }
+        .header-notification-title {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.35;
+        }
+        .header-notification-message {
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: #64748b;
+            line-height: 1.45;
+        }
+        .header-notification-meta {
+            margin-top: 0.375rem;
+            font-size: 0.6875rem;
+            color: #94a3b8;
+        }
+        .header-notifications-empty,
+        .header-notifications-loading {
+            padding: 1.5rem 1rem;
+            text-align: center;
+            font-size: 0.8125rem;
+            color: #64748b;
+        }
+        .header-notifications-badge {
+            position: absolute;
+            top: 0.25rem;
+            right: 0.25rem;
+            min-width: 1.125rem;
+            height: 1.125rem;
+            padding: 0 0.25rem;
+            border-radius: 9999px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.625rem;
+            font-weight: 700;
+            line-height: 1.125rem;
+            text-align: center;
+        }
+
         /* Header icon buttons */
         .header-icon-btn {
             display: inline-flex;
@@ -1296,6 +1410,40 @@
             background: #334155;
             color: #f8fafc;
         }
+        html.dark .header-notifications-menu {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        html.dark .header-notifications-head {
+            background: linear-gradient(180deg, #243044 0%, #1e293b 100%) !important;
+            border-color: #334155 !important;
+        }
+        html.dark .header-notifications-title,
+        html.dark .header-notification-title {
+            color: #f1f5f9;
+        }
+        html.dark .header-notification-message {
+            color: #94a3b8;
+        }
+        html.dark .header-notification-item {
+            background: #1e293b;
+        }
+        html.dark .header-notification-item:hover {
+            background: #334155;
+        }
+        html.dark .header-notification-item.is-unread {
+            background: rgba(30, 58, 95, 0.45);
+        }
+        html.dark .header-notification-item.is-unread:hover {
+            background: rgba(30, 58, 95, 0.65);
+        }
+        html.dark .header-notification-item + .header-notification-item {
+            border-color: #334155;
+        }
+        html.dark .header-notifications-empty,
+        html.dark .header-notifications-loading {
+            color: #94a3b8;
+        }
         html.dark .header-user-menu-icon {
             background: #334155;
             color: #cbd5e1;
@@ -1432,10 +1580,71 @@
                     </button>
 
                     <!-- Notifications -->
-                    <button type="button" class="header-icon-btn" title="الإشعارات" aria-label="الإشعارات">
-                        <i data-lucide="bell" class="w-5 h-5"></i>
-                        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-                    </button>
+                    <div
+                        class="relative"
+                        x-data="notificationBell()"
+                        @keydown.escape.window="open = false"
+                    >
+                        <button
+                            type="button"
+                            class="header-icon-btn"
+                            :class="open && 'is-active'"
+                            title="الإشعارات"
+                            aria-label="الإشعارات"
+                            :aria-expanded="open"
+                            @click="toggle()"
+                        >
+                            <i data-lucide="bell"></i>
+                            <span
+                                x-show="unreadCount > 0"
+                                x-cloak
+                                class="header-notifications-badge"
+                                x-text="unreadCount > 9 ? '9+' : unreadCount"
+                            ></span>
+                        </button>
+
+                        <div
+                            x-show="open"
+                            x-cloak
+                            x-transition:enter="transition ease-out duration-150"
+                            x-transition:enter-start="opacity-0 translate-y-1"
+                            x-transition:enter-end="opacity-100 translate-y-0"
+                            x-transition:leave="transition ease-in duration-100"
+                            x-transition:leave-start="opacity-100 translate-y-0"
+                            x-transition:leave-end="opacity-0 translate-y-1"
+                            @click.outside="open = false"
+                            class="header-notifications-menu"
+                        >
+                            <div class="header-notifications-head">
+                                <span class="header-notifications-title">الإشعارات</span>
+                                <button
+                                    type="button"
+                                    class="header-notifications-mark-all"
+                                    :disabled="unreadCount === 0 || loading"
+                                    @click="markAllRead()"
+                                >
+                                    تعليم الكل كمقروء
+                                </button>
+                            </div>
+
+                            <div class="header-notifications-list">
+                                <div x-show="loading" class="header-notifications-loading">جاري التحميل...</div>
+                                <div x-show="!loading && items.length === 0" class="header-notifications-empty">لا توجد إشعارات حالياً</div>
+                                <template x-for="item in items" :key="item.id">
+                                    <button
+                                        type="button"
+                                        class="header-notification-item"
+                                        :class="!item.is_read && 'is-unread'"
+                                        @click="openNotification(item)"
+                                    >
+                                        <p class="header-notification-title" x-text="item.title"></p>
+                                        <p class="header-notification-message" x-text="item.message"></p>
+                                        <p class="header-notification-meta" x-text="item.time_ago"></p>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- User Menu -->
                     <div
@@ -1566,6 +1775,87 @@
                     try {
                         localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
                     } catch (e) {}
+                },
+            };
+        }
+
+        function notificationBell() {
+            return {
+                open: false,
+                loading: false,
+                items: [],
+                unreadCount: 0,
+                pollTimer: null,
+                init() {
+                    this.fetchNotifications();
+                    this.pollTimer = setInterval(() => this.fetchNotifications(true), 60000);
+                },
+                destroy() {
+                    if (this.pollTimer) clearInterval(this.pollTimer);
+                },
+                getCsrfToken() {
+                    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+                },
+                async fetchNotifications(silent = false) {
+                    if (!silent) this.loading = true;
+                    try {
+                        const response = await fetch('{% url "notifications:json" %}');
+                        if (!response.ok) return;
+                        const data = await response.json();
+                        this.items = data.notifications || [];
+                        this.unreadCount = data.unread_count || 0;
+                    } catch (e) {
+                        if (!silent) this.items = [];
+                    } finally {
+                        if (!silent) this.loading = false;
+                    }
+                },
+                toggle() {
+                    this.open = !this.open;
+                    if (this.open) {
+                        this.fetchNotifications();
+                        this.$nextTick(() => lucide.createIcons());
+                    }
+                },
+                async markRead(id) {
+                    try {
+                        const body = new URLSearchParams({ id: String(id) });
+                        const response = await fetch('{% url "notifications:mark_read" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': this.getCsrfToken(),
+                            },
+                            body,
+                        });
+                        if (!response.ok) return;
+                        const data = await response.json();
+                        const item = this.items.find((entry) => entry.id === id);
+                        if (item) item.is_read = true;
+                        this.unreadCount = data.unread_count ?? Math.max(0, this.unreadCount - 1);
+                    } catch (e) {}
+                },
+                async markAllRead() {
+                    if (this.unreadCount === 0) return;
+                    try {
+                        const body = new URLSearchParams({ all: '1' });
+                        const response = await fetch('{% url "notifications:mark_read" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': this.getCsrfToken(),
+                            },
+                            body,
+                        });
+                        if (!response.ok) return;
+                        this.items = this.items.map((item) => ({ ...item, is_read: true }));
+                        this.unreadCount = 0;
+                    } catch (e) {}
+                },
+                async openNotification(item) {
+                    if (!item.is_read) await this.markRead(item.id);
+                    this.open = false;
+                    if (item.link) window.location.href = item.link;
                 },
             };
         }

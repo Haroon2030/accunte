@@ -4,7 +4,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from .models import Role, UserProfile, Permission, SystemSettings
+from .models import Role, UserProfile, Permission, SystemSettings, Notification
 
 
 class UserProfileInline(admin.StackedInline):
@@ -117,11 +117,17 @@ class UserProfileAdmin(admin.ModelAdmin):
         return super().has_delete_permission(request, obj)
 
 
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('title', 'recipient', 'category', 'is_read', 'created_at')
+    list_filter = ('category', 'is_read', 'created_at')
+    search_fields = ('title', 'message', 'recipient__username')
+    readonly_fields = ('created_at', 'read_at')
+
+
 @admin.register(SystemSettings)
 class SystemSettingsAdmin(admin.ModelAdmin):
-    """
-    إدارة إعدادات النظام
-    """
+    """إدارة إعدادات النظام"""
     list_display = ('key', 'value', 'description')
     search_fields = ('key', 'value', 'description')
 

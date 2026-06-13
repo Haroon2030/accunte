@@ -185,3 +185,41 @@ class SystemSettings(models.Model):
 
     def __str__(self):
         return self.key
+
+
+class Notification(models.Model):
+    """إشعار للمستخدم"""
+
+    class Category(models.TextChoices):
+        PAYMENT = 'payment', 'طلبات الدفع'
+        SYSTEM = 'system', 'النظام'
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        verbose_name='المستلم',
+        related_name='notifications',
+    )
+    category = models.CharField(
+        'التصنيف',
+        max_length=20,
+        choices=Category.choices,
+        default=Category.PAYMENT,
+    )
+    title = models.CharField('العنوان', max_length=200)
+    message = models.TextField('الرسالة')
+    link = models.CharField('الرابط', max_length=500, blank=True)
+    is_read = models.BooleanField('مقروء', default=False)
+    read_at = models.DateTimeField('تاريخ القراءة', null=True, blank=True)
+    created_at = models.DateTimeField('تاريخ الإنشاء', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'إشعار'
+        verbose_name_plural = 'الإشعارات'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient', 'is_read', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.title} → {self.recipient.username}'
