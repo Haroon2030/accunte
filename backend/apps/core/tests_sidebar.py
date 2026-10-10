@@ -78,10 +78,10 @@ class VisibilityByRoleTests(TestCase):
     def test_accountant_cases_item_is_called_my_tasks(self):
         req = RequestFactory().get('/')
         req.user = make_user('acc', RT.ACCOUNTANT)
-        labels = {i['key']: i['label'] for s in sidebar.build(req) for i in s['items']}
+        labels = {i['key']: i['label'] for i in sidebar.leaves(sidebar.build(req))}
         self.assertEqual(labels['cases'], 'مهامي')
         req.user = make_user('cfo', RT.CFO)
-        labels = {i['key']: i['label'] for s in sidebar.build(req) for i in s['items']}
+        labels = {i['key']: i['label'] for i in sidebar.leaves(sidebar.build(req))}
         self.assertEqual(labels['cases'], 'حالات المطابقة')
 
 
@@ -91,7 +91,7 @@ class ActiveItemTests(TestCase):
     def active(self, path, user):
         req = RequestFactory().get(path)
         req.user = user
-        return [i['key'] for s in sidebar.build(req) for i in s['items'] if i['active']]
+        return [i['key'] for i in sidebar.leaves(sidebar.build(req)) if i['active']]
 
     def test_paths_map_to_one_item(self):
         admin = make_user('adm', RT.ADMIN)

@@ -3,14 +3,15 @@
    الألوان: حبر أزرق عميق على أرضية فاتحة. */
 
 :root {
-    --sb-ink: #0f172a;
-    --sb-muted: #5b6b82;
-    --sb-faint: #94a3b8;
-    --sb-line: #e6ebf2;
-    --sb-hover: #f3f6fb;
-    --sb-accent: #1e40af;
-    --sb-accent-soft: #eaf0ff;
-    --sb-brand: #172554;
+    --sb-ink: #1b2a41;
+    --sb-muted: #4b5d75;
+    --sb-faint: #8a98ab;
+    --sb-line: #e3e9f1;
+    --sb-hover: #eef3f9;
+    --sb-accent: #4678ae;
+    --sb-accent-dark: #3a6699;
+    --sb-accent-soft: #e6eef8;
+    --sb-brand: #4678ae;
 }
 
 #app-sidebar { background: #fff; width: 17rem; }
@@ -20,15 +21,15 @@
 .sb-brand { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1rem 0.9rem; border-bottom: 1px solid var(--sb-line); min-height: 4.25rem; }
 .sb-brand-mark {
     width: 2.5rem; height: 2.5rem; flex: none; border-radius: 0.7rem; display: grid; place-items: center;
-    background: var(--sb-brand); color: #fff; box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.12);
+    background: linear-gradient(135deg, #5a8bc2, var(--sb-accent-dark)); color: #fff; box-shadow: 0 6px 12px -6px rgba(70, 120, 174, 0.8);
 }
 .sb-brand-mark svg { width: 1.3rem; height: 1.3rem; stroke-width: 1.75; }
-.sb-brand-title { font-weight: 800; font-size: 1.05rem; color: var(--sb-ink); line-height: 1.2; }
+.sb-brand-title { font-weight: 800; font-size: 1.1rem; color: var(--sb-ink); line-height: 1.2; }
 .sb-brand-sub { font-size: 0.72rem; color: var(--sb-faint); font-weight: 600; margin-top: 0.1rem; }
 
 /* ── الأقسام ────────────────────────────────────────── */
 .sb-section + .sb-section { margin-top: 0.35rem; }
-.sb-section-title { padding: 0.95rem 0.75rem 0.35rem; font-size: 0.72rem; font-weight: 700; color: var(--sb-faint); }
+.sb-section-title { padding: 1.1rem 0.75rem 0.4rem; font-size: 0.75rem; font-weight: 700; color: var(--sb-faint); }
 .sb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.125rem; }
 
 /* ── العنصر ─────────────────────────────────────────── */
@@ -42,12 +43,21 @@
 .sb-icon { width: 1.3rem; height: 1.3rem; flex: none; stroke-width: 1.75; }
 .sb-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.sb-link.is-active { background: var(--sb-accent-soft); color: var(--sb-accent); font-weight: 700; }
-.sb-link.is-active::before {
-    content: ''; position: absolute; inset-block: 0.45rem; inset-inline-start: -0.75rem; width: 3px;
-    border-radius: 0 3px 3px 0; background: var(--sb-accent);
+.sb-link { width: 100%; background: none; border: 0; cursor: pointer; text-align: start; font-family: inherit; }
+.sb-link.is-active {
+    background: var(--sb-accent); color: #fff; font-weight: 700;
+    box-shadow: 0 6px 14px -6px rgba(70, 120, 174, 0.7), inset 0 -2px 0 rgba(0, 0, 0, 0.08);
 }
-[dir='rtl'] .sb-link.is-active::before { border-radius: 3px 0 0 3px; }
+.sb-link.is-active:hover { background: var(--sb-accent-dark); color: #fff; }
+.sb-link.is-active .sb-badge--info { background: rgba(255, 255, 255, 0.92); color: var(--sb-accent-dark); }
+
+/* عنوان رئيسي تحته شاشات فرعية */
+.sb-group-btn.has-active { color: var(--sb-accent); background: var(--sb-accent-soft); }
+.sb-chevron { width: 1rem; height: 1rem; flex: none; stroke-width: 2; color: var(--sb-faint); transition: transform 0.2s ease; }
+.sb-chevron.is-open { transform: rotate(180deg); }
+.sb-sub { margin: 0.2rem 0 0.35rem; padding-inline-start: 1.35rem; border-inline-start: 2px solid var(--sb-line); margin-inline-start: 1.25rem; }
+.sb-sub .sb-link { padding: 0.5rem 0.7rem; font-size: 0.88rem; }
+.sb-sub .sb-icon { width: 1.1rem; height: 1.1rem; }
 
 /* ── العدّادات الحية ────────────────────────────────── */
 .sb-badge {
@@ -74,9 +84,27 @@
 .sb-live-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 3px #dcfce7; flex: none; }
 .sb-live-dot.is-off { background: #f59e0b; box-shadow: 0 0 0 3px #fef3c7; }
 
+/* ── زر الخروج ─────────────────────────────────────── */
+.sb-foot { padding: 0 0.75rem 0.9rem; }
+.sb-logout {
+    display: flex; align-items: center; justify-content: center; gap: 0.6rem; width: 100%; padding: 0.7rem 1rem;
+    border-radius: 0.75rem; background: var(--sb-accent); color: #fff; font-weight: 700; font-size: 0.92rem; text-decoration: none;
+    box-shadow: 0 8px 16px -8px rgba(70, 120, 174, 0.85), inset 0 -2px 0 rgba(0, 0, 0, 0.1);
+    transition: background-color 0.15s ease, transform 0.15s ease;
+}
+.sb-logout:hover { background: var(--sb-accent-dark); }
+.sb-logout:active { transform: translateY(1px); }
+.sb-logout svg { width: 1.15rem; height: 1.15rem; stroke-width: 1.9; }
+
 /* ── الوضع المطوي (شريط أيقونات) ───────────────────── */
 #app-sidebar.sidebar-collapsed,
 html.sidebar-collapsed-init #app-sidebar { width: 5rem; }
+#app-sidebar.sidebar-collapsed .sb-group-btn,
+#app-sidebar.sidebar-collapsed .sb-chevron,
+html.sidebar-collapsed-init .sb-group-btn { display: none !important; }
+/* في الشريط المطوي تظهر الشاشات الفرعية دائمًا كأيقونات مباشرة */
+#app-sidebar.sidebar-collapsed .sb-sub,
+html.sidebar-collapsed-init .sb-sub { display: grid !important; margin: 0; padding: 0; border: 0; }
 #app-sidebar.sidebar-collapsed .sb-brand-text,
 #app-sidebar.sidebar-collapsed .sb-label,
 #app-sidebar.sidebar-collapsed .sb-section-title,
@@ -86,7 +114,11 @@ html.sidebar-collapsed-init .sb-brand-text,
 html.sidebar-collapsed-init .sb-label,
 html.sidebar-collapsed-init .sb-section-title,
 html.sidebar-collapsed-init .sb-user-info,
-html.sidebar-collapsed-init .sb-tools .sb-tool { display: none !important; }
+html.sidebar-collapsed-init .sb-tools .sb-tool,
+#app-sidebar.sidebar-collapsed .sb-logout .sb-label,
+html.sidebar-collapsed-init .sb-logout .sb-label { display: none !important; }
+#app-sidebar.sidebar-collapsed .sb-foot,
+html.sidebar-collapsed-init .sb-foot { padding-inline: 0.75rem; }
 #app-sidebar.sidebar-collapsed .sb-brand,
 html.sidebar-collapsed-init .sb-brand { justify-content: center; padding-inline: 0; }
 #app-sidebar.sidebar-collapsed .sb-link,

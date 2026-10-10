@@ -11,15 +11,24 @@
     <div class="sb-section">
         {% if section.title %}<p class="sb-section-title">{{ section.title }}</p>{% endif %}
         <ul class="sb-list">
-            {% for item in section.items %}
-            <li>
-                <a href="{{ item.url }}" class="sb-link{% if item.active %} is-active{% endif %}" title="{{ item.label }}"
-                   data-nav="{{ item.key }}"{% if item.active %} aria-current="page"{% endif %} @click="closeMobile()">
-                    <i data-lucide="{{ item.icon }}" class="sb-icon"></i>
-                    <span class="sb-label">{{ item.label }}</span>
-                    <span class="sb-badge sb-badge--{{ item.badge_tone }}" data-badge="{{ item.key }}"{% if not item.badge_count %} hidden{% endif %}>{% if item.badge_count > 99 %}99+{% else %}{{ item.badge_count }}{% endif %}</span>
-                </a>
+            {% for entry in section.entries %}
+            {% if entry.group %}
+            <li class="sb-group" x-data="{ open: {{ entry.active|yesno:'true,false' }} }" data-group="{{ entry.key }}">
+                <button type="button" class="sb-link sb-group-btn{% if entry.active %} has-active{% endif %}" @click="open = !open" :aria-expanded="open" title="{{ entry.label }}">
+                    <i data-lucide="{{ entry.icon }}" class="sb-icon"></i>
+                    <span class="sb-label">{{ entry.label }}</span>
+                    <span class="sb-badge sb-badge--{{ entry.badge_tone }}" data-badge-group="{{ entry.key }}"{% if not entry.badge_count %} hidden{% endif %} x-show="!open">{% if entry.badge_count > 99 %}99+{% else %}{{ entry.badge_count }}{% endif %}</span>
+                    <i data-lucide="chevron-down" class="sb-chevron" :class="open && 'is-open'"></i>
+                </button>
+                <ul class="sb-list sb-sub" x-show="open" x-cloak>
+                    {% for item in entry.items %}
+                    <li>{% include "components/sidebar_link.html" %}</li>
+                    {% endfor %}
+                </ul>
             </li>
+            {% else %}
+            {% with item=entry %}<li>{% include "components/sidebar_link.html" %}</li>{% endwith %}
+            {% endif %}
             {% endfor %}
         </ul>
     </div>
@@ -36,4 +45,8 @@
         <button type="button" class="sb-tool" data-sound-toggle onclick="liveNav.toggleSound()" aria-label="صوت التنبيه"><i data-lucide="volume-2"></i></button>
         <span class="sb-live-dot" data-live-dot title="متصل: التحديث مباشر"></span>
     </div>
+</div>
+
+<div class="sb-foot">
+    <a href="{% url 'auth:logout' %}" class="sb-logout"><i data-lucide="log-out"></i><span class="sb-label">تسجيل الخروج</span></a>
 </div>

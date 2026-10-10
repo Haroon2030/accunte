@@ -27,6 +27,16 @@ class NavItem:
     roles: tuple = ()              # فارغ = كل الأدوار
     exclude: tuple = ()            # مسارات تحت البادئة لها عنصر خاص بها
     label_by_role: dict = field(default_factory=dict)
+    group: str = ''                # مفتاح المجموعة القابلة للطي التي يندرج تحتها (فارغ = عنصر مستقل)
+
+
+# عنوان رئيسي تحته شاشات فرعية: مفتاح المجموعة ← (التسمية، الأيقونة)
+GROUPS = {
+    'service': ('خدمة العملاء', 'headphones'),
+    'recon': ('المطابقة', 'scale'),
+    'setup': ('الإعدادات', 'settings'),
+    'access': ('المستخدمون والصلاحيات', 'users'),
+}
 
 
 SECTIONS = (
@@ -34,29 +44,29 @@ SECTIONS = (
         NavItem('executive', 'لوحة المدير المالي', 'layout-dashboard', 'reconciliation:executive',
                 ('/reconciliation/executive/',), OVERSIGHT),
     )),
-    ('العمل اليومي', (
-        NavItem('inbox', 'صندوق واتساب', 'message-circle', 'whatsapp_inbox:inbox', ('/inbox/',), OVERSIGHT + CS),
+    ('تشغيل', (
+        NavItem('inbox', 'صندوق واتساب', 'message-circle', 'whatsapp_inbox:inbox', ('/inbox/',), OVERSIGHT + CS, group='service'),
         NavItem('requests', 'طلبات الخدمة', 'clipboard-list', 'servicedesk:list', ('/service-requests/',),
-                OVERSIGHT + CS + (RT.ACCOUNTANT,), exclude=('/service-requests/types',)),
+                OVERSIGHT + CS + (RT.ACCOUNTANT,), exclude=('/service-requests/types',), group='service'),
         NavItem('cases', 'حالات المطابقة', 'scale', 'reconciliation:list', ('/reconciliation/',),
                 OVERSIGHT + CS + (RT.ACCOUNTANT,),
                 exclude=('/reconciliation/executive', '/reconciliation/distribution'),
-                label_by_role={RT.ACCOUNTANT: 'مهامي'}),
+                label_by_role={RT.ACCOUNTANT: 'مهامي'}, group='recon'),
         NavItem('distribution', 'توزيع الملفات', 'split', 'reconciliation:distribution',
-                ('/reconciliation/distribution/',), (RT.CFO, RT.MANAGER, RT.CS_SUPERVISOR)),
+                ('/reconciliation/distribution/',), (RT.CFO, RT.MANAGER, RT.CS_SUPERVISOR), group='recon'),
         NavItem('proposals', 'مقترحات الدفع', 'file-check-2', 'proposals:list', ('/proposals/',),
                 OVERSIGHT + (RT.CS_SUPERVISOR, RT.ACCOUNTANT, RT.PAYMENT_OFFICER)),
     )),
-    ('الإدارة', (
+    ('إدارة', (
         NavItem('suppliers', 'الموردين', 'briefcase', 'suppliers:list', ('/suppliers/',),
                 OVERSIGHT + CS + (RT.ACCOUNTANT, RT.PAYMENT_OFFICER)),
         NavItem('service_types', 'أنواع الخدمات', 'sliders-horizontal', 'servicedesk:types',
-                ('/service-requests/types',), (RT.CFO, RT.MANAGER)),
-        NavItem('branches', 'الفروع', 'building-2', 'branches:list', ('/branches/',), (RT.CFO, RT.MANAGER)),
+                ('/service-requests/types',), (RT.CFO, RT.MANAGER), group='setup'),
+        NavItem('branches', 'الفروع', 'building-2', 'branches:list', ('/branches/',), (RT.CFO, RT.MANAGER), group='setup'),
     )),
-    ('النظام', (
-        NavItem('users', 'المستخدمين', 'users', 'users:list', ('/users/',), ()),
-        NavItem('roles', 'الأدوار', 'shield-check', 'roles:list', ('/roles/',), ()),
+    ('حوكمة', (
+        NavItem('users', 'المستخدمين', 'users', 'users:list', ('/users/',), (), group='access'),
+        NavItem('roles', 'الأدوار', 'shield-check', 'roles:list', ('/roles/',), (), group='access'),
         NavItem('audit', 'سجل التدقيق', 'history', 'audit:list', ('/audit/',), OVERSIGHT),
         NavItem('whatsapp_link', 'ربط واتساب', 'plug', 'whatsapp:connect', ('/whatsapp/',),
                 (RT.CFO, RT.MANAGER, RT.CS_SUPERVISOR)),
@@ -90,8 +100,33 @@ def visible_keys(user):
     return [item.key for _, item in visible_items(user)]
 
 
+def _fold_groups(rows):
+    """يجمع العناصر ذات المجموعة المشتركة تحت عنوان واحد (في موضع أول عنصر منها)."""
+    entries, groups = [], {}
+    for row in rows:
+        key = row.pop('group')
+        if not key:
+            entries.append(row)
+            continue
+        if key not in groups:
+            label, icon = GROUPS[key]
+            groups[key] = {'group': True, 'key': key, 'label': label, 'icon': icon, 'items': []}
+            entries.append(groups[key])
+        groups[key]['items'].append(row)
+    for g in groups.values():
+        g['active'] = any(i['active'] for i in g['items'])
+        g['badge_count'] = sum(i['badge_count'] for i in g['items'])
+        g['badge_tone'] = 'danger' if any(i['badge_tone'] == 'danger' for i in g['items'] if i['badge_count']) else 'info'
+    return entries
+
+
+def leaves(sections):
+    """كل العناصر الورقية (بعد فكّ المجموعات) بترتيبها."""
+    return [leaf for s in sections for e in s['entries'] for leaf in (e['items'] if e.get('group') else [e])]
+
+
 def build(request, counts=None):
-    """هيكل جاهز للقالب: أقسام فيها عناصر (label, icon, url, active, badge)."""
+    """هيكل جاهز للقالب: أقسام فيها مدخلات؛ المدخل عنصر مستقل أو مجموعة فيها عناصر فرعية."""
     user = request.user
     role = get_role_type(user)
     sections = []
@@ -109,9 +144,10 @@ def build(request, counts=None):
                 'active': _is_active(request.path, item),
                 'badge_count': badge['count'] if badge else 0,
                 'badge_tone': badge['tone'] if badge else 'info',
+                'group': item.group,
             })
         if rows:
-            sections.append({'title': title, 'items': rows})
+            sections.append({'title': title, 'entries': _fold_groups(rows)})
     return sections
 
 

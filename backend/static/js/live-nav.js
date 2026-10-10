@@ -54,6 +54,13 @@
             el.className = 'sb-badge sb-badge--' + (b ? b.tone : 'info');
             if (n > old) { el.classList.add('is-bumped'); }
         });
+        document.querySelectorAll('[data-badge-group]').forEach(function (g) {      // مجموع العدّادات الفرعية على عنوان المجموعة
+            var kids = g.closest('.sb-group').querySelectorAll('.sb-sub [data-badge]'), sum = 0, danger = false;
+            kids.forEach(function (k) { if (!k.hidden) { sum += parseInt(k.textContent, 10) || 0; danger = danger || k.classList.contains('sb-badge--danger'); } });
+            g.hidden = !sum;
+            g.textContent = sum > 99 ? '99+' : String(sum);
+            g.className = 'sb-badge sb-badge--' + (danger ? 'danger' : 'info');
+        });
         var inbox = (badges.inbox || {}).count || 0;
         document.title = (inbox ? '(' + inbox + ') ' : '') + baseTitle;
 
