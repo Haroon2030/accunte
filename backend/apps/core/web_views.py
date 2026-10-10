@@ -515,7 +515,7 @@ def suppliers_search_json(request):
 
 def _supplier_fields_from_post(post):
     fin = (post.get('financial_system_id') or '').strip()
-    return {
+    fields = {
         'name': (post.get('name') or '').strip(),
         'code': (post.get('code') or '').strip(),
         'financial_system_id': fin or None,
@@ -527,6 +527,7 @@ def _supplier_fields_from_post(post):
         'bank_account': (post.get('bank_account') or '').strip(),
         'iban': (post.get('iban') or '').strip(),
     }
+    return fields
 
 
 def _supplier_save_error(fields, exclude_pk=None):

@@ -6,6 +6,9 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.reconciliation.models import document_upload_path
+from apps.reconciliation.storage import private_storage
+
 
 class SLAConfiguration(models.Model):
     """أهداف زمن الاستجابة. صف واحد افتراضي يُنشأ عند أول استخدام."""
@@ -117,6 +120,11 @@ class ConversationMessage(models.Model):
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.TEXT)
     body = models.TextField('النص', blank=True)
     media_name = models.CharField(max_length=255, blank=True)
+    # الملف نفسه (مستند/صورة/صوت...) يُجلب من Evolution ويُحفظ في التخزين الخاص (R2). لا رابط عام له.
+    media_file = models.FileField(upload_to=document_upload_path, storage=private_storage, blank=True)
+    media_mimetype = models.CharField(max_length=100, blank=True)
+    media_size = models.PositiveIntegerField(default=0)
+    media_error = models.CharField(max_length=300, blank=True)
     sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                 related_name='+')
     status = models.CharField(max_length=10, choices=DeliveryStatus.choices, default=DeliveryStatus.RECEIVED)

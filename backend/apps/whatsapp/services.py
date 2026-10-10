@@ -3,10 +3,12 @@
 """
 import datetime
 import logging
+import mimetypes
 import re
 import threading
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, close_old_connections, transaction
 from django.db.models import F
@@ -186,6 +188,8 @@ def ingest_message(data):
             elif conv.assigned_agent_id and conv.unread_count == 1:
                 _notify([conv.assigned_agent], 'رسالة جديدة من مورد',
                         f'{conv.display_name or conv.contact_number}: {body[:60] or "[" + msg.get_kind_display() + "]"}', conv)
+    if kind != M.Kind.TEXT and not from_me:
+        schedule_media_fetch(msg.pk)       # الملف يُجلب بعد حفظ الرسالة، دون تعطيل الـ webhook
     return 'created'
 
 
@@ -359,10 +363,58 @@ def link_supplier(conv_id, user, supplier):
         raise ConversationError('ليس لديك صلاحية على هذه المحادثة')
     old = conv.supplier_id
     conv.supplier = supplier
-    conv.save(update_fields=['supplier'])
+    conv.contact = _ensure_contact(supplier, conv) if supplier else None
+    conv.save(update_fields=['supplier', 'contact'])
     log_action(AuditLog.Action.UPDATE, conv, entity_type='whatsapp.Conversation', previous={'supplier': old},
                new={'supplier': supplier.pk if supplier else None}, reason='ربط المحادثة بمورد', actor=user)
     return conv
+
+
+def _ensure_contact(supplier, conv):
+    """يضيف رقم المحادثة كجهة اتصال معتمدة للمورد (إن لم يكن موجودًا)، فتُربط رسائله القادمة به تلقائيًا."""
+    from apps.suppliers.models import SupplierContact
+    contact = SupplierContact.objects.filter(supplier=supplier, phone=conv.contact_number).first()
+    if contact is None:
+        contact = SupplierContact.objects.create(
+            supplier=supplier, phone=conv.contact_number, name=(conv.display_name or '')[:150],
+            is_primary=not supplier.contacts.filter(is_primary=True).exists(), is_approved=True)
+    return contact
+
+
+def _next_supplier_code(conv):
+    from apps.suppliers.models import Supplier
+    base = f'WA-{conv.contact_number[-6:]}'
+    code, n = base, 1
+    while Supplier.objects.filter(code=code).exists():
+        n += 1
+        code = f'{base}-{n}'
+    return code
+
+
+@transaction.atomic
+def create_supplier_from_conversation(conv_id, user, name, code='', tax_number=''):
+    """ينشئ موردًا جديدًا من رقم المحادثة ويربطه بها. للأدوار التي تدير الموردين فقط."""
+    from apps.core.access import SUPPLIER_MANAGE_ROLES
+    from apps.suppliers.models import Supplier
+    conv = SupplierConversation.objects.select_for_update().get(pk=conv_id)
+    if not can_act(user, conv) or not has_role(user, *SUPPLIER_MANAGE_ROLES):
+        raise ConversationError('إنشاء الموردين للمدير والمدير المالي والمحاسب ومدير النظام')
+    name = (name or '').strip()
+    code = (code or '').strip()
+    tax = re.sub(r'\s', '', tax_number or '')
+    if not name:
+        raise ConversationError('اسم المورد مطلوب')
+    if tax and not re.fullmatch(r'\d{15}', tax):
+        raise ConversationError('الرقم الضريبي يجب أن يكون 15 رقمًا')
+    if code and Supplier.objects.filter(code=code).exists():
+        raise ConversationError('كود المورد مستخدم لمورد آخر')
+    if tax and Supplier.objects.filter(tax_key=tax).exists():
+        raise ConversationError('الرقم الضريبي مسجّل لمورد آخر')
+    supplier = Supplier.objects.create(name=name[:300], code=code[:50] or _next_supplier_code(conv), tax_number=tax)
+    log_action(AuditLog.Action.CREATE, supplier, new={'name': supplier.name, 'code': supplier.code,
+                                                       'source': 'whatsapp conversation'}, actor=user)
+    link_supplier(conv.pk, user, supplier)
+    return supplier
 
 
 @transaction.atomic
@@ -463,3 +515,64 @@ def resend(message_id, user):
     if msg.status != M.DeliveryStatus.FAILED:
         raise ConversationError('الرسالة لم تفشل')
     return deliver(msg.pk)
+
+
+# ── وسائط الرسائل الواردة (مستندات، صور، صوت) ─────────────────────────────────
+SAFE_NAME = re.compile(r'[^\w.\-]+', re.UNICODE)
+
+
+def _storage_name(msg, file_name, mimetype):
+    """اسم آمن للتخزين: لا مسارات ولا رموز غريبة، وامتداد من الاسم أو من نوع MIME."""
+    name = SAFE_NAME.sub('_', (msg.media_name or file_name or '').split('/')[-1].split('\\')[-1]).strip('._')[-100:]
+    ext = ('.' + name.rsplit('.', 1)[1].lower()) if '.' in name else ''
+    if not ext or len(ext) > 8:
+        ext = mimetypes.guess_extension(mimetype or '') or '.bin'
+        name = (name.rsplit('.', 1)[0] if '.' in name else name) or 'file'
+    base = name.rsplit('.', 1)[0] if '.' in name else name
+    return f'{base or "file"}{ext}'
+
+
+def fetch_and_store_media(message_id):
+    """يجلب ملف رسالة وسائط من Evolution ويحفظه في التخزين الخاص. آمن للتكرار: لا يجلب ما حُفظ مسبقًا.
+    يرفع WhatsAppError إن فشل (مع تسجيل السبب في media_error)."""
+    msg = M.objects.get(pk=message_id)
+    if msg.media_file:
+        return msg
+    if msg.kind == M.Kind.TEXT or not msg.wa_message_id:
+        raise WhatsAppError('هذه الرسالة لا تحتوي ملفًا')
+    try:
+        blob, mimetype, file_name = client.fetch_media(msg.wa_message_id)
+    except WhatsAppError as exc:
+        M.objects.filter(pk=msg.pk).update(media_error=str(exc)[:300])
+        raise
+    msg.media_file.save(_storage_name(msg, file_name, mimetype), ContentFile(blob), save=False)
+    msg.media_mimetype = mimetype
+    msg.media_size = len(blob)
+    msg.media_error = ''
+    if not msg.media_name and file_name:
+        msg.media_name = file_name[:255]
+    msg.save(update_fields=['media_file', 'media_mimetype', 'media_size', 'media_error', 'media_name'])
+    return msg
+
+
+def _fetch_quietly(message_id):
+    try:
+        fetch_and_store_media(message_id)
+    except WhatsAppError:
+        pass                                   # السبب محفوظ في media_error، ويُعاد المحاولة عند الفتح
+    except Exception:
+        log.exception('whatsapp media fetch failed')
+
+
+def schedule_media_fetch(message_id):
+    """يجدول الجلب بعد اكتمال المعاملة: في خيط خلفي إن كان WHATSAPP_ASYNC_DISPATCH مفعّلًا، وإلا فورًا."""
+    def run():
+        try:
+            _fetch_quietly(message_id)
+        finally:
+            close_old_connections()
+
+    if settings.WHATSAPP_ASYNC_DISPATCH:
+        transaction.on_commit(lambda: threading.Thread(target=run, daemon=True, name=f'wa-media-{message_id}').start())
+    else:
+        transaction.on_commit(lambda: _fetch_quietly(message_id))

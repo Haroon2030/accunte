@@ -66,6 +66,15 @@
             <label class="block text-sm font-medium text-slate-700 mb-1">تفاصيل إضافية</label>
             <textarea name="details" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg">{{ post.details }}</textarea>
         </div>
+        {% if assignable %}
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">إسناد مباشر <span class="text-slate-400 font-normal">(اختياري)</span></label>
+            <select name="assign_to" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white">
+                <option value="">اتركه بلا إسناد (يُوزَّع لاحقًا)</option>
+                {% for u in assignable %}<option value="{{ u.pk }}" {% if post.assign_to == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">الأولوية</label>
             <select name="priority" class="px-3 py-2 border border-slate-200 rounded-lg bg-white">

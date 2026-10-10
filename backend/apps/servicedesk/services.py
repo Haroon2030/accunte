@@ -7,7 +7,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import Q
 from django.utils import timezone
 from apps.core.dates import safe_parse_date as parse_date
 
@@ -24,6 +24,10 @@ SUPERVISOR_ROLES = (RT.ADMIN, RT.CS_SUPERVISOR, RT.MANAGER, RT.CFO)
 OVERSIGHT_ROLES = SUPERVISOR_ROLES + (RT.AUDITOR,)
 VIEW_ROLES = OVERSIGHT_ROLES + (RT.CS_AGENT, RT.ACCOUNTANT)
 MANAGE_TYPES_ROLES = (RT.ADMIN, RT.CFO, RT.MANAGER)
+
+# من يمكن إسناد الطلب إليه: أي محاسب أو موظف خدمة عملاء أو مدير، بغض النظر عن نوع الطلب.
+# (لا ربط دائم بين المورد والمحاسب: المشرف يوزّع كل طلب وقت وصوله.)
+ASSIGNABLE_ROLES = (RT.ACCOUNTANT, RT.CS_AGENT, RT.CS_SUPERVISOR, RT.MANAGER, RT.ADMIN)
 
 FIELD_TYPES = ('text', 'textarea', 'number', 'date', 'select')
 KEY_RE = re.compile(r'^[a-z][a-z0-9_]{0,39}$')
@@ -113,6 +117,18 @@ def is_supervisor(user):
     return has_role(user, *SUPERVISOR_ROLES)
 
 
+def can_receive_assignment(user):
+    """هل يصلح هذا المستخدم لإسناد طلب إليه؟ (فعّال، ودوره من ASSIGNABLE_ROLES أو مدير النظام)."""
+    return user.is_active and (user.is_superuser or get_role_type(user) in ASSIGNABLE_ROLES)
+
+
+def assignable_users():
+    """كل من يصلح لاستقبال الإسناد، مرتبًا بالاسم. يطابق can_receive_assignment."""
+    return list(get_user_model().objects.filter(
+        Q(profile__role__role_type__in=ASSIGNABLE_ROLES, profile__role__is_active=True) | Q(is_superuser=True),
+        is_active=True).distinct().order_by('username'))
+
+
 def visible_requests(user):
     qs = ServiceRequest.objects.select_related('service_type', 'supplier', 'assigned_to', 'created_by')
     if has_role(user, *OVERSIGHT_ROLES):
@@ -146,9 +162,16 @@ def _notify(users, title, message, req):
 
 
 @transaction.atomic
-def create_request(user, stype, supplier, subject, details='', priority='normal', getter=None, conversation=None):
+def create_request(user, stype, supplier, subject, details='', priority='normal', getter=None, conversation=None,
+                   assign_to=None):
+    """assign_to: إسناد مباشر عند الإنشاء (للمشرفين فقط)، فلا يُنتظر توزيع لاحق."""
     if not can_create(user, stype):
         raise RequestError('ليس لديك صلاحية إنشاء هذا النوع من الطلبات')
+    if assign_to is not None:
+        if not is_supervisor(user):
+            raise RequestError('الإسناد المباشر للمشرفين فقط')
+        if not can_receive_assignment(assign_to):
+            raise RequestError('هذا المستخدم لا يستقبل الطلبات')
     subject = (subject or '').strip()
     if not subject:
         raise RequestError('الموضوع مطلوب')
@@ -165,8 +188,11 @@ def create_request(user, stype, supplier, subject, details='', priority='normal'
     RequestStatusHistory.objects.create(request=req, to_status=S.NEW, changed_by=user, reason='إنشاء الطلب')
     log_action(AuditLog.Action.CREATE, req, entity_type='servicedesk.ServiceRequest',
                new={'type': stype.code, 'supplier': supplier.pk, 'priority': priority, 'due_at': req.due_at}, actor=user)
-    _notify(_users_with_role(stype.destination_role), 'طلب خدمة جديد',
-            f'{req.reference} · {stype.name} · {supplier.name}', req)
+    if assign_to is not None:
+        _set_assignee(req, assign_to, user, 'إسناد عند الإنشاء')      # يُشعَر المسنَد إليه وحده بدل كل الجهة
+    else:
+        _notify(_users_with_role(stype.destination_role), 'طلب خدمة جديد',
+                f'{req.reference} · {stype.name} · {supplier.name}', req)
     return req
 
 
@@ -192,15 +218,20 @@ def assign(req_id, agent, by):
     req = ServiceRequest.objects.select_for_update().select_related('service_type').get(pk=req_id)
     if req.is_terminal:
         raise RequestError('الطلب منتهٍ')
-    if not agent.is_active or not can_handle(agent, req.service_type):
-        raise RequestError('هذا المستخدم لا يعالج هذا النوع من الطلبات')
+    if not can_receive_assignment(agent):
+        raise RequestError('هذا المستخدم لا يستقبل الطلبات (اختر محاسبًا أو موظف خدمة عملاء)')
+    _set_assignee(req, agent, by, 'إسناد الطلب')
+    return req
+
+
+def _set_assignee(req, agent, by, reason):
+    """يكتب الإسناد ويسجّله ويُشعر المسنَد إليه. نقطة واحدة يشترك فيها الإنشاء والإسناد اللاحق."""
     old = req.assigned_to_id
     req.assigned_to = agent
     req.save(update_fields=['assigned_to', 'updated_at'])
     log_action(AuditLog.Action.UPDATE, req, entity_type='servicedesk.ServiceRequest', previous={'assigned_to': old},
-               new={'assigned_to': agent.pk}, reason='إسناد الطلب', actor=by)
+               new={'assigned_to': agent.pk}, reason=reason, actor=by)
     _notify([agent], 'أُسند إليك طلب خدمة', f'{req.reference} · {req.supplier.name}', req)
-    return req
 
 
 # ── آلة الحالات ───────────────────────────────────────────────────────────────
@@ -217,7 +248,7 @@ REASON_REQUIRED = {S.CANCELLED, S.ESCALATED}
 
 def _allowed(kind, user, req):
     if kind == 'handler':
-        return can_handle(user, req.service_type) or is_supervisor(user)
+        return req.assigned_to_id == user.pk or can_handle(user, req.service_type) or is_supervisor(user)
     if kind == 'assignee':
         if req.assigned_to_id is None:          # طلب غير مسند (مثلًا صُعِّد تلقائيًا): يعالجه المختصون
             return can_handle(user, req.service_type) or is_supervisor(user)

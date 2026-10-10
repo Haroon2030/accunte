@@ -58,7 +58,19 @@
                         <td class="px-3 py-2 max-w-[180px] truncate">{{ r.supplier.name }}</td>
                         <td class="px-3 py-2 max-w-[220px] truncate" title="{{ r.subject }}">{{ r.subject }}{% if r.priority == 'urgent' %} <span class="text-red-600 font-bold text-xs">عاجل</span>{% endif %}</td>
                         <td class="px-3 py-2">{% include "pages/servicedesk/_badge.html" with status=r.status label=r.get_status_display %}</td>
-                        <td class="px-3 py-2 text-xs">{% if r.assigned_to %}{{ r.assigned_to.get_full_name|default:r.assigned_to.username }}{% else %}—{% endif %}</td>
+                        <td class="px-3 py-2 text-xs">
+                            {% if r.assigned_to %}{{ r.assigned_to.get_full_name|default:r.assigned_to.username }}
+                            {% elif assignable and not r.is_terminal %}
+                            <form method="post" action="{% url 'servicedesk:assign' r.pk %}" class="flex items-center gap-1">
+                                {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <select name="agent" required aria-label="إسناد {{ r.reference }}" class="px-1.5 py-1 border border-slate-200 rounded-md text-xs bg-white max-w-[9rem]">
+                                    <option value="">إسناد إلى...</option>
+                                    {% for u in assignable %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+                                </select>
+                                <button class="btn btn-secondary btn-sm">إسناد</button>
+                            </form>
+                            {% else %}—{% endif %}
+                        </td>
                         <td class="px-3 py-2 text-xs whitespace-nowrap {% if r.is_overdue %}text-red-700 font-bold{% endif %}">{{ r.due_at|date:"Y-m-d H:i"|default:"—" }}{% if r.is_overdue %} · متأخر{% endif %}</td>
                     </tr>
                 {% empty %}

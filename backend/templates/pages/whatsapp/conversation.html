@@ -4,6 +4,22 @@
 {% block page_title %}{{ page_title }}{% endblock %}
 
 {% block content %}
+<script>
+function supplierLinker() {
+    return {
+        query: '', selectedId: '', results: [], open: false,
+        async search() {
+            this.selectedId = '';
+            try {
+                const r = await fetch('{% url "suppliers:search" %}?q=' + encodeURIComponent(this.query));
+                this.results = (await r.json()).results || [];
+                this.open = true;
+            } catch (e) { this.results = []; }
+        },
+        pick(r) { this.selectedId = r.id; this.query = r.name + ' (' + r.code + ')'; this.open = false; },
+    };
+}
+</script>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-5" x-data="{ escOpen: false }">
 
     <!-- المحادثة -->
@@ -17,24 +33,33 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                <span id="conv-status" class="px-2 py-0.5 rounded-full text-xs font-medium
                     {% if conv.status == 'new' %}bg-indigo-100 text-indigo-700{% elif conv.status == 'open' %}bg-blue-100 text-blue-700{% elif conv.status == 'pending' %}bg-yellow-100 text-yellow-800{% elif conv.status == 'escalated' %}bg-red-100 text-red-700{% else %}bg-slate-200 text-slate-600{% endif %}">{{ conv.get_status_display }}</span>
-                {% if conv.is_unanswered_overdue %}<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">بلا رد {{ conv.waiting_minutes }} د</span>{% endif %}
+                <span id="conv-late" class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white" {% if not conv.is_unanswered_overdue %}hidden{% endif %}>بلا رد {{ conv.waiting_minutes }} د</span>
+                <span class="flex items-center gap-1 text-[11px] text-slate-400" title="التحديث مباشر"><span id="live-dot" class="sb-live-dot"></span>مباشر</span>
             </div>
         </div>
+        <div id="conv-changed" hidden class="px-4 py-2 bg-yellow-50 border-b border-yellow-200 text-xs text-yellow-900 flex items-center justify-between gap-3">
+            <span>تغيّرت هذه المحادثة (إسناد أو حالة) من مستخدم آخر.</span>
+            <button type="button" class="btn btn-warning btn-sm" onclick="location.reload()">تحديث الآن</button>
+        </div>
 
-        <div id="thread" class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50" style="max-height: 60vh"
-             hx-get="{% url 'whatsapp_inbox:conversation' conv.pk %}" hx-trigger="every 5s" hx-swap="innerHTML">
-            {% include "pages/whatsapp/_thread.html" %}
+        <div class="relative flex-1 flex flex-col min-h-0">
+            <div id="thread" class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50" style="max-height: 60vh"
+                 data-live-url="{% url 'whatsapp_inbox:conversation_live' conv.pk %}" data-send-url="{% url 'whatsapp_inbox:send_ajax' conv.pk %}"
+                 data-version="{{ conv.version }}">
+                {% include "pages/whatsapp/_thread.html" %}
+            </div>
+            <button type="button" id="new-pill" hidden class="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-primary-600 text-white text-xs font-semibold shadow-lg">رسائل جديدة ↓</button>
         </div>
 
         {% if can_act and conv.status != 'closed' %}
-        <form method="post" action="{% url 'whatsapp_inbox:send' conv.pk %}" class="border-t border-slate-200 p-3 flex gap-2 items-end" x-data="{ last: 0 }">
+        <div id="reply-error" hidden class="mx-3 mt-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-800 text-xs"></div>
+        <form id="reply-form" method="post" action="{% url 'whatsapp_inbox:send' conv.pk %}" class="border-t border-slate-200 p-3 flex gap-2 items-end" x-data="{ last: 0 }">
             {% csrf_token %}
-            <textarea name="text" rows="2" required maxlength="4000" placeholder="اكتب ردك..."
+            <textarea name="text" rows="2" required maxlength="4000" placeholder="اكتب ردك... (Enter للإرسال، Shift+Enter لسطر جديد)"
                 class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none"
-                @input="if (Date.now() - last > 20000) { last = Date.now(); fetch('{% url 'whatsapp_inbox:typing' conv.pk %}', {method:'POST', headers:{'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content}}); }"
-                @keydown.ctrl.enter="$el.form.submit()"></textarea>
+                @input="if (Date.now() - last > 20000) { last = Date.now(); fetch('{% url 'whatsapp_inbox:typing' conv.pk %}', {method:'POST', headers:{'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content}}); }"></textarea>
             <button type="submit" class="btn btn-success"><i data-lucide="send"></i> إرسال</button>
         </form>
         {% elif conv.status == 'closed' %}
@@ -84,7 +109,7 @@
                 {% csrf_token %}<input type="hidden" name="version" value="{{ conv.version }}">
                 <select name="agent" class="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white">
                     <option value="">إسناد إلى...</option>
-                    {% for a in agents %}<option value="{{ a.pk }}">{{ a.get_full_name|default:a.username }}</option>{% endfor %}
+                    {% for a in agents %}<option value="{{ a.pk }}">{{ a.get_full_name|default:a.username }}{% if a == request.user %} (أنا){% endif %}</option>{% endfor %}
                 </select>
                 <button class="btn btn-secondary btn-sm">إسناد</button>
             </form>
@@ -97,14 +122,49 @@
             <div><a href="{% url 'suppliers:detail' conv.supplier.pk %}" class="text-primary-700 hover:underline font-medium">{{ conv.supplier.name }}</a>
                 <span class="font-mono text-xs text-slate-500">({{ conv.supplier.code }})</span></div>
             {% else %}
-            <div class="text-xs bg-yellow-50 text-yellow-800 rounded p-2">هذا الرقم غير مرتبط بأي مورد. اربطه بكود المورد أو أضفه كجهة اتصال في صفحة المورد.</div>
+            <div class="text-xs bg-yellow-50 text-yellow-800 rounded p-2">هذا الرقم غير مرتبط بأي مورد. ابحث عن المورد بالاسم أو الكود لربطه، أو أنشئه من هذا الرقم.</div>
             {% endif %}
             {% if can_act %}
-            <form method="post" action="{% url 'whatsapp_inbox:link_supplier' conv.pk %}" class="flex gap-2">
-                {% csrf_token %}
-                <input name="supplier_code" placeholder="كود المورد" value="{{ conv.supplier.code }}" class="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
-                <button class="btn btn-secondary btn-sm">ربط</button>
-            </form>
+            <div x-data="supplierLinker()" class="space-y-2">
+                <form method="post" action="{% url 'whatsapp_inbox:link_supplier' conv.pk %}" class="relative flex gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="supplier" :value="selectedId">
+                    <div class="relative flex-1">
+                        <input type="text" x-model="query" @input.debounce.250ms="search()" @focus="search()" autocomplete="off"
+                               placeholder="ابحث بالاسم أو الكود..." class="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+                        <div x-show="open && results.length" x-cloak @click.outside="open=false"
+                             class="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                            <template x-for="r in results" :key="r.id">
+                                <button type="button" @click="pick(r)" class="w-full text-right px-3 py-2 hover:bg-slate-50 text-sm flex justify-between gap-2">
+                                    <span x-text="r.name"></span><span class="font-mono text-xs text-slate-500" x-text="r.code"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" :disabled="!selectedId">ربط</button>
+                </form>
+                {% if conv.supplier %}
+                <form method="post" action="{% url 'whatsapp_inbox:link_supplier' conv.pk %}" onsubmit="return confirm('فك ربط المورد؟')">
+                    {% csrf_token %}<button class="text-xs text-red-600 underline">فك الربط</button>
+                </form>
+                {% endif %}
+
+                {% if can_create_supplier and not conv.supplier %}
+                <details class="border border-dashed border-slate-300 rounded-lg p-2">
+                    <summary class="cursor-pointer text-xs font-semibold text-primary-700">لا يوجد المورد؟ أنشئه من هذا الرقم</summary>
+                    <form method="post" action="{% url 'whatsapp_inbox:create_supplier' conv.pk %}" class="mt-2 space-y-2">
+                        {% csrf_token %}
+                        <input name="name" value="{{ conv.display_name }}" required placeholder="اسم المورد *" class="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input name="code" placeholder="الكود (تلقائي)" dir="ltr" class="px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+                            <input name="tax_number" placeholder="الرقم الضريبي (15)" inputmode="numeric" maxlength="15" dir="ltr" class="px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+                        </div>
+                        <p class="text-[11px] text-slate-500">يُضاف الرقم +{{ conv.contact_number }} كجهة اتصال معتمدة، وتُربط رسائله القادمة به تلقائيًا.</p>
+                        <button class="btn btn-primary btn-sm btn-block">إنشاء وربط</button>
+                    </form>
+                </details>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
 
@@ -143,10 +203,102 @@
 
 <script>
 (function () {
-    const t = document.getElementById('thread');
-    const down = () => { t.scrollTop = t.scrollHeight; if (window.lucide) lucide.createIcons(); };
-    down();
-    document.body.addEventListener('htmx:afterSwap', function (e) { if (e.target === t) down(); });
+    'use strict';
+    var t = document.getElementById('thread');
+    var cfg = { live: t.dataset.liveUrl, send: t.dataset.sendUrl, version: parseInt(t.dataset.version, 10) };
+    var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+    var known = new Set(Array.prototype.map.call(t.querySelectorAll('[data-msg-id]'), function (e) { return +e.dataset.msgId; }));
+    var lastId = known.size ? Math.max.apply(null, Array.from(known)) : 0;
+    var failures = 0, timer = null, sending = false;
+    var STATUS_CLASS = { new: 'bg-indigo-100 text-indigo-700', open: 'bg-blue-100 text-blue-700', pending: 'bg-yellow-100 text-yellow-800', escalated: 'bg-red-100 text-red-700', closed: 'bg-slate-200 text-slate-600' };
+
+    function icons() { if (window.lucide) lucide.createIcons(); }
+    function toBottom() { t.scrollTop = t.scrollHeight; }
+    function nearBottom() { return t.scrollHeight - t.scrollTop - t.clientHeight < 140; }
+    function el(html) { var d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstElementChild; }
+    function dot(ok) { var d = document.getElementById('live-dot'); if (d) d.classList.toggle('is-off', !ok); }
+
+    function append(items) {
+        if (!items.length) return;
+        var stick = nearBottom(), added = false;
+        items.forEach(function (it) {
+            if (known.has(it.id)) return;                 // أُلحقت للتو بالإرسال المباشر
+            known.add(it.id); lastId = Math.max(lastId, it.id); added = true;
+            var empty = t.querySelector('[data-empty]'); if (empty) empty.remove();
+            t.insertBefore(el(it.html), t.querySelector('[data-typing]'));
+        });
+        if (!added) return;
+        icons();
+        if (stick) toBottom(); else document.getElementById('new-pill').hidden = false;
+    }
+
+    function outboundState() {
+        var rows = t.querySelectorAll('[data-dir="out"][data-msg-id]');
+        return Array.prototype.slice.call(rows, -30).map(function (e) { return e.dataset.msgId + ':' + e.dataset.status; }).join(',');
+    }
+
+    function meta(d) {
+        var st = document.getElementById('conv-status');
+        if (st) { st.textContent = d.status_label; st.className = 'px-2 py-0.5 rounded-full text-xs font-medium ' + (STATUS_CLASS[d.status] || ''); }
+        var late = document.getElementById('conv-late');
+        if (late) { late.hidden = !d.late_minutes; late.textContent = 'بلا رد ' + d.late_minutes + ' د'; }
+        var typing = t.querySelector('[data-typing]');
+        if (d.typing) {
+            if (!typing) { typing = document.createElement('p'); typing.className = 'text-xs text-orange-600'; typing.setAttribute('data-typing', ''); t.appendChild(typing); }
+            typing.textContent = d.typing + ' يكتب ردًا الآن...';
+        } else if (typing) { typing.remove(); }
+        if (d.version !== cfg.version) document.getElementById('conv-changed').hidden = false;
+    }
+
+    function poll() {
+        var url = cfg.live + '?after=' + lastId + '&known=' + encodeURIComponent(outboundState());
+        fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function (d) {
+                failures = 0; dot(true);
+                append(d.messages);
+                d.updates.forEach(function (u) { var old = t.querySelector('[data-msg-id="' + u.id + '"]'); if (old) old.replaceWith(el(u.html)); });
+                if (d.updates.length) icons();
+                meta(d);
+            })
+            .catch(function () { failures += 1; dot(false); })
+            .then(schedule);
+    }
+
+    function schedule(ms) {
+        clearTimeout(timer);
+        var delay = typeof ms === 'number' ? ms : (document.hidden ? 4000 : 1200);
+        if (failures) delay = Math.min(15000, delay * (1 + failures));           // تراجع عند الأخطاء
+        timer = setTimeout(poll, delay);
+    }
+
+    // ── الإرسال بلا إعادة تحميل ──
+    var form = document.getElementById('reply-form');
+    if (form) {
+        var ta = form.querySelector('textarea'), btn = form.querySelector('button[type="submit"]'), err = document.getElementById('reply-error');
+        function showErr(msg) { err.textContent = msg; err.hidden = !msg; }
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var text = ta.value.trim();
+            if (sending || !text) return;
+            sending = true; btn.disabled = true; showErr('');
+            fetch(cfg.send, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf, Accept: 'application/json' }, body: new URLSearchParams({ text: text }) })
+                .then(function (r) { return r.json().then(function (d) { if (!r.ok || !d.ok) throw new Error(d.error || 'تعذر الإرسال'); return d; }); })
+                .then(function (d) { append([{ id: d.id, html: d.html }]); ta.value = ''; toBottom(); schedule(700); })
+                .catch(function (ex) { showErr(ex.message || 'تعذر الإرسال. حاول مجددًا'); })
+                .then(function () { sending = false; btn.disabled = false; ta.focus(); });
+        });
+        ta.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
+        });
+    }
+
+    document.getElementById('new-pill').addEventListener('click', function () { toBottom(); this.hidden = true; });
+    t.addEventListener('scroll', function () { if (nearBottom()) document.getElementById('new-pill').hidden = true; });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) { clearTimeout(timer); poll(); } });
+    window.addEventListener('focus', function () { clearTimeout(timer); poll(); });
+
+    toBottom(); icons(); schedule();
 })();
 </script>
 {% endblock %}

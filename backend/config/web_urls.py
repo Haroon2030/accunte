@@ -10,6 +10,7 @@ from apps.reconciliation import views as recon_views
 from apps.reconciliation import dashboard_views
 from apps.proposals import views as proposal_views
 from apps.whatsapp import views as whatsapp_views
+from apps.core import live as core_live
 from apps.whatsapp import inbox_views
 from apps.servicedesk import views as sd_views
 
@@ -175,7 +176,10 @@ whatsapp_patterns = [
 # WhatsApp inbox URLs
 inbox_patterns = [
     path('', inbox_views.inbox, name='inbox'),
+    path('live/', inbox_views.inbox_live, name='live'),
     path('<int:pk>/', inbox_views.conversation, name='conversation'),
+    path('<int:pk>/live/', inbox_views.conversation_live, name='conversation_live'),
+    path('<int:pk>/send-ajax/', inbox_views.send_ajax, name='send_ajax'),
     path('<int:pk>/claim/', inbox_views.claim, name='claim'),
     path('<int:pk>/release/', inbox_views.release, name='release'),
     path('<int:pk>/assign/', inbox_views.assign, name='assign'),
@@ -183,7 +187,9 @@ inbox_patterns = [
     path('<int:pk>/send/', inbox_views.send, name='send'),
     path('<int:pk>/typing/', inbox_views.typing, name='typing'),
     path('<int:pk>/messages/<int:msg_pk>/resend/', inbox_views.resend, name='resend'),
+    path('<int:pk>/messages/<int:msg_pk>/media/', inbox_views.media_download, name='media'),
     path('<int:pk>/link-supplier/', inbox_views.link_supplier, name='link_supplier'),
+    path('<int:pk>/create-supplier/', inbox_views.create_supplier, name='create_supplier'),
     path('<int:pk>/link-case/', inbox_views.link_case, name='link_case'),
 ]
 
@@ -208,6 +214,7 @@ servicedesk_patterns = [
 
 # Main URL patterns
 urlpatterns = [
+    path('live/badges/', core_live.badges_view, name='live_badges'),
     # Dashboard
     path('', web_views.dashboard_view, name='dashboard'),
     

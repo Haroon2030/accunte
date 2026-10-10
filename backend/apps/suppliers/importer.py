@@ -34,7 +34,7 @@ COLUMNS = {
     'iban': ['الآيبان', 'الايبان', 'iban'],
 }
 TEMPLATE_HEADERS = ['رقم المورد', 'رقم المورد في النظام المالي', 'اسم المورد', 'الرقم الضريبي',
-                    'الهاتف', 'البريد الإلكتروني', 'الشخص المسؤول', 'الفروع', 'المحاسب', 'ملاحظات']
+                    'الهاتف', 'البريد الإلكتروني', 'الشخص المسؤول', 'الفروع', 'ملاحظات']
 
 ALIAS_TO_FIELD = {}
 for _field, _aliases in COLUMNS.items():
@@ -79,8 +79,8 @@ def build_template():
     ws.sheet_view.rightToLeft = True
     ws.append(TEMPLATE_HEADERS)
     ws.append(['S-0001', 'FIN-1001', 'شركة المثال للتجارة', '300000000000003',
-               '0501234567, 0559876543', 'info@example.com', 'أحمد محمد', 'RYD, JED', 'accountant1', ''])
-    for col in 'ABCDEFGHIJ':
+               '0501234567, 0559876543', 'info@example.com', 'أحمد محمد', 'RYD, JED', ''])
+    for col in 'ABCDEFGHI':
         ws.column_dimensions[col].width = 24
     buf = io.BytesIO()
     wb.save(buf)

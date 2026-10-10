@@ -94,7 +94,7 @@ def import_cancel(request, pk):
 @role_required(*SUPPLIER_VIEW_ROLES)
 def supplier_detail(request, pk):
     supplier = get_object_or_404(
-        Supplier.objects.select_related('assigned_accountant').prefetch_related('contacts', 'branches'), pk=pk)
+        Supplier.objects.prefetch_related('contacts', 'branches'), pk=pk)
     return render(request, 'pages/suppliers/detail.html', {
         'page_title': supplier.name, 'supplier': supplier,
         'can_manage': has_role(request.user, *SUPPLIER_MANAGE_ROLES),

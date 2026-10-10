@@ -1,0 +1,39 @@
+<div class="sb-brand">
+    <div class="sb-brand-mark"><i data-lucide="landmark"></i></div>
+    <div class="sb-brand-text min-w-0">
+        <div class="sb-brand-title truncate">نظام المدفوعات</div>
+        <div class="sb-brand-sub truncate">المطابقة وخدمة الموردين</div>
+    </div>
+</div>
+
+<nav class="sb-nav" aria-label="القائمة الرئيسية">
+    {% for section in sidebar_sections %}
+    <div class="sb-section">
+        {% if section.title %}<p class="sb-section-title">{{ section.title }}</p>{% endif %}
+        <ul class="sb-list">
+            {% for item in section.items %}
+            <li>
+                <a href="{{ item.url }}" class="sb-link{% if item.active %} is-active{% endif %}" title="{{ item.label }}"
+                   data-nav="{{ item.key }}"{% if item.active %} aria-current="page"{% endif %} @click="closeMobile()">
+                    <i data-lucide="{{ item.icon }}" class="sb-icon"></i>
+                    <span class="sb-label">{{ item.label }}</span>
+                    <span class="sb-badge sb-badge--{{ item.badge_tone }}" data-badge="{{ item.key }}"{% if not item.badge_count %} hidden{% endif %}>{% if item.badge_count > 99 %}99+{% else %}{{ item.badge_count }}{% endif %}</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+</nav>
+
+<div class="sb-user">
+    <div class="sb-avatar">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</div>
+    <div class="sb-user-info min-w-0">
+        <div class="sb-user-name">{{ user.get_full_name|default:user.username }}</div>
+        <div class="sb-user-role">{% if user.is_superuser and not user.profile.role %}مدير النظام{% else %}{{ user.profile.role.name|default:"مستخدم" }}{% endif %}</div>
+    </div>
+    <div class="sb-tools">
+        <button type="button" class="sb-tool" data-sound-toggle onclick="liveNav.toggleSound()" aria-label="صوت التنبيه"><i data-lucide="volume-2"></i></button>
+        <span class="sb-live-dot" data-live-dot title="متصل: التحديث مباشر"></span>
+    </div>
+</div>
