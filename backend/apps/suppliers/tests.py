@@ -140,3 +140,89 @@ class SupplierAccessTests(TestCase):
         self.assertEqual(log.previous_state, {'name': 'أ'})
         self.assertEqual(log.new_state, {'name': 'أ جديد'})
         self.assertEqual(log.actor_username, 'mgr1')
+
+
+class SupplierAccountantLinkTests(TestCase):
+    """ربط المورد بمحاسب مسؤول: من صفحة التفاصيل ومن نافذة الإضافة/التعديل."""
+
+    def setUp(self):
+        self.mgr = user_with_role('mgr', Role.RoleType.MANAGER)
+        self.acc = user_with_role('acc1', Role.RoleType.ACCOUNTANT)
+        self.acc2 = user_with_role('acc2', Role.RoleType.ACCOUNTANT)
+        self.cfo = user_with_role('cfo', Role.RoleType.CFO)
+        self.agent = user_with_role('agent', Role.RoleType.CS_AGENT)
+        self.s = Supplier.objects.create(name='مورد', code='S1')
+
+    def post(self, user, accountant):
+        self.client.force_login(user)
+        return self.client.post(reverse('suppliers:set_accountant', args=[self.s.pk]), {'accountant': accountant}, follow=True)
+
+    def test_assign_change_and_clear_with_audit(self):
+        self.post(self.mgr, self.acc.pk)
+        self.s.refresh_from_db()
+        self.assertEqual(self.s.assigned_accountant, self.acc)
+        log = AuditLog.objects.get(entity_type='suppliers.Supplier', reason='ربط المورد بمحاسب')
+        self.assertEqual((log.actor, log.new_state['assigned_accountant']), (self.mgr, self.acc.pk))
+        self.post(self.mgr, self.acc.pk)                                  # بلا تغيير: لا سجل جديد
+        self.assertEqual(AuditLog.objects.filter(reason='ربط المورد بمحاسب').count(), 1)
+        self.post(self.mgr, self.acc2.pk)
+        self.s.refresh_from_db()
+        self.assertEqual(self.s.assigned_accountant, self.acc2)
+        r = self.post(self.mgr, '')
+        self.assertIn('تم فك ربط المحاسب', r.content.decode())
+        self.s.refresh_from_db()
+        self.assertIsNone(self.s.assigned_accountant)
+
+    def test_only_active_accountants_accepted(self):
+        for bad in (self.cfo.pk, self.agent.pk, 99999, 'abc'):
+            r = self.post(self.mgr, bad)
+            self.assertIn('اختر محاسبًا', r.content.decode(), bad)
+        User.objects.filter(pk=self.acc.pk).update(is_active=False)
+        self.assertIn('اختر محاسبًا', self.post(self.mgr, self.acc.pk).content.decode())
+        self.s.refresh_from_db()
+        self.assertIsNone(self.s.assigned_accountant)
+
+    def test_permissions(self):
+        self.client.force_login(self.agent)
+        r = self.client.post(reverse('suppliers:set_accountant', args=[self.s.pk]), {'accountant': self.acc.pk})
+        self.assertEqual(r.status_code, 302)
+        self.s.refresh_from_db()
+        self.assertIsNone(self.s.assigned_accountant)
+        self.client.force_login(self.mgr)
+        self.assertEqual(self.client.get(reverse('suppliers:set_accountant', args=[self.s.pk])).status_code, 405)
+
+    def test_detail_page_has_selector_with_accountants_only(self):
+        self.client.force_login(self.mgr)
+        html = self.client.get(reverse('suppliers:detail', args=[self.s.pk])).content.decode()
+        self.assertIn(reverse('suppliers:set_accountant', args=[self.s.pk]), html)
+        self.assertIn('>acc1</option>', html)
+        self.assertNotIn('>cfo</option>', html)
+        self.assertNotIn('>agent</option>', html)
+
+    def test_modal_create_update_and_preserve(self):
+        self.client.force_login(self.mgr)
+        base = {'name': 'مورد جديد', 'code': 'N1'}
+        self.client.post(reverse('suppliers:create'), {**base, 'assigned_accountant': self.acc.pk})
+        n = Supplier.objects.get(code='N1')
+        self.assertEqual(n.assigned_accountant, self.acc)
+        # تعديل بلا الحقل (مثلًا نموذج قديم) لا يمسح المحاسب
+        self.client.post(reverse('suppliers:update', args=[n.pk]), {**base, 'name': 'اسم معدّل'})
+        n.refresh_from_db()
+        self.assertEqual((n.name, n.assigned_accountant), ('اسم معدّل', self.acc))
+        # قيمة غير صالحة تُهمَل إلى «بدون»، ومحاسب صالح يُعيَّن
+        self.client.post(reverse('suppliers:update', args=[n.pk]), {**base, 'assigned_accountant': str(self.cfo.pk)})
+        n.refresh_from_db()
+        self.assertIsNone(n.assigned_accountant)
+        self.client.post(reverse('suppliers:update', args=[n.pk]), {**base, 'assigned_accountant': self.acc2.pk})
+        n.refresh_from_db()
+        self.assertEqual(n.assigned_accountant, self.acc2)
+
+    def test_list_shows_accountant_column_and_modal_options(self):
+        self.s.assigned_accountant = self.acc
+        self.s.save()
+        self.client.force_login(self.mgr)
+        html = self.client.get(reverse('suppliers:list')).content.decode()
+        self.assertIn('المحاسب</th>', html)
+        self.assertIn('acc1', html)
+        self.assertIn('name="assigned_accountant"', html)
+        self.assertNotIn('>cfo</option>', html)

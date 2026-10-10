@@ -53,6 +53,7 @@ supplier_patterns = [
     path('import/<int:pk>/confirm/', supplier_views.import_confirm, name='import_confirm'),
     path('import/<int:pk>/cancel/', supplier_views.import_cancel, name='import_cancel'),
     path('<int:pk>/', supplier_views.supplier_detail, name='detail'),
+    path('<int:pk>/accountant/', supplier_views.set_accountant, name='set_accountant'),
     path('<int:pk>/contacts/add/', supplier_views.contact_add, name='contact_add'),
     path('<int:pk>/contacts/<int:contact_pk>/delete/', supplier_views.contact_delete, name='contact_delete'),
     path('', web_views.SupplierListView.as_view(), name='list'),
@@ -185,6 +186,7 @@ inbox_patterns = [
     path('<int:pk>/messages/<int:msg_pk>/resend/', inbox_views.resend, name='resend'),
     path('<int:pk>/messages/<int:msg_pk>/media/', inbox_views.media_download, name='media'),
     path('<int:pk>/link-supplier/', inbox_views.link_supplier, name='link_supplier'),
+    path('<int:pk>/create-supplier/', inbox_views.create_supplier, name='create_supplier'),
     path('<int:pk>/link-case/', inbox_views.link_case, name='link_case'),
 ]
 

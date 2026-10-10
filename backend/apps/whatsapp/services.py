@@ -363,10 +363,58 @@ def link_supplier(conv_id, user, supplier):
         raise ConversationError('ليس لديك صلاحية على هذه المحادثة')
     old = conv.supplier_id
     conv.supplier = supplier
-    conv.save(update_fields=['supplier'])
+    conv.contact = _ensure_contact(supplier, conv) if supplier else None
+    conv.save(update_fields=['supplier', 'contact'])
     log_action(AuditLog.Action.UPDATE, conv, entity_type='whatsapp.Conversation', previous={'supplier': old},
                new={'supplier': supplier.pk if supplier else None}, reason='ربط المحادثة بمورد', actor=user)
     return conv
+
+
+def _ensure_contact(supplier, conv):
+    """يضيف رقم المحادثة كجهة اتصال معتمدة للمورد (إن لم يكن موجودًا)، فتُربط رسائله القادمة به تلقائيًا."""
+    from apps.suppliers.models import SupplierContact
+    contact = SupplierContact.objects.filter(supplier=supplier, phone=conv.contact_number).first()
+    if contact is None:
+        contact = SupplierContact.objects.create(
+            supplier=supplier, phone=conv.contact_number, name=(conv.display_name or '')[:150],
+            is_primary=not supplier.contacts.filter(is_primary=True).exists(), is_approved=True)
+    return contact
+
+
+def _next_supplier_code(conv):
+    from apps.suppliers.models import Supplier
+    base = f'WA-{conv.contact_number[-6:]}'
+    code, n = base, 1
+    while Supplier.objects.filter(code=code).exists():
+        n += 1
+        code = f'{base}-{n}'
+    return code
+
+
+@transaction.atomic
+def create_supplier_from_conversation(conv_id, user, name, code='', tax_number=''):
+    """ينشئ موردًا جديدًا من رقم المحادثة ويربطه بها. للأدوار التي تدير الموردين فقط."""
+    from apps.core.access import SUPPLIER_MANAGE_ROLES
+    from apps.suppliers.models import Supplier
+    conv = SupplierConversation.objects.select_for_update().get(pk=conv_id)
+    if not can_act(user, conv) or not has_role(user, *SUPPLIER_MANAGE_ROLES):
+        raise ConversationError('إنشاء الموردين للمدير والمدير المالي والمحاسب ومدير النظام')
+    name = (name or '').strip()
+    code = (code or '').strip()
+    tax = re.sub(r'\s', '', tax_number or '')
+    if not name:
+        raise ConversationError('اسم المورد مطلوب')
+    if tax and not re.fullmatch(r'\d{15}', tax):
+        raise ConversationError('الرقم الضريبي يجب أن يكون 15 رقمًا')
+    if code and Supplier.objects.filter(code=code).exists():
+        raise ConversationError('كود المورد مستخدم لمورد آخر')
+    if tax and Supplier.objects.filter(tax_key=tax).exists():
+        raise ConversationError('الرقم الضريبي مسجّل لمورد آخر')
+    supplier = Supplier.objects.create(name=name[:300], code=code[:50] or _next_supplier_code(conv), tax_number=tax)
+    log_action(AuditLog.Action.CREATE, supplier, new={'name': supplier.name, 'code': supplier.code,
+                                                       'source': 'whatsapp conversation'}, actor=user)
+    link_supplier(conv.pk, user, supplier)
+    return supplier
 
 
 @transaction.atomic

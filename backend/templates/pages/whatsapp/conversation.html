@@ -4,6 +4,22 @@
 {% block page_title %}{{ page_title }}{% endblock %}
 
 {% block content %}
+<script>
+function supplierLinker() {
+    return {
+        query: '', selectedId: '', results: [], open: false,
+        async search() {
+            this.selectedId = '';
+            try {
+                const r = await fetch('{% url "suppliers:search" %}?q=' + encodeURIComponent(this.query));
+                this.results = (await r.json()).results || [];
+                this.open = true;
+            } catch (e) { this.results = []; }
+        },
+        pick(r) { this.selectedId = r.id; this.query = r.name + ' (' + r.code + ')'; this.open = false; },
+    };
+}
+</script>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-5" x-data="{ escOpen: false }">
 
     <!-- المحادثة -->
@@ -84,7 +100,7 @@
                 {% csrf_token %}<input type="hidden" name="version" value="{{ conv.version }}">
                 <select name="agent" class="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white">
                     <option value="">إسناد إلى...</option>
-                    {% for a in agents %}<option value="{{ a.pk }}">{{ a.get_full_name|default:a.username }}</option>{% endfor %}
+                    {% for a in agents %}<option value="{{ a.pk }}">{{ a.get_full_name|default:a.username }}{% if a == request.user %} (أنا){% endif %}</option>{% endfor %}
                 </select>
                 <button class="btn btn-secondary btn-sm">إسناد</button>
             </form>
@@ -97,14 +113,49 @@
             <div><a href="{% url 'suppliers:detail' conv.supplier.pk %}" class="text-primary-700 hover:underline font-medium">{{ conv.supplier.name }}</a>
                 <span class="font-mono text-xs text-slate-500">({{ conv.supplier.code }})</span></div>
             {% else %}
-            <div class="text-xs bg-yellow-50 text-yellow-800 rounded p-2">هذا الرقم غير مرتبط بأي مورد. اربطه بكود المورد أو أضفه كجهة اتصال في صفحة المورد.</div>
+            <div class="text-xs bg-yellow-50 text-yellow-800 rounded p-2">هذا الرقم غير مرتبط بأي مورد. ابحث عن المورد بالاسم أو الكود لربطه، أو أنشئه من هذا الرقم.</div>
             {% endif %}
             {% if can_act %}
-            <form method="post" action="{% url 'whatsapp_inbox:link_supplier' conv.pk %}" class="flex gap-2">
-                {% csrf_token %}
-                <input name="supplier_code" placeholder="كود المورد" value="{{ conv.supplier.code }}" class="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
-                <button class="btn btn-secondary btn-sm">ربط</button>
-            </form>
+            <div x-data="supplierLinker()" class="space-y-2">
+                <form method="post" action="{% url 'whatsapp_inbox:link_supplier' conv.pk %}" class="relative flex gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="supplier" :value="selectedId">
+                    <div class="relative flex-1">
+                        <input type="text" x-model="query" @input.debounce.250ms="search()" @focus="search()" autocomplete="off"
+                               placeholder="ابحث بالاسم أو الكود..." class="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+                        <div x-show="open && results.length" x-cloak @click.outside="open=false"
+                             class="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                            <template x-for="r in results" :key="r.id">
+                                <button type="button" @click="pick(r)" class="w-full text-right px-3 py-2 hover:bg-slate-50 text-sm flex justify-between gap-2">
+                                    <span x-text="r.name"></span><span class="font-mono text-xs text-slate-500" x-text="r.code"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" :disabled="!selectedId">ربط</button>
+                </form>
+                {% if conv.supplier %}
+                <form method="post" action="{% url 'whatsapp_inbox:link_supplier' conv.pk %}" onsubmit="return confirm('فك ربط المورد؟')">
+                    {% csrf_token %}<button class="text-xs text-red-600 underline">فك الربط</button>
+                </form>
+                {% endif %}
+
+                {% if can_create_supplier and not conv.supplier %}
+                <details class="border border-dashed border-slate-300 rounded-lg p-2">
+                    <summary class="cursor-pointer text-xs font-semibold text-primary-700">لا يوجد المورد؟ أنشئه من هذا الرقم</summary>
+                    <form method="post" action="{% url 'whatsapp_inbox:create_supplier' conv.pk %}" class="mt-2 space-y-2">
+                        {% csrf_token %}
+                        <input name="name" value="{{ conv.display_name }}" required placeholder="اسم المورد *" class="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input name="code" placeholder="الكود (تلقائي)" dir="ltr" class="px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+                            <input name="tax_number" placeholder="الرقم الضريبي (15)" inputmode="numeric" maxlength="15" dir="ltr" class="px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+                        </div>
+                        <p class="text-[11px] text-slate-500">يُضاف الرقم +{{ conv.contact_number }} كجهة اتصال معتمدة، وتُربط رسائله القادمة به تلقائيًا.</p>
+                        <button class="btn btn-primary btn-sm btn-block">إنشاء وربط</button>
+                    </form>
+                </details>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
 

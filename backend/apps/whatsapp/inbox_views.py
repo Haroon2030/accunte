@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 
 from apps.audit.models import AuditLog
 from apps.audit.services import log_action
-from apps.core.access import has_role, role_required
+from apps.core.access import SUPPLIER_MANAGE_ROLES, has_role, role_required
 from apps.core.models import Role
 from apps.reconciliation.models import ReconciliationCase
 from apps.reconciliation.storage import serve_file
@@ -155,9 +155,12 @@ def _conv(pk):
 
 
 def _agents():
+    """من يصلح لإسناد المحادثات إليه: نفس من تقبله services.assign (موظف/مشرف خدمة العملاء، المدير، مدير النظام)."""
     from django.contrib.auth import get_user_model
+    RT = Role.RoleType
     return get_user_model().objects.filter(
-        is_active=True, profile__role__role_type__in=[Role.RoleType.CS_AGENT, Role.RoleType.CS_SUPERVISOR])
+        Q(profile__role__role_type__in=[RT.CS_AGENT, RT.CS_SUPERVISOR, RT.MANAGER, RT.ADMIN]) | Q(is_superuser=True),
+        is_active=True).distinct().order_by('username')
 
 
 @login_required
@@ -175,6 +178,7 @@ def conversation(request, pk):
                                   Role.RoleType.MANAGER),
         'is_supervisor': services.is_supervisor(request.user), 'agents': _agents() if services.is_supervisor(request.user) else [],
         'typing_name': services.other_typing(conv, request.user),
+        'can_create_supplier': can_act and has_role(request.user, *SUPPLIER_MANAGE_ROLES),
         'requests': conv.service_requests.select_related('service_type')[:10],
         'sla_minutes': SLAConfiguration.current().first_response_minutes,
         'cases': ReconciliationCase.objects.filter(supplier=conv.supplier).exclude(
@@ -270,12 +274,29 @@ def typing(request, pk):
 @view_required
 @require_POST
 def link_supplier(request, pk):
+    """يربط المحادثة بمورد (بمعرّفه من البحث، أو بالكود)، أو يفكّ الربط إن لم يُرسَل شيء."""
+    sid = request.POST.get('supplier', '').strip()
     code = request.POST.get('supplier_code', '').strip()
-    supplier = Supplier.objects.filter(code=code).first() if code else None
-    if code and supplier is None:
-        messages.error(request, 'لا يوجد مورد بهذا الرقم')
+    supplier = None
+    if sid.isdigit():
+        supplier = Supplier.objects.filter(pk=sid).first()
+    elif code:
+        supplier = Supplier.objects.filter(code=code).first()
+    if (sid or code) and supplier is None:
+        messages.error(request, 'لا يوجد مورد مطابق. ابحث بالاسم واختر من القائمة')
         return redirect('whatsapp_inbox:conversation', pk=pk)
-    return _act(request, pk, lambda c: services.link_supplier(c.pk, request.user, supplier), 'تم تحديث ربط المورد')
+    return _act(request, pk, lambda c: services.link_supplier(c.pk, request.user, supplier),
+                'تم ربط المورد' if supplier else 'تم فك ربط المورد')
+
+
+@login_required
+@view_required
+@require_POST
+def create_supplier(request, pk):
+    p = request.POST
+    return _act(request, pk, lambda c: services.create_supplier_from_conversation(
+        c.pk, request.user, p.get('name', ''), p.get('code', ''), p.get('tax_number', '')),
+        'تم إنشاء المورد وربطه بالمحادثة')
 
 
 @login_required
