@@ -1,9 +1,0 @@
-{% load custom_tags %}
-<a 
-    href="{% url url %}" 
-    class="nav-link nav-link-adaptive {% nav_dashboard_class request %}"
-    title="{{ label }}"
->
-    <i data-lucide="{{ icon }}" class="nav-icon w-5 h-5 flex-shrink-0"></i>
-    <span class="nav-text font-semibold text-base">{{ label }}</span>
-</a>

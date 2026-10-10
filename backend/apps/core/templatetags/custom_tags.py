@@ -30,20 +30,15 @@ def active_class(request, prefix):
     return 'nav-link-idle'
 
 
-@register.simple_tag
-def nav_dashboard_class(request):
-    """Active class for dashboard nav item"""
-    try:
-        if request.resolver_match.url_name == 'dashboard':
-            return 'nav-link-active'
-    except Exception:
-        pass
-    return 'nav-link-idle'
+RECON_OWN_ITEMS = ('/reconciliation/executive', '/reconciliation/distribution')
 
 
 @register.simple_tag
 def nav_sub_active_class(request, prefix):
     """Return sub-nav active/idle class if current path is under prefix"""
+    # صفحات لها عنصر قائمة خاص بها لا تُفعِّل عنصر «حالات المطابقة» ذا البادئة الأعم /reconciliation/
+    if prefix == '/reconciliation/' and request.path.startswith(RECON_OWN_ITEMS):
+        return 'nav-sub-link-idle'
     if _path_is_active(request, prefix):
         return 'nav-sub-link-active'
     return 'nav-sub-link-idle'

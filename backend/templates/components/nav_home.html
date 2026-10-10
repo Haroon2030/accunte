@@ -1,0 +1,12 @@
+{% load custom_tags %}
+{% user_has_roles user "cfo,manager,auditor" as is_exec %}
+{% if is_exec %}
+<a
+    href="{% url 'reconciliation:executive' %}"
+    class="nav-link nav-link-adaptive {% active_class request '/reconciliation/executive/' %}"
+    title="لوحة المدير المالي"
+>
+    <i data-lucide="layout-dashboard" class="nav-icon w-5 h-5 flex-shrink-0"></i>
+    <span class="nav-text font-semibold text-base">لوحة المدير المالي</span>
+</a>
+{% endif %}
