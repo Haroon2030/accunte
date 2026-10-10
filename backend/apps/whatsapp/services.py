@@ -3,10 +3,12 @@
 """
 import datetime
 import logging
+import mimetypes
 import re
 import threading
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, close_old_connections, transaction
 from django.db.models import F
@@ -186,6 +188,8 @@ def ingest_message(data):
             elif conv.assigned_agent_id and conv.unread_count == 1:
                 _notify([conv.assigned_agent], 'رسالة جديدة من مورد',
                         f'{conv.display_name or conv.contact_number}: {body[:60] or "[" + msg.get_kind_display() + "]"}', conv)
+    if kind != M.Kind.TEXT and not from_me:
+        schedule_media_fetch(msg.pk)       # الملف يُجلب بعد حفظ الرسالة، دون تعطيل الـ webhook
     return 'created'
 
 
@@ -463,3 +467,64 @@ def resend(message_id, user):
     if msg.status != M.DeliveryStatus.FAILED:
         raise ConversationError('الرسالة لم تفشل')
     return deliver(msg.pk)
+
+
+# ── وسائط الرسائل الواردة (مستندات، صور، صوت) ─────────────────────────────────
+SAFE_NAME = re.compile(r'[^\w.\-]+', re.UNICODE)
+
+
+def _storage_name(msg, file_name, mimetype):
+    """اسم آمن للتخزين: لا مسارات ولا رموز غريبة، وامتداد من الاسم أو من نوع MIME."""
+    name = SAFE_NAME.sub('_', (msg.media_name or file_name or '').split('/')[-1].split('\\')[-1]).strip('._')[-100:]
+    ext = ('.' + name.rsplit('.', 1)[1].lower()) if '.' in name else ''
+    if not ext or len(ext) > 8:
+        ext = mimetypes.guess_extension(mimetype or '') or '.bin'
+        name = (name.rsplit('.', 1)[0] if '.' in name else name) or 'file'
+    base = name.rsplit('.', 1)[0] if '.' in name else name
+    return f'{base or "file"}{ext}'
+
+
+def fetch_and_store_media(message_id):
+    """يجلب ملف رسالة وسائط من Evolution ويحفظه في التخزين الخاص. آمن للتكرار: لا يجلب ما حُفظ مسبقًا.
+    يرفع WhatsAppError إن فشل (مع تسجيل السبب في media_error)."""
+    msg = M.objects.get(pk=message_id)
+    if msg.media_file:
+        return msg
+    if msg.kind == M.Kind.TEXT or not msg.wa_message_id:
+        raise WhatsAppError('هذه الرسالة لا تحتوي ملفًا')
+    try:
+        blob, mimetype, file_name = client.fetch_media(msg.wa_message_id)
+    except WhatsAppError as exc:
+        M.objects.filter(pk=msg.pk).update(media_error=str(exc)[:300])
+        raise
+    msg.media_file.save(_storage_name(msg, file_name, mimetype), ContentFile(blob), save=False)
+    msg.media_mimetype = mimetype
+    msg.media_size = len(blob)
+    msg.media_error = ''
+    if not msg.media_name and file_name:
+        msg.media_name = file_name[:255]
+    msg.save(update_fields=['media_file', 'media_mimetype', 'media_size', 'media_error', 'media_name'])
+    return msg
+
+
+def _fetch_quietly(message_id):
+    try:
+        fetch_and_store_media(message_id)
+    except WhatsAppError:
+        pass                                   # السبب محفوظ في media_error، ويُعاد المحاولة عند الفتح
+    except Exception:
+        log.exception('whatsapp media fetch failed')
+
+
+def schedule_media_fetch(message_id):
+    """يجدول الجلب بعد اكتمال المعاملة: في خيط خلفي إن كان WHATSAPP_ASYNC_DISPATCH مفعّلًا، وإلا فورًا."""
+    def run():
+        try:
+            _fetch_quietly(message_id)
+        finally:
+            close_old_connections()
+
+    if settings.WHATSAPP_ASYNC_DISPATCH:
+        transaction.on_commit(lambda: threading.Thread(target=run, daemon=True, name=f'wa-media-{message_id}').start())
+    else:
+        transaction.on_commit(lambda: _fetch_quietly(message_id))

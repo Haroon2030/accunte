@@ -167,3 +167,39 @@ def set_webhook(url):
     return _request('POST', f'/webhook/set/{_instance()}', {
         'webhook': {'enabled': True, 'url': url, 'byEvents': False, 'base64': False, 'events': WEBHOOK_EVENTS},
     })
+
+
+MAX_MEDIA_BYTES = 25 * 1024 * 1024
+
+
+
+def fetch_media(wa_message_id):
+    """يجلب ملف رسالة وسائط من Evolution. يُرجع (bytes, mimetype, file_name).
+
+    الملف يأتي من مورد خارجي، فنحدّ الحجم قبل فك الترميز ونتحقق من صحة base64.
+    """
+    import base64
+    import binascii
+
+    if not wa_message_id:
+        raise WhatsAppError('معرّف الرسالة غير متوفر')
+    data = _request('POST', f'/chat/getBase64FromMediaMessage/{_instance()}', {
+        'message': {'key': {'id': wa_message_id}}, 'convertToMp4': False,
+    })
+    if not isinstance(data, dict) or not data.get('base64'):
+        raise WhatsAppError('لم يُرجع خادم واتساب الملف (قد لا يحتفظ بالرسالة)')
+    raw = str(data['base64'])
+    if raw.startswith('data:') and ',' in raw:
+        raw = raw.split(',', 1)[1]
+    if len(raw) > MAX_MEDIA_BYTES * 4 // 3 + 16:
+        raise WhatsAppError('حجم الملف يتجاوز الحد المسموح (25 ميجابايت)')
+    try:
+        blob = base64.b64decode(raw, validate=True)
+    except (binascii.Error, ValueError):
+        raise WhatsAppError('الملف المستلم تالف')
+    if not blob:
+        raise WhatsAppError('الملف المستلم فارغ')
+    if len(blob) > MAX_MEDIA_BYTES:
+        raise WhatsAppError('حجم الملف يتجاوز الحد المسموح (25 ميجابايت)')
+    mimetype = str(data.get('mimetype') or data.get('mimeType') or '').split(';')[0].strip().lower()[:100]
+    return blob, mimetype, str(data.get('fileName') or '')[:255]

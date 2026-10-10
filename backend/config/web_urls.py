@@ -183,6 +183,7 @@ inbox_patterns = [
     path('<int:pk>/send/', inbox_views.send, name='send'),
     path('<int:pk>/typing/', inbox_views.typing, name='typing'),
     path('<int:pk>/messages/<int:msg_pk>/resend/', inbox_views.resend, name='resend'),
+    path('<int:pk>/messages/<int:msg_pk>/media/', inbox_views.media_download, name='media'),
     path('<int:pk>/link-supplier/', inbox_views.link_supplier, name='link_supplier'),
     path('<int:pk>/link-case/', inbox_views.link_case, name='link_case'),
 ]

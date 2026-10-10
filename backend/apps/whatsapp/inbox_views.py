@@ -11,16 +11,19 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
-from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from apps.audit.models import AuditLog
+from apps.audit.services import log_action
 from apps.core.access import has_role, role_required
 from apps.core.models import Role
 from apps.reconciliation.models import ReconciliationCase
+from apps.reconciliation.storage import serve_file
 from apps.suppliers.models import Supplier
 
 from . import client, services
@@ -282,3 +285,41 @@ def link_case(request, pk):
     case_id = request.POST.get('case') or ''
     case = ReconciliationCase.objects.filter(pk=case_id).first() if case_id.isdigit() else None
     return _act(request, pk, lambda c: services.link_case(c.pk, request.user, case), 'تم تحديث ربط حالة المطابقة')
+
+
+# ── ملفات الرسائل الواردة ─────────────────────────────────────────────────────
+# الملف قادم من جهة خارجية: يُقدَّم دائمًا كمرفق، والاستثناء معاينة الصور والصوت المعروفة فقط (لا SVG ولا HTML)
+INLINE_MIMETYPES = {
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+    'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/webm', 'audio/x-m4a',
+}
+
+
+@login_required
+@view_required
+def media_download(request, pk, msg_pk):
+    msg = get_object_or_404(ConversationMessage.objects.exclude(kind=ConversationMessage.Kind.TEXT),
+                            pk=msg_pk, conversation_id=pk)
+    if not msg.media_file:
+        # لم يُجلب عند الاستقبال (أو فشل): نحاول الآن عند الفتح
+        try:
+            services.fetch_and_store_media(msg.pk)
+            msg.refresh_from_db()
+        except client.WhatsAppError as exc:
+            messages.error(request, f'تعذر جلب الملف من واتساب: {exc}')
+            return redirect('whatsapp_inbox:conversation', pk=pk)
+    name = msg.media_name or msg.media_file.name.rsplit('/', 1)[-1]
+    if request.GET.get('inline') == '1' and msg.media_mimetype in INLINE_MIMETYPES:
+        try:
+            response = FileResponse(msg.media_file.open('rb'), content_type=msg.media_mimetype,
+                                    as_attachment=False, filename=name)
+        except (FileNotFoundError, OSError):
+            raise Http404
+    else:
+        response = serve_file(msg.media_file, name)
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Content-Security-Policy'] = "default-src 'none'; sandbox"
+    response['Cache-Control'] = 'private, no-store'
+    log_action(AuditLog.Action.EXPORT, msg, entity_type='whatsapp.Message',
+               entity_repr=f'فتح ملف واتساب {name}'[:300], new={'type': msg.kind, 'size': msg.media_size})
+    return response
