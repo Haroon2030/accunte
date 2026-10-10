@@ -90,6 +90,7 @@ def request_list(request):
         'priorities': ServiceRequest.Priority.choices,
         'can_create': any(services.can_create(request.user, t) for t in ServiceType.objects.filter(is_active=True)),
         'can_manage_types': has_role(request.user, *MANAGE_TYPES_ROLES),
+        'assignable': services.assignable_users() if services.is_supervisor(request.user) else [],
         'qs_extra': '&'.join(f'{k}={v}' for k, v in {**f, 'tab': tab}.items() if v),
     })
 
@@ -100,6 +101,7 @@ def request_list(request):
 def request_create(request):
     types = [t for t in ServiceType.objects.filter(is_active=True) if services.can_create(request.user, t)]
     errors = []
+    assignable = services.assignable_users() if services.is_supervisor(request.user) else []
     p = request.POST if request.method == 'POST' else request.GET
     stype = next((t for t in types if str(t.pk) == (p.get('type') or '')), None)
     conversation = None
@@ -115,9 +117,14 @@ def request_create(request):
                 raise RequestError('اختر نوع الطلب')
             if supplier is None:
                 raise RequestError('اختر المورد')
+            assign_to = None
+            if p.get('assign_to', '').isdigit():
+                assign_to = next((u for u in assignable if u.pk == int(p['assign_to'])), None)
+                if assign_to is None:
+                    raise RequestError('اختر موظفًا من القائمة')
             req = services.create_request(
                 request.user, stype, supplier, p.get('subject', ''), p.get('details', ''),
-                p.get('priority', 'normal'), getter=p.get, conversation=conversation)
+                p.get('priority', 'normal'), getter=p.get, conversation=conversation, assign_to=assign_to)
         except RequestError as exc:
             errors.append(str(exc))
         else:
@@ -126,7 +133,7 @@ def request_create(request):
     return render(request, 'pages/servicedesk/form.html', {
         'page_title': 'طلب خدمة جديد', 'types': types, 'stype': stype, 'errors': errors, 'post': p,
         'supplier': supplier, 'conversation': conversation, 'priorities': ServiceRequest.Priority.choices,
-        'schema': stype.field_schema if stype else [],
+        'assignable': assignable, 'schema': stype.field_schema if stype else [],
     })
 
 
@@ -147,8 +154,7 @@ def request_detail(request, pk):
                      and services.can_handle(request.user, req.service_type),
         'is_supervisor': services.is_supervisor(request.user),
         'can_docs': services.can_edit_documents(request.user, req),
-        'agents': [u for u in services._users_with_role(*req.service_type.effective_handle_roles())]
-                  if services.is_supervisor(request.user) else [],
+        'agents': services.assignable_users() if services.is_supervisor(request.user) else [],
         'tab': request.GET.get('tab', 'info'),
         'appt_statuses': Appointment.Status.choices,
     })
@@ -184,6 +190,14 @@ def request_assign(request, pk):
         if agent is None:
             raise RequestError('اختر الموظف')
         services.assign(req.pk, agent, request.user)
+    nxt = request.POST.get('next', '')
+    if nxt.startswith('/service-requests/') and not nxt.startswith('//'):       # عودة آمنة إلى القائمة فقط
+        try:
+            run()
+            messages.success(request, 'تم إسناد الطلب')
+        except RequestError as exc:
+            messages.error(request, str(exc))
+        return redirect(nxt)
     return _run(request, pk, run, 'تم إسناد الطلب')
 
 

@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
 
-from apps.core.access import get_role_type, has_role
+from apps.core.access import get_role_type
 from apps.core.models import Role
 
 RT = Role.RoleType
