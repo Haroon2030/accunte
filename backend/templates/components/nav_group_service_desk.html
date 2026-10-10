@@ -1,0 +1,24 @@
+{% load custom_tags %}
+{% user_has_roles user "cfo,manager,auditor,cs_supervisor,cs_agent" as can_desk %}
+{% if can_desk %}
+<div class="nav-group">
+    <button
+        type="button"
+        class="nav-group-trigger {% nav_group_class request '/inbox/' %}"
+        @click="toggleGroup('desk')"
+        :aria-expanded="isOpen('desk')"
+    >
+        <span class="nav-group-leading">
+            <span class="nav-group-icon-box">
+                <i data-lucide="message-circle" class="nav-group-main-icon"></i>
+            </span>
+            <span class="nav-group-title-text">خدمة العملاء</span>
+        </span>
+        <i data-lucide="chevron-down" class="nav-group-chevron" :class="isOpen('desk') && 'is-open'"></i>
+    </button>
+
+    <div class="nav-group-panel space-y-0.5" x-show="isOpen('desk')" x-cloak>
+        {% include "components/nav_sub_item.html" with url="whatsapp_inbox:inbox" icon="message-circle" label="صندوق واتساب" path="/inbox/" %}
+    </div>
+</div>
+{% endif %}

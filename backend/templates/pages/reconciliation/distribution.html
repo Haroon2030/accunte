@@ -42,7 +42,7 @@
                     {% for u in loads %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.open_count }})</option>{% endfor %}
                 </select>
                 <button type="submit" name="action" value="assign" class="btn btn-primary btn-sm"><i data-lucide="user-check"></i> إسناد المحدد</button>
-                <button type="submit" name="action" value="suggest" class="btn btn-soft btn-sm"><i data-lucide="wand-sparkles"></i> اقتراح توزيع متوازن</button>
+                <button type="submit" name="action" value="suggest" class="btn btn-soft btn-sm"><i data-lucide="wand-2"></i> اقتراح توزيع متوازن</button>
             </div>
         </div>
 

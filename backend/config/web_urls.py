@@ -9,6 +9,8 @@ from apps.audit import web_views as audit_views
 from apps.reconciliation import views as recon_views
 from apps.reconciliation import dashboard_views
 from apps.proposals import views as proposal_views
+from apps.whatsapp import views as whatsapp_views
+from apps.whatsapp import inbox_views
 
 # Authentication URLs
 auth_patterns = [
@@ -158,6 +160,32 @@ proposal_patterns = [
     path('<int:pk>/attachments/<int:att_pk>/delete/', proposal_views.attachment_delete, name='attachment_delete'),
 ]
 
+# WhatsApp URLs
+whatsapp_patterns = [
+    path('', whatsapp_views.connect_page, name='connect'),
+    path('status/', whatsapp_views.status, name='status'),
+    path('qr/', whatsapp_views.request_qr, name='qr'),
+    path('disconnect/', whatsapp_views.disconnect, name='disconnect'),
+    path('test/', whatsapp_views.send_test, name='test'),
+    path('webhook/setup/', inbox_views.setup_webhook, name='setup_webhook'),
+    path('webhook/<str:secret>/', inbox_views.webhook, name='webhook'),
+]
+
+# WhatsApp inbox URLs
+inbox_patterns = [
+    path('', inbox_views.inbox, name='inbox'),
+    path('<int:pk>/', inbox_views.conversation, name='conversation'),
+    path('<int:pk>/claim/', inbox_views.claim, name='claim'),
+    path('<int:pk>/release/', inbox_views.release, name='release'),
+    path('<int:pk>/assign/', inbox_views.assign, name='assign'),
+    path('<int:pk>/status/', inbox_views.set_status, name='set_status'),
+    path('<int:pk>/send/', inbox_views.send, name='send'),
+    path('<int:pk>/typing/', inbox_views.typing, name='typing'),
+    path('<int:pk>/messages/<int:msg_pk>/resend/', inbox_views.resend, name='resend'),
+    path('<int:pk>/link-supplier/', inbox_views.link_supplier, name='link_supplier'),
+    path('<int:pk>/link-case/', inbox_views.link_case, name='link_case'),
+]
+
 # Main URL patterns
 urlpatterns = [
     # Dashboard
@@ -184,4 +212,6 @@ urlpatterns = [
     path('audit/', include((audit_patterns, 'audit'))),
     path('reconciliation/', include((reconciliation_patterns, 'reconciliation'))),
     path('proposals/', include((proposal_patterns, 'proposals'))),
+    path('whatsapp/', include((whatsapp_patterns, 'whatsapp'))),
+    path('inbox/', include((inbox_patterns, 'whatsapp_inbox'))),
 ]

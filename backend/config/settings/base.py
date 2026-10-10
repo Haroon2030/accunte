@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.payments',
     'apps.reconciliation',
     'apps.proposals',
+    'apps.whatsapp',
 ]
 
 MIDDLEWARE = [
@@ -207,3 +208,19 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = None  # Disable COOP header (causes warnings
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WhatsApp (Evolution API) — القيم من .env ولا تُكتب هنا
+# ══════════════════════════════════════════════════════════════════════════════
+from decouple import config as _env  # noqa: E402
+
+WHATSAPP_ENABLED = _env('WHATSAPP_ENABLED', default=False, cast=bool)
+WHATSAPP_ASYNC_DISPATCH = _env('WHATSAPP_ASYNC_DISPATCH', default=True, cast=bool)
+EVOLUTION_API_URL = _env('EVOLUTION_API_URL', default='').rstrip('/')
+EVOLUTION_API_KEY = _env('EVOLUTION_API_KEY', default='')
+EVOLUTION_INSTANCE = _env('EVOLUTION_INSTANCE', default='hr')
+EVOLUTION_API_TIMEOUT = _env('EVOLUTION_API_TIMEOUT', default=20, cast=int)
+WHATSAPP_DEFAULT_COUNTRY = _env('WHATSAPP_DEFAULT_COUNTRY', default='966')
+WHATSAPP_WEBHOOK_SECRET = _env('WHATSAPP_WEBHOOK_SECRET', default='')
+WHATSAPP_PUBLIC_BASE_URL = _env('WHATSAPP_PUBLIC_BASE_URL', default='').rstrip('/')

@@ -64,8 +64,9 @@ def nav_group_initial(request):
     groups = (
         ('payments', ('/payments/', '/suppliers/')),
         ('reconciliation', ('/reconciliation/', '/proposals/')),
+        ('desk', ('/inbox/',)),
         ('contracts', ('/contracts/', '/space-rentals/', '/items/')),
-        ('system', ('/branches/', '/banks/', '/cost-centers/', '/roles/', '/users/', '/audit/')),
+        ('system', ('/branches/', '/banks/', '/cost-centers/', '/roles/', '/users/', '/audit/', '/whatsapp/')),
     )
     for group_id, prefixes in groups:
         for prefix in prefixes:

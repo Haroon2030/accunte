@@ -8,7 +8,7 @@
 
         type="button"
 
-        class="nav-group-trigger {% nav_group_class request '/branches/' '/banks/' '/cost-centers/' '/roles/' '/users/' '/audit/' %}"
+        class="nav-group-trigger {% nav_group_class request '/branches/' '/banks/' '/cost-centers/' '/roles/' '/users/' '/audit/' '/whatsapp/' %}"
 
         @click="toggleGroup('system')"
 
@@ -45,6 +45,10 @@
         {% user_has_roles user "cfo,auditor,manager" as can_audit %}
         {% if can_audit %}
             {% include "components/nav_sub_item.html" with url="audit:list" icon="history" label="سجل التدقيق" path="/audit/" %}
+        {% endif %}
+        {% user_has_roles user "cfo,manager,cs_supervisor" as can_wa %}
+        {% if can_wa %}
+            {% include "components/nav_sub_item.html" with url="whatsapp:connect" icon="message-circle" label="ربط واتساب" path="/whatsapp/" %}
         {% endif %}
         {% if user_is_admin %}
 

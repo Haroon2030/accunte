@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - نظام المدفوعات{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <form method="get" class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-wrap items-center gap-3">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <input name="q" value="{{ q }}" placeholder="بحث بالاسم أو الرقم أو المورد..." class="flex-1 min-w-[200px] px-3 py-2 border border-slate-200 rounded-lg text-sm">
+        <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="late" value="1" {% if late %}checked{% endif %} onchange="this.form.submit()"> متأخرة الرد (&gt; {{ sla_minutes }} د)</label>
+        <button class="btn btn-primary btn-sm"><i data-lucide="search"></i> بحث</button>
+    </form>
+
+    <div id="inbox-list" hx-get="{{ request.get_full_path }}" hx-trigger="every 10s" hx-target="this" hx-swap="innerHTML">
+        {% include "pages/whatsapp/_inbox_list.html" %}
+    </div>
+</div>
+<script>document.body.addEventListener('htmx:afterSwap', function () { if (window.lucide) lucide.createIcons(); });</script>
+{% endblock %}
