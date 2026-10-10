@@ -35,6 +35,7 @@ function supplierLinker() {
             <div class="flex items-center gap-2">
                 <span id="conv-status" class="px-2 py-0.5 rounded-full text-xs font-medium
                     {% if conv.status == 'new' %}bg-indigo-100 text-indigo-700{% elif conv.status == 'open' %}bg-blue-100 text-blue-700{% elif conv.status == 'pending' %}bg-yellow-100 text-yellow-800{% elif conv.status == 'escalated' %}bg-red-100 text-red-700{% else %}bg-slate-200 text-slate-600{% endif %}">{{ conv.get_status_display }}</span>
+                {% if conv.bot_state == 'menu' or conv.bot_state == 'collect' %}<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-100 text-primary-700" title="يرد المساعد الآلي على المورد الآن">المساعد الآلي يتولى المحادثة</span>{% endif %}
                 <span id="conv-late" class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white" {% if not conv.is_unanswered_overdue %}hidden{% endif %}>بلا رد {{ conv.waiting_minutes }} د</span>
                 <span class="flex items-center gap-1 text-[11px] text-slate-400" title="التحديث مباشر"><span id="live-dot" class="sb-live-dot"></span>مباشر</span>
             </div>

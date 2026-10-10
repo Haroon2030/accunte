@@ -64,7 +64,7 @@
         <div class="space-y-4">
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 text-sm space-y-2">
                 <div><span class="text-xs text-slate-500">المسؤول:</span> <b>{% if r.assigned_to %}{{ r.assigned_to.get_full_name|default:r.assigned_to.username }}{% else %}— غير مسند{% endif %}</b></div>
-                <div><span class="text-xs text-slate-500">أنشأه:</span> {{ r.created_by.username }} · {{ r.created_at|date:"Y-m-d H:i" }}</div>
+                <div><span class="text-xs text-slate-500">أنشأه:</span> {% if r.created_by %}{{ r.created_by.username }}{% else %}المساعد الآلي (واتساب){% endif %} · {{ r.created_at|date:"Y-m-d H:i" }}</div>
                 <div><span class="text-xs text-slate-500">الموعد النهائي:</span> <b class="{% if r.is_overdue %}text-red-700{% endif %}">{{ r.due_at|date:"Y-m-d H:i"|default:"—" }}</b></div>
                 {% if r.escalation_count %}<div class="text-xs text-red-700">صُعِّد {{ r.escalation_count }} مرة</div>{% endif %}
                 {% if r.conversation %}<div><a class="text-primary-700 hover:underline text-xs" href="{% url 'whatsapp_inbox:conversation' r.conversation.pk %}">المحادثة على واتساب ←</a></div>{% endif %}

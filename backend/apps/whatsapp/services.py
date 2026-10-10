@@ -21,7 +21,7 @@ from apps.core.models import Notification, Role
 
 from . import client
 from .client import WhatsAppError
-from .models import ConversationAssignment, ConversationMessage, SupplierConversation
+from .models import BOT_COLLECT, BOT_HUMAN, BOT_IDLE, BOT_MENU, ConversationAssignment, ConversationMessage, SupplierConversation
 
 log = logging.getLogger(__name__)
 S = SupplierConversation.Status
@@ -114,6 +114,11 @@ def _notify(users, title, message, conv):
         Notification.objects.bulk_create(rows)
 
 
+def notify_desk_new_conversation(conv, text):
+    _notify(_desk_users(RT.CS_SUPERVISOR, RT.CS_AGENT), 'محادثة واتساب جديدة',
+            f'{conv.display_name or conv.contact_number}: {text}', conv)
+
+
 def _desk_users(*role_types):
     return list(get_user_model().objects.filter(is_active=True, profile__role__role_type__in=role_types))
 
@@ -178,10 +183,14 @@ def ingest_message(data):
                 reopened = conv.status == S.CLOSED
                 conv.status = S.OPEN if conv.assigned_agent_id else S.NEW
                 conv.closed_at = None
+                if reopened:       # محادثة جديدة: يبدأ المساعد من القائمة من جديد
+                    conv.bot_state, conv.bot_service_code, conv.bot_attempts = BOT_IDLE, '', 0
         conv.save()
         conv.refresh_from_db()
 
-        if not from_me:
+        from . import bot
+        bot_handles = not from_me and bot.eligible(conv)     # المساعد يرد بنفسه فلا إشعار للموظفين الآن
+        if not from_me and not bot_handles:
             if created or reopened:
                 _notify(_desk_users(RT.CS_SUPERVISOR, RT.CS_AGENT), 'محادثة واتساب جديدة',
                         f'{conv.display_name or conv.contact_number}: {body[:60] or "[" + msg.get_kind_display() + "]"}', conv)
@@ -190,6 +199,8 @@ def ingest_message(data):
                         f'{conv.display_name or conv.contact_number}: {body[:60] or "[" + msg.get_kind_display() + "]"}', conv)
     if kind != M.Kind.TEXT and not from_me:
         schedule_media_fetch(msg.pk)       # الملف يُجلب بعد حفظ الرسالة، دون تعطيل الـ webhook
+    if bot_handles:
+        bot.handle(conv.pk, msg.pk)
     return 'created'
 
 
@@ -466,12 +477,28 @@ def send_reply(conv_id, user, text):
         conv.unread_count = 0
         conv.typing_agent = None
         conv.typing_until = None
+        if conv.bot_state in (BOT_MENU, BOT_COLLECT):
+            conv.bot_state = BOT_HUMAN          # تدخّل موظف: يصمت المساعد
         conv.save()
-        if settings.WHATSAPP_ASYNC_DISPATCH:
-            transaction.on_commit(lambda: _dispatch_async(msg.pk))
-        else:
-            transaction.on_commit(lambda: deliver(msg.pk))
+        _queue_delivery(msg.pk)
     return msg
+
+
+def send_automated(conv, text):
+    """رد المساعد الآلي: لا يغيّر عدّادات الموظفين ولا مؤقت انتظار الرد، ويُعلَّم «رد آلي»."""
+    now = timezone.now()
+    msg = M.objects.create(conversation=conv, direction=M.Direction.OUT, kind=M.Kind.TEXT, body=text[:MAX_TEXT],
+                           is_automated=True, status=M.DeliveryStatus.PENDING, timestamp=now)
+    SupplierConversation.objects.filter(pk=conv.pk).update(last_message_at=now)
+    _queue_delivery(msg.pk)
+    return msg
+
+
+def _queue_delivery(message_id):
+    if settings.WHATSAPP_ASYNC_DISPATCH:
+        transaction.on_commit(lambda: _dispatch_async(message_id))
+    else:
+        transaction.on_commit(lambda: deliver(message_id))
 
 
 def _dispatch_async(message_id):
@@ -502,7 +529,7 @@ def deliver(message_id):
         echo = M.objects.filter(wa_message_id=wa_id).first()
         if echo:
             M.objects.filter(pk=echo.pk).update(sent_by=msg.sent_by, response_seconds=msg.response_seconds,
-                                                body=msg.body or echo.body)
+                                                body=msg.body or echo.body, is_automated=msg.is_automated)
             msg.delete()
             return echo
     return M.objects.get(pk=msg.pk)

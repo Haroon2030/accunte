@@ -370,6 +370,7 @@ def type_edit(request, pk=None):
             obj.create_roles = _roles_from_post(p, 'create_roles')
             obj.handle_roles = _roles_from_post(p, 'handle_roles')
             obj.spawns_reconciliation = bool(p.get('spawns_reconciliation'))
+            obj.whatsapp_menu = bool(p.get('whatsapp_menu'))
             obj.is_active = bool(p.get('is_active'))
             obj.sort_order = int(p['sort_order']) if p.get('sort_order', '').isdigit() else 100
             obj.save()

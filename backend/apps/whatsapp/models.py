@@ -29,6 +29,10 @@ class SLAConfiguration(models.Model):
         return obj
 
 
+# حالات المساعد الآلي (apps/whatsapp/bot.py)
+BOT_IDLE, BOT_MENU, BOT_COLLECT, BOT_HUMAN = '', 'menu', 'collect', 'human'
+
+
 class SupplierConversation(models.Model):
     """محادثة واحدة لكل رقم واتساب. تُعاد فتحها عند وصول رسالة جديدة بعد الإغلاق."""
 
@@ -61,6 +65,10 @@ class SupplierConversation(models.Model):
                                      related_name='+')
     typing_until = models.DateTimeField(null=True, blank=True)
     escalation_reason = models.TextField('سبب التصعيد', blank=True)
+    # المساعد الآلي: '' خامل، menu قائمة معروضة، collect بانتظار تفاصيل الطلب، human سُلّمت لفريق الدعم
+    bot_state = models.CharField('حالة المساعد الآلي', max_length=10, blank=True, default='')
+    bot_service_code = models.CharField('الخدمة المختارة', max_length=40, blank=True)
+    bot_attempts = models.PositiveSmallIntegerField('محاولات غير مفهومة', default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     closed_at = models.DateTimeField(null=True, blank=True)
 
@@ -127,6 +135,7 @@ class ConversationMessage(models.Model):
     media_error = models.CharField(max_length=300, blank=True)
     sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                 related_name='+')
+    is_automated = models.BooleanField('رد آلي', default=False)
     status = models.CharField(max_length=10, choices=DeliveryStatus.choices, default=DeliveryStatus.RECEIVED)
     error = models.CharField(max_length=300, blank=True)
     response_seconds = models.PositiveIntegerField(null=True, blank=True)

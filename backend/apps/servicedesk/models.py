@@ -28,6 +28,7 @@ class ServiceType(models.Model):
     create_roles = models.JSONField('الأدوار التي تنشئ الطلب', default=list, blank=True)
     handle_roles = models.JSONField('الأدوار التي تعالج الطلب', default=list, blank=True)
     spawns_reconciliation = models.BooleanField('يُنشئ حالة مطابقة', default=False)
+    whatsapp_menu = models.BooleanField('يظهر في قائمة واتساب الآلية', default=True)
     is_active = models.BooleanField('فعّال', default=True)
     sort_order = models.PositiveIntegerField('الترتيب', default=100)
 
@@ -67,6 +68,10 @@ class ServiceRequest(models.Model):
         HIGH = 'high', 'عالية'
         URGENT = 'urgent', 'عاجلة'
 
+    class Source(models.TextChoices):
+        STAFF = 'staff', 'موظف'
+        WHATSAPP = 'whatsapp', 'واتساب (آلي)'
+
     TERMINAL = (Status.CLOSED, Status.CANCELLED)
     OPEN = (Status.NEW, Status.IN_PROGRESS, Status.WAITING_VENDOR, Status.ESCALATED)
 
@@ -83,8 +88,10 @@ class ServiceRequest(models.Model):
     data = models.JSONField('بيانات الحقول', default=dict, blank=True)
     priority = models.CharField('الأولوية', max_length=10, choices=Priority.choices, default=Priority.NORMAL)
     status = models.CharField('الحالة', max_length=16, choices=Status.choices, default=Status.NEW, db_index=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='service_requests_created',
-                                   verbose_name='أنشأه')
+    # فارغ حين يُنشئه المساعد الآلي من واتساب (source='whatsapp')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+                                   related_name='service_requests_created', verbose_name='أنشأه')
+    source = models.CharField('المصدر', max_length=10, choices=Source.choices, default=Source.STAFF)
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                     related_name='service_requests_assigned', verbose_name='المسؤول')
     due_at = models.DateTimeField('الموعد النهائي', null=True, blank=True, db_index=True)

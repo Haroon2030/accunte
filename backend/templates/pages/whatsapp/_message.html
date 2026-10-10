@@ -22,7 +22,7 @@
         <div class="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
             <span>{{ m.timestamp|date:"Y-m-d H:i" }}</span>
             {% if m.direction == 'out' %}
-                {% if m.sent_by %}<span>· {{ m.sent_by.get_full_name|default:m.sent_by.username }}</span>{% endif %}
+                {% if m.is_automated %}<span class="font-semibold text-primary-700">· المساعد الآلي</span>{% elif m.sent_by %}<span>· {{ m.sent_by.get_full_name|default:m.sent_by.username }}</span>{% endif %}
                 <span class="msg-tick {% if m.status == 'failed' %}text-red-600 font-semibold{% elif m.status == 'read' %}text-blue-600{% endif %}" data-status="{{ m.status }}">{% if m.status == 'pending' %}⏳{% elif m.status == 'sent' %}✓{% elif m.status == 'delivered' %}✓✓{% elif m.status == 'read' %}✓✓{% elif m.status == 'failed' %}✗ فشل{% endif %}</span>
                 {% if m.response_seconds is not None %}<span title="زمن الاستجابة">⏱ {% widthratio m.response_seconds 60 1 %} د</span>{% endif %}
             {% endif %}

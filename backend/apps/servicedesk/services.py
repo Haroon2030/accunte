@@ -196,6 +196,30 @@ def create_request(user, stype, supplier, subject, details='', priority='normal'
     return req
 
 
+@transaction.atomic
+def create_from_whatsapp(conversation, stype, details):
+    """طلب ينشئه المساعد الآلي بعد أن يختار المورد الخدمة من قائمة واتساب.
+
+    لا يتحقق من الحقول الإلزامية للنوع (لا يمكن جمعها في دردشة): نص المورد يُحفظ في «التفاصيل»
+    والموظف المستلم يكمل الباقي. المورد مطلوب، فالمحادثة غير المربوطة بمورد لا تصل إلى هنا.
+    """
+    supplier = conversation.supplier
+    if supplier is None:
+        raise RequestError('المحادثة غير مرتبطة بمورد')
+    now = timezone.now()
+    req = ServiceRequest.objects.create(
+        service_type=stype, supplier=supplier, conversation=conversation, subject=f'{stype.name} (عبر واتساب)'[:200],
+        details=(details or '').strip()[:4000], priority=ServiceRequest.Priority.NORMAL, source=ServiceRequest.Source.WHATSAPP,
+        due_at=now + datetime.timedelta(hours=stype.sla_hours))
+    RequestStatusHistory.objects.create(request=req, to_status=S.NEW, reason='إنشاء آلي من واتساب')
+    log_action(AuditLog.Action.CREATE, req, entity_type='servicedesk.ServiceRequest',
+               new={'type': stype.code, 'supplier': supplier.pk, 'source': 'whatsapp', 'conversation': conversation.pk},
+               reason='طلب آلي من قائمة واتساب')
+    _notify(_users_with_role(stype.destination_role), 'طلب خدمة جديد من واتساب',
+            f'{req.reference} · {stype.name} · {supplier.name}', req)
+    return req
+
+
 # ── الاستلام والإسناد ─────────────────────────────────────────────────────────
 @transaction.atomic
 def claim(req_id, user):

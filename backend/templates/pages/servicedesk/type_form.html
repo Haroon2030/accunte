@@ -46,6 +46,7 @@
             </div>
             <div class="sm:col-span-2 flex flex-wrap gap-6">
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_active" {% if not t or t.is_active %}checked{% endif %}> فعّال</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="whatsapp_menu" {% if not t or t.whatsapp_menu %}checked{% endif %}> يظهر في قائمة واتساب الآلية</label>
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="spawns_reconciliation" {% if t.spawns_reconciliation %}checked{% endif %}> يُنشئ حالة مطابقة</label>
             </div>
         </div>

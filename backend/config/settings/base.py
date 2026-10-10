@@ -251,6 +251,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 from decouple import config as _env  # noqa: E402
 
 WHATSAPP_ENABLED = _env('WHATSAPP_ENABLED', default=False, cast=bool)
+WHATSAPP_BOT_ENABLED = _env('WHATSAPP_BOT_ENABLED', default=True, cast=bool)
 WHATSAPP_ASYNC_DISPATCH = _env('WHATSAPP_ASYNC_DISPATCH', default=True, cast=bool)
 EVOLUTION_API_URL = _env('EVOLUTION_API_URL', default='').rstrip('/')
 EVOLUTION_API_KEY = _env('EVOLUTION_API_KEY', default='')
