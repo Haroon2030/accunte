@@ -10,13 +10,13 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
-from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from apps.core.dates import safe_parse_date as parse_date
 from django.views.decorators.http import require_POST
 
 from apps.audit.models import AuditLog
+from apps.reconciliation.storage import serve_file
 from apps.audit.services import diff, log_action, snapshot
 from apps.branches.models import Branch
 from apps.core.access import get_role_type, has_role, role_required
@@ -301,12 +301,9 @@ def document_upload(request, pk):
 def document_download(request, pk, doc_pk):
     case = _get_case(request, pk)
     doc = get_object_or_404(ReconciliationDocument, pk=doc_pk, case=case)
-    try:
-        fh = doc.file.open('rb')
-    except FileNotFoundError:
-        raise Http404
+    response = serve_file(doc.file, doc.original_name)      # R2 أو القرص، بعد فحص الصلاحية أعلاه
     log_action(AuditLog.Action.EXPORT, doc, entity_repr=f'تنزيل {doc.original_name}')
-    return FileResponse(fh, as_attachment=True, filename=doc.original_name)
+    return response
 
 
 @login_required

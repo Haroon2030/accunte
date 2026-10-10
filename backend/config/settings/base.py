@@ -188,6 +188,39 @@ STORAGES = {
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Cloudflare R2 (تخزين كل الملفات المرفوعة) — القيم من البيئة ولا تُكتب هنا
+# ══════════════════════════════════════════════════════════════════════════════
+from decouple import config as _r2env  # noqa: E402
+
+USE_R2 = _r2env('USE_R2', default=False, cast=bool)
+R2_ACCESS_KEY_ID = _r2env('R2_ACCESS_KEY_ID', default='')
+R2_SECRET_ACCESS_KEY = _r2env('R2_SECRET_ACCESS_KEY', default='')
+R2_BUCKET_NAME = _r2env('R2_BUCKET_NAME', default='')
+R2_ENDPOINT_URL = _r2env('R2_ENDPOINT_URL', default='').rstrip('/')
+R2_REGION = _r2env('R2_REGION', default='auto')
+R2_PUBLIC_DOMAIN = _r2env('R2_PUBLIC_DOMAIN', default='').strip()
+R2_SIGNED_URLS = _r2env('R2_SIGNED_URLS', default=True, cast=bool)
+R2_SIGNED_URL_EXPIRE = _r2env('R2_SIGNED_URL_EXPIRE', default=3600, cast=int)
+# true: التطبيق يمرّر الملف بنفسه بعد فحص الصلاحية (الأكثر أمانًا). false: يعيد توجيه المستخدم لرابط موقّع مؤقت
+R2_PROXY_MEDIA = _r2env('R2_PROXY_MEDIA', default=True, cast=bool)
+# مجلد داخل الـbucket يخص هذا النظام، كي لا تختلط ملفاته بتطبيقات أخرى تشارك نفس الـbucket
+R2_PREFIX = _r2env('R2_PREFIX', default='accounting').strip('/')
+
+
+if USE_R2:
+    from types import SimpleNamespace
+
+    from django.core.exceptions import ImproperlyConfigured
+
+    from config.r2 import missing_settings, storage_options
+
+    _r2_cfg = SimpleNamespace(**{k: v for k, v in globals().items() if k.startswith('R2_')})
+    _missing = missing_settings(_r2_cfg)
+    if _missing:
+        raise ImproperlyConfigured('USE_R2=True لكن هذه المتغيرات ناقصة: ' + ', '.join(_missing))
+    STORAGES['default'] = {'BACKEND': 'storages.backends.s3.S3Storage', 'OPTIONS': storage_options(_r2_cfg)}
+
 # مرفقات المطابقة: خارج MEDIA ولا تُخدَّم مباشرة (التنزيل عبر عرض يتحقق من الصلاحية)
 PRIVATE_MEDIA_ROOT = BASE_DIR / 'private_media'
 

@@ -12,12 +12,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Q
-from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from apps.core.dates import safe_parse_date as parse_date
 from django.views.decorators.http import require_POST
 
 from apps.audit.models import AuditLog
+from apps.reconciliation.storage import serve_file
 from apps.audit.services import log_action, snapshot
 from apps.branches.models import Branch
 from apps.core.access import get_role_type, has_role, role_required
@@ -223,12 +223,9 @@ def attachment_upload(request, pk):
 def attachment_download(request, pk, att_pk):
     p = _get(request, pk)
     att = get_object_or_404(ProposalAttachment, pk=att_pk, proposal=p)
-    try:
-        fh = att.file.open('rb')
-    except FileNotFoundError:
-        raise Http404
+    response = serve_file(att.file, att.original_name)      # R2 أو القرص، بعد فحص الصلاحية أعلاه
     log_action(AuditLog.Action.EXPORT, att, entity_repr=f'تنزيل {att.original_name}')
-    return FileResponse(fh, as_attachment=True, filename=att.original_name)
+    return response
 
 
 @login_required
