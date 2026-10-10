@@ -68,14 +68,35 @@ def diff(previous, new):
     return prev_out, new_out
 
 
-def _client_ip(request):
-    # لا نثق بـ X-Forwarded-For إلا إذا فُعّل صراحةً (خادم خلف وكيل موثوق)
+def _valid_ip(value):
+    import ipaddress
+    try:
+        return str(ipaddress.ip_address(value.strip()))
+    except (ValueError, AttributeError):
+        return None
+
+
+def client_ip(request):
+    """عنوان العميل الحقيقي خلف وكلاء عكسيين.
+
+    PROXY_HOPS = عدد الوكلاء الموثوقين أمام التطبيق (0 = لا نثق بـ X-Forwarded-For وهو الافتراضي).
+    كل وكيل يُلحق العنوان الذي رآه في نهاية القائمة، فنقرأ من اليمين: العنصر رقم N من النهاية هو
+    ما رآه أول وكيل موثوق. أما الأول من اليسار فيستطيع العميل تزويره بإرسال ترويسة من عنده.
+    أي قيمة غير صالحة تُهمَل ونرجع إلى REMOTE_ADDR.
+    """
     from django.conf import settings
-    if getattr(settings, 'AUDIT_TRUST_FORWARDED', False):
-        fwd = request.META.get('HTTP_X_FORWARDED_FOR')
-        if fwd:
-            return fwd.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR') or None
+    remote = _valid_ip(request.META.get('REMOTE_ADDR', '')) or None
+    hops = int(getattr(settings, 'PROXY_HOPS', 0) or 0)
+    if hops > 0:
+        parts = [p.strip() for p in request.META.get('HTTP_X_FORWARDED_FOR', '').split(',') if p.strip()]
+        if len(parts) >= hops:
+            candidate = _valid_ip(parts[-hops])
+            if candidate:
+                return candidate
+    return remote
+
+
+_client_ip = client_ip     # توافق مع الاستدعاءات القديمة
 
 
 def log_action(action, entity=None, *, entity_type=None, entity_id=None, entity_repr='',
