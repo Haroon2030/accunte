@@ -20,6 +20,9 @@ class Permission(models.Model):
         ('space_rentals', 'إيجارات المساحات'),
         ('cost_centers', 'مراكز التكلفة'),
         ('payments', 'المدفوعات'),
+        ('reconciliation', 'المطابقة'),
+        ('service_desk', 'مكتب الخدمة'),
+        ('audit', 'سجل التدقيق'),
         ('users', 'المستخدمين'),
         ('reports', 'التقارير'),
         ('settings', 'الإعدادات'),
@@ -42,8 +45,13 @@ class Role(models.Model):
     class RoleType(models.TextChoices):
         ADMIN = 'admin', 'مدير النظام'
         MANAGER = 'manager', 'مدير'
-        AUDITOR = 'auditor', 'مدقق'
+        AUDITOR = 'auditor', 'مدقق مالي'
         BRANCH_EMPLOYEE = 'branch_employee', 'موظف فرع'
+        CFO = 'cfo', 'المدير المالي'
+        CS_SUPERVISOR = 'cs_supervisor', 'مشرف خدمة العملاء'
+        CS_AGENT = 'cs_agent', 'موظف خدمة العملاء'
+        ACCOUNTANT = 'accountant', 'محاسب'
+        PAYMENT_OFFICER = 'payment_officer', 'مسؤول المدفوعات'
     
     name = models.CharField("اسم الدور", max_length=100, unique=True)
     role_type = models.CharField(
@@ -164,7 +172,10 @@ class UserProfile(models.Model):
         """هل يمكن للمستخدم رؤية جميع الفروع؟"""
         if not self.role:
             return False
-        return self.role.role_type in [Role.RoleType.ADMIN, Role.RoleType.MANAGER, Role.RoleType.AUDITOR]
+        return self.role.role_type in [
+            Role.RoleType.ADMIN, Role.RoleType.MANAGER, Role.RoleType.AUDITOR,
+            Role.RoleType.CFO, Role.RoleType.CS_SUPERVISOR, Role.RoleType.PAYMENT_OFFICER,
+        ]
     
     def can_edit_auditor_status(self):
         """هل يمكن للمستخدم تغيير حالة المدقق؟"""

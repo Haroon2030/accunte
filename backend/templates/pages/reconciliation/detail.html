@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}{{ case.reference }} - نظام المدفوعات{% endblock %}
+{% block page_title %}{{ case.reference }}{% endblock %}
+
+{% block content %}
+<div class="space-y-5" x-data="{ tab: '{{ tab }}', toStatus: '', reasonOpen: false }">
+
+    <!-- الرأس -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <h2 class="text-lg font-bold text-slate-800">{{ case.supplier.name }}</h2>
+                {% include "pages/reconciliation/_status_badge.html" with status=case.status label=case.get_status_display %}
+                {% if case.is_overdue %}<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">متأخرة</span>{% endif %}
+            </div>
+            <p class="text-sm text-slate-500 mt-1">
+                الفترة {{ case.period_start|date:"Y-m-d" }} → {{ case.period_end|date:"Y-m-d" }}
+                · الأولوية {{ case.get_priority_display }}
+                · الاستحقاق {{ case.due_date|date:"Y-m-d"|default:"—" }}
+            </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'reconciliation:list' %}" class="btn btn-secondary btn-sm"><i data-lucide="arrow-right"></i> القائمة</a>
+            {% if can_propose %}<a href="{% url 'proposals:create' %}?case={{ case.pk }}" class="btn btn-success btn-sm"><i data-lucide="file-plus"></i> إنشاء مقترح دفع</a>{% endif %}
+            {% for p in proposals %}<a href="{% url 'proposals:detail' p.pk %}" class="btn btn-soft btn-sm">{{ p.reference }} · {{ p.get_status_display }}</a>{% endfor %}
+            {% for value, label in transitions %}
+            <button type="button" @click="toStatus='{{ value }}'; reasonOpen=true"
+                class="btn btn-sm {% if value == 'cancelled' %}btn-danger{% elif value == 'completed' %}btn-success{% elif value == 'reconciling' and case.status == 'pending_review' %}btn-warning{% else %}btn-primary{% endif %}">
+                {{ label }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- نافذة تأكيد الانتقال -->
+    <div x-show="reasonOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="fixed inset-0 modal-overlay" @click="reasonOpen=false"></div>
+        <form method="post" action="{% url 'reconciliation:transition' case.pk %}" class="modal-panel relative w-full max-w-md mx-4 p-6 space-y-4" @click.stop>
+            {% csrf_token %}
+            <input type="hidden" name="to" :value="toStatus">
+            <h3 class="text-lg font-bold">تأكيد تغيير الحالة</h3>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">السبب / ملاحظات <span class="text-slate-400 font-normal">(مطلوب عند الإلغاء أو الإعادة)</span></label>
+                <textarea name="reason" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg"></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="btn btn-primary btn-grow">تأكيد</button>
+                <button type="button" @click="reasonOpen=false" class="btn btn-secondary">إلغاء</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- التبويبات -->
+    <div class="flex flex-wrap gap-1 border-b border-slate-200">
+        <button type="button" @click="tab='info'" :class="tab==='info' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">المعلومات</button>
+        <button type="button" @click="tab='documents'" :class="tab==='documents' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">المستندات ({{ documents|length }})</button>
+        <button type="button" @click="tab='result'" :class="tab==='result' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">نتيجة المطابقة</button>
+        <button type="button" @click="tab='differences'" :class="tab==='differences' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">الفروقات ({{ diffs|length }})</button>
+        <button type="button" @click="tab='history'" :class="tab==='history' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">السجل</button>
+    </div>
+
+    <!-- المعلومات -->
+    <div x-show="tab==='info'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+            <div><dt class="text-xs text-slate-500">المورد</dt><dd><a class="text-primary-700 hover:underline" href="{% url 'suppliers:detail' case.supplier.pk %}">{{ case.supplier.name }}</a> <span class="font-mono text-xs text-slate-500">({{ case.supplier.code }})</span></dd></div>
+            <div><dt class="text-xs text-slate-500">المحاسب المسؤول</dt><dd>{% if case.assigned_accountant %}{{ case.assigned_accountant.get_full_name|default:case.assigned_accountant.username }}{% else %}— غير مسندة{% endif %}</dd></div>
+            <div><dt class="text-xs text-slate-500">أنشأها</dt><dd>{{ case.created_by.username }} · {{ case.created_at|date:"Y-m-d H:i" }}</dd></div>
+            <div class="sm:col-span-2 lg:col-span-3"><dt class="text-xs text-slate-500">الفروع</dt>
+                <dd>{% for b in case.branches.all %}<span class="inline-block px-2 py-0.5 bg-slate-100 rounded text-xs ml-1">{{ b.name }}</span>{% empty %}—{% endfor %}</dd></div>
+            <div class="sm:col-span-2 lg:col-span-3"><dt class="text-xs text-slate-500">ملاحظات</dt><dd class="whitespace-pre-line">{{ case.notes|default:"—" }}</dd></div>
+        </dl>
+    </div>
+
+    <!-- المستندات -->
+    <div x-show="tab==='documents'" x-cloak class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="data-table-wrap overflow-x-auto">
+            <table class="data-table w-full text-sm">
+                <thead><tr>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الملف</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">النوع</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الحجم</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">رفعه</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">التاريخ</th>
+                    <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600">إجراءات</th>
+                </tr></thead>
+                <tbody>
+                {% for d in documents %}
+                    <tr>
+                        <td class="px-3 py-2 max-w-[260px] truncate" title="{{ d.original_name }}">{{ d.original_name }}</td>
+                        <td class="px-3 py-2 text-xs">{{ d.get_doc_type_display }}</td>
+                        <td class="px-3 py-2 text-xs">{{ d.size|filesizeformat }}</td>
+                        <td class="px-3 py-2 text-xs">{{ d.uploaded_by.username|default:"—" }}</td>
+                        <td class="px-3 py-2 text-xs">{{ d.uploaded_at|date:"Y-m-d H:i" }}</td>
+                        <td class="px-3 py-2"><div class="flex items-center justify-center gap-1">
+                            <a href="{% url 'reconciliation:document_download' case.pk d.pk %}" class="btn btn-icon btn-icon-primary" title="تنزيل"><i data-lucide="download" class="w-3.5 h-3.5"></i></a>
+                            {% if can_work %}
+                            <form method="post" action="{% url 'reconciliation:document_delete' case.pk d.pk %}" onsubmit="return confirm('حذف المستند؟')">
+                                {% csrf_token %}<button class="btn btn-icon btn-icon-danger" title="حذف"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            </form>
+                            {% endif %}
+                        </div></td>
+                    </tr>
+                {% empty %}
+                    <tr class="data-table-empty"><td colspan="6"><p class="text-slate-500 text-sm py-6">لا توجد مستندات</p></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if can_work %}
+        <form method="post" enctype="multipart/form-data" action="{% url 'reconciliation:document_upload' case.pk %}" class="p-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+            {% csrf_token %}
+            <input type="file" name="file" required accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg" class="sm:col-span-2 text-sm border border-slate-200 rounded-lg p-2">
+            <select name="doc_type" class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                {% for v, l in doc_types %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary"><i data-lucide="upload"></i> رفع</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- النتيجة -->
+    <div x-show="tab==='result'" x-cloak class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <form method="post" action="{% url 'reconciliation:result_save' case.pk %}" class="space-y-4">
+            {% csrf_token %}
+            <fieldset {% if not can_work %}disabled{% endif %} class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">رصيد المورد (ر.س)</label>
+                        <input name="supplier_balance" value="{{ result.supplier_balance|default:'0' }}" inputmode="decimal" dir="ltr" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">رصيد الشركة (ر.س)</label>
+                        <input name="company_balance" value="{{ result.company_balance|default:'0' }}" inputmode="decimal" dir="ltr" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">الفرق</label>
+                        <div class="px-3 py-2 rounded-lg font-bold {% if result and result.difference != 0 %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}" dir="ltr">{{ result.difference|default:"0.00" }}</div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">التوصية / الحل المقترح</label>
+                    <textarea name="recommended_resolution" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg">{{ result.recommended_resolution }}</textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">ملاحظات</label>
+                    <textarea name="notes" rows="2" class="w-full px-3 py-2 border border-slate-200 rounded-lg">{{ result.notes }}</textarea>
+                </div>
+            </fieldset>
+            {% if can_work %}<button type="submit" class="btn btn-primary"><i data-lucide="save"></i> حفظ النتيجة</button>{% endif %}
+        </form>
+    </div>
+
+    <!-- الفروقات -->
+    <div x-show="tab==='differences'" x-cloak class="space-y-4">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between text-sm">
+                <span class="font-semibold text-slate-700">بنود الفروقات</span>
+                <span>إجمالي غير المسوّى: <b class="{% if diff_total != 0 %}text-red-700{% else %}text-green-700{% endif %}" dir="ltr">{{ diff_total }}</b> ر.س</span>
+            </div>
+            <div class="data-table-wrap overflow-x-auto">
+                <table class="data-table w-full text-sm">
+                    <thead><tr>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">النوع</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">المرجع</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">التاريخ</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">المورد</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الشركة</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الفرق</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الحل المقترح</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600">إجراءات</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for d in diffs %}
+                        <tr class="{% if d.is_resolved %}opacity-60{% endif %}">
+                            <td class="px-3 py-2 text-xs">{{ d.get_kind_display }}</td>
+                            <td class="px-3 py-2 text-xs font-mono">{{ d.document_ref|default:"—" }}</td>
+                            <td class="px-3 py-2 text-xs">{{ d.document_date|date:"Y-m-d"|default:"—" }}</td>
+                            <td class="px-3 py-2 text-xs" dir="ltr">{{ d.supplier_amount }}</td>
+                            <td class="px-3 py-2 text-xs" dir="ltr">{{ d.company_amount }}</td>
+                            <td class="px-3 py-2 text-xs font-bold" dir="ltr">{{ d.difference }}</td>
+                            <td class="px-3 py-2 text-xs max-w-[220px] truncate" title="{{ d.description }} {{ d.recommended_resolution }}">{{ d.recommended_resolution|default:d.description|default:"—" }}</td>
+                            <td class="px-3 py-2"><div class="flex items-center justify-center gap-1">
+                                {% if can_work %}
+                                <form method="post" action="{% url 'reconciliation:difference_toggle' case.pk d.pk %}">{% csrf_token %}
+                                    <button class="btn btn-sm {% if d.is_resolved %}btn-secondary{% else %}btn-success{% endif %}">{% if d.is_resolved %}إعادة فتح{% else %}تمت التسوية{% endif %}</button></form>
+                                <form method="post" action="{% url 'reconciliation:difference_delete' case.pk d.pk %}" onsubmit="return confirm('حذف البند؟')">{% csrf_token %}
+                                    <button class="btn btn-icon btn-icon-danger" title="حذف"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></form>
+                                {% endif %}
+                            </div></td>
+                        </tr>
+                    {% empty %}
+                        <tr class="data-table-empty"><td colspan="8"><p class="text-slate-500 text-sm py-6">لا توجد فروقات مسجلة</p></td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if can_work %}
+        <form method="post" enctype="multipart/form-data" action="{% url 'reconciliation:difference_add' case.pk %}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+            {% csrf_token %}
+            <h3 class="font-semibold text-slate-700 text-sm">إضافة بند فرق</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <select name="kind" class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">{% for v, l in kinds %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+                <input name="document_ref" placeholder="رقم الفاتورة/الدفعة" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                <input type="date" name="document_date" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                <input name="supplier_amount" placeholder="مبلغ المورد" inputmode="decimal" dir="ltr" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                <input name="company_amount" placeholder="مبلغ الشركة" inputmode="decimal" dir="ltr" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                <input type="file" name="attachment" class="text-xs border border-slate-200 rounded-lg p-1.5">
+            </div>
+            <textarea name="description" rows="2" placeholder="الوصف" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"></textarea>
+            <textarea name="recommended_resolution" rows="2" placeholder="الحل المقترح" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"></textarea>
+            <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> إضافة</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- السجل -->
+    <div x-show="tab==='history'" x-cloak class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+            <h3 class="font-semibold text-slate-700 text-sm mb-3">تغيّر الحالات</h3>
+            <ol class="space-y-3 text-sm">
+                {% for h in history %}
+                <li class="border-r-2 border-primary-500 pr-3">
+                    <div class="font-medium">{{ h.to_label }}{% if h.from_status %} <span class="text-slate-400 text-xs">من {{ h.from_label }}</span>{% endif %}</div>
+                    <div class="text-xs text-slate-500">{{ h.changed_by.username|default:"—" }} · {{ h.created_at|date:"Y-m-d H:i" }}</div>
+                    {% if h.reason %}<div class="text-xs text-slate-600 mt-0.5">{{ h.reason }}</div>{% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+            <h3 class="font-semibold text-slate-700 text-sm mb-3">الإسنادات</h3>
+            <ol class="space-y-3 text-sm">
+                {% for a in assignments %}
+                <li class="border-r-2 {% if a.is_active %}border-green-500{% else %}border-slate-300{% endif %} pr-3">
+                    <div class="font-medium">{{ a.accountant.get_full_name|default:a.accountant.username }}{% if a.is_active %} <span class="text-xs text-green-700">(الحالي)</span>{% endif %}</div>
+                    <div class="text-xs text-slate-500">أسندها {{ a.assigned_by.username|default:"—" }} · {{ a.assigned_at|date:"Y-m-d H:i" }}</div>
+                </li>
+                {% empty %}<li class="text-slate-500 text-xs">لم تُسند بعد</li>{% endfor %}
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}

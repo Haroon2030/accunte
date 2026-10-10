@@ -1,0 +1,9 @@
+<span class="px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap
+{% if status == 'new' or status == 'pending_docs' %}bg-slate-100 text-slate-700
+{% elif status == 'ready_for_distribution' %}bg-indigo-100 text-indigo-700
+{% elif status == 'assigned' or status == 'reconciling' %}bg-blue-100 text-blue-700
+{% elif status == 'waiting_vendor' %}bg-yellow-100 text-yellow-800
+{% elif status == 'discrepancy_found' %}bg-red-100 text-red-700
+{% elif status == 'pending_review' %}bg-purple-100 text-purple-700
+{% elif status == 'completed' or status == 'closed' %}bg-green-100 text-green-700
+{% else %}bg-slate-200 text-slate-500{% endif %}">{{ label }}</span>

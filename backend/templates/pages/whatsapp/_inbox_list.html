@@ -1,0 +1,52 @@
+<div class="flex flex-wrap gap-1 border-b border-slate-200 mb-3">
+    {% for key, label in tabs %}
+    <a href="?tab={{ key }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if late %}&late=1{% endif %}"
+       class="px-3 py-2 text-sm font-semibold border-b-2 {% if tab == key %}border-primary-600 text-primary-700{% else %}border-transparent text-slate-500 hover:text-slate-700{% endif %}">
+        {{ label }}
+        {% for k, n in counts.items %}{% if k == key and n %}<span class="mr-1 px-1.5 py-0.5 rounded-full text-[11px] {% if key == 'new' or key == 'escalated' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">{{ n }}</span>{% endif %}{% endfor %}
+    </a>
+    {% endfor %}
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <ul class="divide-y divide-slate-100">
+        {% for c in page_obj %}
+        <li>
+            <a href="{% url 'whatsapp_inbox:conversation' c.pk %}" class="flex flex-wrap sm:flex-nowrap items-center gap-3 px-4 py-3 hover:bg-slate-50 {% if c.unread_count %}bg-blue-50/40{% endif %}">
+                <span class="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold shrink-0">{% if c.display_name %}{{ c.display_name|slice:":1" }}{% else %}#{% endif %}</span>
+                <span class="flex-1 min-w-0">
+                    <span class="flex flex-wrap items-center gap-2">
+                        <span class="font-semibold text-slate-800 truncate"><bdi>{% if c.display_name %}{{ c.display_name }}{% else %}+{{ c.contact_number }}{% endif %}</bdi></span>
+                        {% if c.supplier %}<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] truncate max-w-[160px]">{{ c.supplier.name }}</span>
+                        {% else %}<span class="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-800 text-[11px]">رقم غير مرتبط بمورد</span>{% endif %}
+                        {% if c.status == 'escalated' %}<span class="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[11px]">مصعَّدة</span>{% endif %}
+                    </span>
+                    <span class="block text-xs text-slate-500 mt-0.5" dir="ltr" style="text-align:right">+{{ c.contact_number }}</span>
+                </span>
+                <span class="text-left shrink-0 space-y-1">
+                    <span class="block text-xs text-slate-500">{{ c.last_message_at|timesince }}</span>
+                    <span class="flex items-center justify-end gap-1.5">
+                        {% if c.is_unanswered_overdue %}<span class="px-1.5 py-0.5 rounded bg-red-600 text-white text-[11px]">بلا رد {{ c.waiting_minutes }} د</span>{% endif %}
+                        {% if c.unread_count %}<span class="min-w-[20px] h-5 px-1 rounded-full bg-green-600 text-white text-[11px] flex items-center justify-center">{{ c.unread_count }}</span>{% endif %}
+                    </span>
+                    <span class="block text-[11px] text-slate-500">{% if c.assigned_agent %}{{ c.assigned_agent.get_full_name|default:c.assigned_agent.username }}{% else %}— غير مسندة{% endif %}</span>
+                </span>
+            </a>
+        </li>
+        {% empty %}
+        <li class="px-4 py-12 text-center text-slate-400 text-sm">
+            <i data-lucide="message-circle" class="w-10 h-10 mx-auto mb-2"></i>لا توجد محادثات
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="flex items-center justify-between mt-3">
+    <span class="text-sm text-slate-600">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+    <div class="flex gap-2">
+        {% if page_obj.has_previous %}<a class="btn btn-secondary btn-sm" href="?tab={{ tab }}&page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}">السابق</a>{% endif %}
+        {% if page_obj.has_next %}<a class="btn btn-secondary btn-sm" href="?tab={{ tab }}&page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}">التالي</a>{% endif %}
+    </div>
+</div>
+{% endif %}

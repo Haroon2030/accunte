@@ -63,8 +63,10 @@ def nav_group_initial(request):
     """Return the id of the nav group that should start expanded."""
     groups = (
         ('payments', ('/payments/', '/suppliers/')),
+        ('reconciliation', ('/reconciliation/', '/proposals/')),
+        ('desk', ('/inbox/', '/service-requests/')),
         ('contracts', ('/contracts/', '/space-rentals/', '/items/')),
-        ('system', ('/branches/', '/banks/', '/cost-centers/', '/roles/', '/users/')),
+        ('system', ('/branches/', '/banks/', '/cost-centers/', '/roles/', '/users/', '/audit/', '/whatsapp/')),
     )
     for group_id, prefixes in groups:
         for prefix in prefixes:
@@ -92,3 +94,10 @@ def is_admin_user(user):
         return role is not None and role.role_type == 'admin'
     except Exception:
         return False
+
+
+@register.simple_tag
+def user_has_roles(user, roles):
+    """roles: أنواع أدوار مفصولة بفواصل، مثال: 'cfo,auditor'. مدير النظام يمر دائمًا."""
+    from apps.core.access import has_role
+    return has_role(user, *[r.strip() for r in roles.split(',') if r.strip()])

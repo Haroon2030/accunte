@@ -25,6 +25,9 @@ from apps.items.models import Item, ItemBatch
 from apps.space_rentals.models import SpaceRental
 from apps.payments.models import PaymentRequest, PaymentRequestItem
 from apps.core.models import Role, Notification
+from apps.core.access import SUPPLIER_MANAGE_ROLES, role_required
+from apps.audit.models import AuditLog
+from apps.audit.services import log_action, snapshot as audit_snapshot, diff as audit_diff
 from apps.core.excel_export import ModernExcelBuilder
 from apps.core.forms import SimplePasswordChangeForm
 from apps.core.notifications import (
@@ -594,11 +597,14 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
+            log_action(AuditLog.Action.LOGIN, user, actor=user, request=request)
             if not remember:
                 request.session.set_expiry(0)
             messages.success(request, f'مرحباً {user.get_full_name() or user.username}')
             return redirect('dashboard')
         else:
+            log_action(AuditLog.Action.LOGIN_FAILED, entity_type='auth.User', entity_repr=username[:150],
+                       request=request)
             messages.error(request, 'اسم المستخدم أو كلمة المرور غير صحيحة')
     
     return render(request, 'auth/login.html')
@@ -607,6 +613,8 @@ def login_view(request):
 def logout_view(request):
     """تسجيل الخروج"""
     if request.method == 'POST' or request.method == 'GET':
+        if request.user.is_authenticated:
+            log_action(AuditLog.Action.LOGOUT, request.user)
         logout(request)
         messages.success(request, 'تم تسجيل الخروج بنجاح')
         return redirect('auth:login')
@@ -919,45 +927,81 @@ def suppliers_search_json(request):
     })
 
 
+def _supplier_fields_from_post(post):
+    fin = (post.get('financial_system_id') or '').strip()
+    return {
+        'name': (post.get('name') or '').strip(),
+        'code': (post.get('code') or '').strip(),
+        'financial_system_id': fin or None,
+        'tax_number': (post.get('tax_number') or '').replace(' ', ''),
+        'contact_person': (post.get('contact_person') or '').strip(),
+        'phone': (post.get('phone') or '').strip(),
+        'email': (post.get('email') or '').strip(),
+        'bank_name': (post.get('bank_name') or '').strip(),
+        'bank_account': (post.get('bank_account') or '').strip(),
+        'iban': (post.get('iban') or '').strip(),
+    }
+
+
+def _supplier_save_error(fields, exclude_pk=None):
+    """رسالة خطأ عربية عند التكرار أو نقص البيانات، أو None."""
+    if not fields['name'] or not fields['code']:
+        return 'اسم المورد والكود مطلوبان'
+    qs = Supplier.objects.exclude(pk=exclude_pk) if exclude_pk else Supplier.objects.all()
+    if qs.filter(code=fields['code']).exists():
+        return 'رقم المورد مستخدم مسبقًا'
+    if fields['financial_system_id'] and qs.filter(financial_system_id=fields['financial_system_id']).exists():
+        return 'رقم النظام المالي مستخدم مسبقًا'
+    if fields['tax_number'] and qs.filter(tax_number=fields['tax_number']).exists():
+        return 'الرقم الضريبي مستخدم مسبقًا'
+    return None
+
+
 @login_required
+@role_required(*SUPPLIER_MANAGE_ROLES)
 def supplier_create(request):
     """إنشاء مورد جديد"""
     if request.method == 'POST':
-        Supplier.objects.create(
-            name=request.POST.get('name'),
-            code=request.POST.get('code'),
-            phone=request.POST.get('phone', ''),
-            email=request.POST.get('email', ''),
-            bank_name=request.POST.get('bank_name', ''),
-            bank_account=request.POST.get('bank_account', ''),
-            iban=request.POST.get('iban', ''),
-        )
-        messages.success(request, 'تم إضافة المورد بنجاح')
+        fields = _supplier_fields_from_post(request.POST)
+        error = _supplier_save_error(fields)
+        if error:
+            messages.error(request, error)
+        else:
+            supplier = Supplier.objects.create(**fields)
+            log_action(AuditLog.Action.CREATE, supplier, new=audit_snapshot(supplier))
+            messages.success(request, 'تم إضافة المورد بنجاح')
     return redirect('suppliers:list')
 
 
 @login_required
+@role_required(*SUPPLIER_MANAGE_ROLES)
 def supplier_update(request, pk):
     """تعديل مورد"""
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == 'POST':
-        supplier.name = request.POST.get('name')
-        supplier.code = request.POST.get('code')
-        supplier.phone = request.POST.get('phone', '')
-        supplier.email = request.POST.get('email', '')
-        supplier.bank_name = request.POST.get('bank_name', '')
-        supplier.bank_account = request.POST.get('bank_account', '')
-        supplier.iban = request.POST.get('iban', '')
-        supplier.save()
-        messages.success(request, 'تم تعديل المورد بنجاح')
+        fields = _supplier_fields_from_post(request.POST)
+        error = _supplier_save_error(fields, exclude_pk=pk)
+        if error:
+            messages.error(request, error)
+        else:
+            before = audit_snapshot(supplier)
+            for k, v in fields.items():
+                setattr(supplier, k, v)
+            supplier.save()
+            prev, new = audit_diff(before, audit_snapshot(supplier))
+            if new:
+                log_action(AuditLog.Action.UPDATE, supplier, previous=prev, new=new)
+            messages.success(request, 'تم تعديل المورد بنجاح')
     return redirect('suppliers:list')
 
 
 @login_required
+@role_required(*SUPPLIER_MANAGE_ROLES)
 def supplier_delete(request, pk):
     """حذف مورد"""
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == 'POST':
+        log_action(AuditLog.Action.DELETE, supplier, previous=audit_snapshot(supplier))
         supplier.delete()
         messages.success(request, 'تم حذف المورد بنجاح')
     return redirect('suppliers:list')
@@ -1386,6 +1430,7 @@ def payment_create(request):
         payment.amount = total
         payment.save()
 
+        log_action(AuditLog.Action.CREATE, payment, new={'status': payment.status, 'amount': payment.amount})
         notify_payment_created(payment, request.user)
         
         messages.success(request, 'تم إنشاء طلب الدفع بنجاح')
@@ -1421,6 +1466,7 @@ def payment_update(request, pk):
         messages.error(request, 'لا يمكن تعديل طلب معتمد نهائياً')
         return redirect('payments:detail', pk=pk)
     
+    amount_before = payment.amount
     if request.method == 'POST':
         items_count = int(request.POST.get('items_count', 0))
         supplier_ids = [
@@ -1485,6 +1531,12 @@ def payment_update(request, pk):
         
         payment.amount = total
         payment.save()
+        payment.refresh_from_db(fields=['amount'])
+        if payment.amount != amount_before:
+            log_action(AuditLog.Action.AMOUNT_EDIT, payment, previous={'amount': amount_before},
+                       new={'amount': payment.amount})
+        else:
+            log_action(AuditLog.Action.UPDATE, payment, new={'note': 'تعديل بيانات الطلب'})
         
         messages.success(request, 'تم تعديل طلب الدفع بنجاح')
         return redirect('payments:detail', pk=pk)
@@ -1526,6 +1578,11 @@ def payment_change_status(request, pk):
             if new_status == 'rejected':
                 payment.rejection_reason = request.POST.get('rejection_reason', payment.rejection_reason)
             payment.save()
+            log_action(
+                AuditLog.Action.APPROVAL if new_status in ('first_approved', 'audited', 'final_approved', 'rejected')
+                else AuditLog.Action.STATUS_CHANGE,
+                payment, previous={'status': old_status}, new={'status': new_status},
+                reason=request.POST.get('rejection_reason', '') if new_status == 'rejected' else '')
             notify_payment_status_changed(payment, old_status, new_status, request.user)
             messages.success(request, f'تم تغيير الحالة إلى {payment.get_status_display()}')
         else:
@@ -1543,6 +1600,7 @@ def payment_delete(request, pk):
     
     payment = get_object_or_404(PaymentRequest, pk=pk)
     if request.method == 'POST':
+        log_action(AuditLog.Action.DELETE, payment, previous={'status': payment.status, 'amount': payment.amount})
         payment.delete()
         messages.success(request, f'تم حذف الطلب #{pk} بنجاح')
         return redirect('payments:list')

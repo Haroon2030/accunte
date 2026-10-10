@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - نظام المدفوعات{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl space-y-4">
+    {% if errors %}
+    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm space-y-1">{% for e in errors %}<div>{{ e }}</div>{% endfor %}</div>
+    {% endif %}
+
+    <!-- الخطوة 1: النوع -->
+    <form method="get" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+        {% if supplier %}<input type="hidden" name="supplier" value="{{ supplier.pk }}">{% endif %}
+        {% if conversation %}<input type="hidden" name="conversation" value="{{ conversation.pk }}">{% endif %}
+        <label class="block text-sm font-medium text-slate-700">نوع الطلب *</label>
+        <select name="type" onchange="this.form.submit()" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white">
+            <option value="">اختر النوع...</option>
+            {% for t in types %}<option value="{{ t.pk }}" {% if stype and stype.pk == t.pk %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+        </select>
+        {% if stype %}<p class="text-xs text-slate-500">{{ stype.description }} · مهلة الإنجاز {{ stype.sla_hours }} ساعة</p>{% endif %}
+    </form>
+
+    {% if stype %}
+    <!-- الخطوة 2: التفاصيل -->
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="step" value="create">
+        <input type="hidden" name="type" value="{{ stype.pk }}">
+        {% if conversation %}<input type="hidden" name="conversation" value="{{ conversation.pk }}">
+        <div class="text-xs bg-green-50 text-green-800 rounded p-2">من محادثة واتساب مع {{ conversation.display_name|default:conversation.contact_number }}</div>{% endif %}
+
+        {% if supplier %}
+        <input type="hidden" name="supplier" value="{{ supplier.pk }}">
+        <div class="text-sm"><span class="text-slate-500">المورد:</span> <b>{{ supplier.name }}</b> <span class="font-mono text-xs text-slate-500">({{ supplier.code }})</span></div>
+        {% else %}
+        <div x-data="supplierPicker()" class="relative">
+            <label class="block text-sm font-medium text-slate-700 mb-1">المورد *</label>
+            <input type="hidden" name="supplier" :value="selectedId">
+            <input type="text" x-model="query" @input.debounce.250ms="search()" @focus="search()" autocomplete="off" placeholder="ابحث بالاسم أو الكود..." class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+            <div x-show="open && results.length" x-cloak @click.outside="open=false" class="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <template x-for="r in results" :key="r.id">
+                    <button type="button" @click="pick(r)" class="w-full text-right px-3 py-2 hover:bg-slate-50 text-sm flex justify-between gap-3"><span x-text="r.name"></span><span class="font-mono text-xs text-slate-500" x-text="r.code"></span></button>
+                </template>
+            </div>
+        </div>
+        {% endif %}
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">الموضوع *</label>
+            <input name="subject" value="{{ post.subject }}" required maxlength="200" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+        </div>
+
+        {% for f in schema %}
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">{{ f.label }}{% if f.required %} *{% endif %}</label>
+            {% if f.type == 'textarea' %}<textarea name="f_{{ f.key }}" rows="3" {% if f.required %}required{% endif %} class="w-full px-3 py-2 border border-slate-200 rounded-lg"></textarea>
+            {% elif f.type == 'select' %}<select name="f_{{ f.key }}" {% if f.required %}required{% endif %} class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white"><option value="">اختر...</option>{% for o in f.options %}<option value="{{ o }}">{{ o }}</option>{% endfor %}</select>
+            {% elif f.type == 'date' %}<input type="date" name="f_{{ f.key }}" {% if f.required %}required{% endif %} class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+            {% elif f.type == 'number' %}<input name="f_{{ f.key }}" inputmode="decimal" dir="ltr" {% if f.required %}required{% endif %} class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+            {% else %}<input name="f_{{ f.key }}" {% if f.required %}required{% endif %} class="w-full px-3 py-2 border border-slate-200 rounded-lg">{% endif %}
+        </div>
+        {% endfor %}
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">تفاصيل إضافية</label>
+            <textarea name="details" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg">{{ post.details }}</textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">الأولوية</label>
+            <select name="priority" class="px-3 py-2 border border-slate-200 rounded-lg bg-white">
+                {% for v, l in priorities %}<option value="{{ v }}" {% if v == 'normal' %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select>
+        </div>
+        {% if stype.required_documents %}<p class="text-xs text-slate-500">مستندات إلزامية قبل الحل: {{ stype.required_documents|join:"، " }}. ترفعها من صفحة الطلب.</p>{% endif %}
+
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="btn btn-primary btn-grow">إنشاء الطلب</button>
+            <a href="{% url 'servicedesk:list' %}" class="btn btn-secondary">إلغاء</a>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<script>
+function supplierPicker() {
+    return {
+        query: '', selectedId: '', results: [], open: false,
+        async search() {
+            this.selectedId = '';
+            try { const r = await fetch('{% url "suppliers:search" %}?q=' + encodeURIComponent(this.query)); this.results = (await r.json()).results || []; this.open = true; }
+            catch (e) { this.results = []; }
+        },
+        pick(r) { this.selectedId = r.id; this.query = r.name + ' (' + r.code + ')'; this.open = false; },
+    };
+}
+</script>
+{% endblock %}

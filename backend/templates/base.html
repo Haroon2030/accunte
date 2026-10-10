@@ -678,6 +678,47 @@
             flex-shrink: 0;
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
+        /* ═══ نظام الأزرار الموحد (فاتح) ═══ */
+        :root { color-scheme: light; --btn-radius: 0.625rem; }
+        html, body { background-color: #f8fafc; color: #1e293b; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+            padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 600; line-height: 1.25;
+            border-radius: var(--btn-radius); border: 1px solid transparent; cursor: pointer;
+            text-decoration: none; white-space: nowrap; user-select: none;
+            transition: background-color .15s, border-color .15s, box-shadow .15s, color .15s, transform .15s;
+        }
+        .btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+        .btn:disabled, .btn[disabled] { opacity: .55; cursor: not-allowed; }
+        .btn:active:not(:disabled) { transform: translateY(1px); }
+        .btn svg, .btn i { width: 1rem; height: 1rem; flex-shrink: 0; }
+        .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+        .btn-block { display: flex; width: 100%; }
+        .btn-grow { flex: 1; }
+        .btn-primary { color: #fff; background: #2563eb; border-color: #1d4ed8; box-shadow: 0 1px 2px rgba(37,99,235,.25); }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-secondary { color: #334155; background: #fff; border-color: #cbd5e1; }
+        .btn-secondary:hover { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
+        .btn-success { color: #fff; background: #16a34a; border-color: #15803d; }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { color: #fff; background: #dc2626; border-color: #b91c1c; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-warning { color: #713f12; background: #facc15; border-color: #eab308; }
+        .btn-warning:hover { background: #eab308; }
+        .btn-soft { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+        .btn-soft:hover { background: #dbeafe; }
+        /* أزرار الأيقونات داخل الجداول */
+        .btn-icon { padding: 0.375rem; width: 2rem; height: 2rem; border-radius: 0.5rem; background: transparent; color: #64748b; border-color: transparent; }
+        .btn-icon:hover { background: #f1f5f9; color: #0f172a; }
+        .btn-icon.btn-icon-primary { color: #2563eb; } .btn-icon.btn-icon-primary:hover { background: #eff6ff; }
+        .btn-icon.btn-icon-danger { color: #dc2626; } .btn-icon.btn-icon-danger:hover { background: #fef2f2; }
+        .btn-icon.btn-icon-success { color: #16a34a; } .btn-icon.btn-icon-success:hover { background: #f0fdf4; }
+        /* توحيد أزرار الشريط العلوي مع نفس الألوان */
+        .page-toolbar-btn--primary { background: #2563eb !important; }
+        .page-toolbar-btn--primary:hover { background: #1d4ed8 !important; }
+        .form-btn--primary { background: #2563eb; border-color: #1d4ed8; }
+        .form-btn--primary:hover { background: #1d4ed8; }
+
         .page-toolbar-btn {
             display: inline-flex;
             align-items: center;
@@ -1229,267 +1270,6 @@
         }
 
         /* Dark mode */
-        html.dark {
-            color-scheme: dark;
-        }
-        html.dark ::-webkit-scrollbar-track { background: #1e293b; }
-        html.dark ::-webkit-scrollbar-thumb { background: #475569; border-color: #1e293b; }
-        html.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
-        html.dark body,
-        html.dark .bg-slate-50 { background-color: #0f172a !important; }
-        html.dark .bg-white,
-        html.dark .bg-white\/90,
-        html.dark #app-sidebar,
-        html.dark .modal-panel,
-        html.dark .page-toolbar,
-        html.dark .header-user-trigger,
-        html.dark .header-user-menu,
-        html.dark .header-icon-btn,
-        html.dark .app-toast {
-            background-color: #1e293b !important;
-        }
-        html.dark header {
-            background: rgba(30, 41, 59, 0.92) !important;
-            border-color: #334155 !important;
-        }
-        html.dark .fixed.bottom-0 {
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
-        }
-        html.dark .border-slate-200,
-        html.dark .border-slate-100,
-        html.dark .border-l,
-        html.dark #app-sidebar,
-        html.dark .modal-panel,
-        html.dark .page-toolbar,
-        html.dark .page-toolbar-actions,
-        html.dark .header-user-trigger,
-        html.dark .header-user-menu,
-        html.dark .header-icon-btn,
-        html.dark .header-user-menu-head {
-            border-color: #334155 !important;
-        }
-        html.dark .text-slate-800,
-        html.dark .text-slate-900,
-        html.dark .glass-card-title,
-        html.dark .toast-title {
-            color: #f1f5f9 !important;
-        }
-        html.dark .text-slate-700,
-        html.dark .text-slate-600,
-        html.dark .text-slate-500,
-        html.dark .text-slate-400,
-        html.dark .header-user-role,
-        html.dark .page-toolbar-subtitle,
-        html.dark .toast-message,
-        html.dark .glass-card-subtitle,
-        html.dark .glass-hint,
-        html.dark .glass-label {
-            color: #94a3b8 !important;
-        }
-        html.dark .header-user-name,
-        html.dark .page-toolbar-title {
-            color: #e2e8f0 !important;
-        }
-        html.dark .hover\:bg-slate-100:hover,
-        html.dark .header-icon-btn:hover,
-        html.dark .header-user-trigger:hover,
-        html.dark .header-user-trigger.is-open {
-            background-color: #334155 !important;
-        }
-        html.dark .header-icon-btn.is-active {
-            background-color: #1e3a5f !important;
-            border-color: #3b82f6 !important;
-            color: #93c5fd !important;
-        }
-        html.dark .shadow-xl,
-        html.dark .shadow-sm {
-            box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.45) !important;
-        }
-        html.dark .nav-link-idle { color: #cbd5e1; }
-        html.dark .nav-link-idle:hover {
-            color: #f8fafc;
-            background: linear-gradient(270deg, #334155 0%, #1e293b 100%);
-            box-shadow: 0 2px 10px -4px rgba(0, 0, 0, 0.35);
-        }
-        html.dark .nav-link-active {
-            color: #93c5fd;
-            background: linear-gradient(270deg, #1e3a5f 0%, #172554 100%);
-            box-shadow: 0 4px 18px -6px rgba(37, 99, 235, 0.35);
-            border-right-color: #3b82f6;
-        }
-        html.dark .nav-group-idle { color: #94a3b8; }
-        html.dark .nav-group-trigger {
-            background: transparent;
-            border: none;
-            color: #f1f5f9;
-        }
-        html.dark .nav-group-trigger:hover {
-            background: rgba(51, 65, 85, 0.45);
-        }
-        html.dark .nav-group-trigger.nav-group-active {
-            background: rgba(30, 58, 95, 0.55);
-            border-color: #3b82f6;
-            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.15);
-        }
-        html.dark .nav-group-trigger.nav-group-active .nav-group-title-text,
-        html.dark .nav-group-trigger.nav-group-active .nav-group-main-icon,
-        html.dark .nav-group-trigger.nav-group-active .nav-group-chevron {
-            color: #93c5fd;
-        }
-        html.dark .nav-group-trigger.nav-group-active .nav-group-icon-box {
-            border-color: #3b82f6;
-            background: rgba(15, 23, 42, 0.6);
-        }
-        html.dark .nav-group-icon-box {
-            background: #0f172a;
-            border-color: #334155;
-        }
-        html.dark .nav-group-main-icon { color: #cbd5e1; }
-        html.dark .nav-group-panel {
-            background: #172033;
-            border-color: #334155;
-        }
-        html.dark .nav-sub-link {
-            background: rgba(15, 23, 42, 0.45);
-            border-color: #334155;
-        }
-        html.dark .nav-sub-link-idle { color: #cbd5e1; }
-        html.dark .nav-sub-link-idle:hover {
-            background: rgba(30, 41, 59, 0.85);
-            border-color: #475569;
-            color: #f8fafc;
-        }
-        html.dark .nav-sub-link-active {
-            color: #93c5fd;
-            background: rgba(30, 58, 95, 0.55);
-            border-color: #3b82f6;
-        }
-        html.dark .nav-group-active {
-            color: #93c5fd;
-            background: linear-gradient(270deg, rgba(30, 58, 95, 0.9), rgba(23, 37, 84, 0.5));
-        }
-        html.dark main table thead th {
-            background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
-            color: #94a3b8;
-            border-color: #334155;
-        }
-        html.dark main table tbody td,
-        html.dark main table tfoot td {
-            color: #cbd5e1;
-            border-color: #334155;
-        }
-        html.dark main table tfoot td,
-        html.dark main table tbody tr:nth-child(even),
-        html.dark main tr.data-table-empty td {
-            background-color: #172033;
-        }
-        html.dark main table tbody tr:hover {
-            background-color: #243044;
-        }
-        html.dark .page-toolbar-btn {
-            background: #1e293b;
-            color: #cbd5e1;
-            border-color: #334155;
-        }
-        html.dark .page-toolbar-btn:hover {
-            background: #334155;
-            color: #f1f5f9;
-        }
-        html.dark .page-toolbar-actions {
-            background: #1e293b;
-        }
-        html.dark .header-user-menu-head {
-            background: linear-gradient(180deg, #243044 0%, #1e293b 100%);
-        }
-        html.dark .header-user-menu-item {
-            color: #cbd5e1;
-        }
-        html.dark .header-user-menu-item:hover {
-            background: #334155;
-            color: #f8fafc;
-        }
-        html.dark .header-notifications-menu {
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
-        }
-        html.dark .header-notifications-head {
-            background: linear-gradient(180deg, #243044 0%, #1e293b 100%) !important;
-            border-color: #334155 !important;
-        }
-        html.dark .header-notifications-title,
-        html.dark .header-notification-title {
-            color: #f1f5f9;
-        }
-        html.dark .header-notification-message {
-            color: #94a3b8;
-        }
-        html.dark .header-notification-item {
-            background: #1e293b;
-        }
-        html.dark .header-notification-item:hover {
-            background: #334155;
-        }
-        html.dark .header-notification-item.is-unread {
-            background: rgba(30, 58, 95, 0.45);
-        }
-        html.dark .header-notification-item.is-unread:hover {
-            background: rgba(30, 58, 95, 0.65);
-        }
-        html.dark .header-notification-item + .header-notification-item {
-            border-color: #334155;
-        }
-        html.dark .header-notifications-empty,
-        html.dark .header-notifications-loading {
-            color: #94a3b8;
-        }
-        html.dark .header-user-menu-icon {
-            background: #334155;
-            color: #cbd5e1;
-        }
-        html.dark .header-user-avatar {
-            background: linear-gradient(135deg, #1e3a5f 0%, #172554 100%);
-            border-color: #3b82f6;
-            color: #93c5fd;
-        }
-        html.dark .glass-card {
-            background: rgba(30, 41, 59, 0.55);
-            border-color: rgba(148, 163, 184, 0.25);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-        }
-        html.dark .glass-input {
-            background: rgba(15, 23, 42, 0.55);
-            border-color: rgba(148, 163, 184, 0.25);
-            color: #f1f5f9;
-        }
-        html.dark .glass-input:focus {
-            background: rgba(15, 23, 42, 0.75);
-            border-color: rgba(59, 130, 246, 0.55);
-        }
-        html.dark input,
-        html.dark select,
-        html.dark textarea {
-            background-color: #172033;
-            border-color: #334155;
-            color: #e2e8f0;
-        }
-        html.dark input::placeholder,
-        html.dark textarea::placeholder {
-            color: #64748b;
-        }
-        html.dark .form-btn--ghost {
-            background: #1e293b;
-            border-color: #334155;
-            color: #cbd5e1;
-        }
-        html.dark .form-btn--ghost:hover {
-            background: #334155;
-            color: #f8fafc;
-        }
-        html.dark .modal-overlay {
-            background: rgba(2, 6, 23, 0.72);
-        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -1498,9 +1278,7 @@
             if (sessionStorage.getItem('sidebarOpen') === '0') {
                 document.documentElement.classList.add('sidebar-collapsed-init');
             }
-            if (localStorage.getItem('theme') === 'dark') {
-                document.documentElement.classList.add('dark');
-            }
+            localStorage.removeItem('theme');
         } catch (e) {}
     </script>
 </head>
@@ -1528,9 +1306,11 @@
             <nav class="flex-1 overflow-y-auto p-4 pb-20 space-y-1" x-data="sidebarNav()" data-initial-group="{% nav_group_initial request %}">
                 {% include "components/nav_item.html" with url="dashboard" icon="layout-dashboard" label="لوحة التحكم" %}
 
-                {% include "components/nav_group_payments_suppliers.html" %}
 
-                {% include "components/nav_group_contracts_rentals.html" %}
+                {% include "components/nav_group_reconciliation.html" %}
+
+                {% include "components/nav_group_service_desk.html" %}
+
 
                 {% include "components/nav_group_system_setup.html" %}
             </nav>
@@ -1567,17 +1347,6 @@
                 </div>
                 
                 <div class="flex items-center gap-3">
-                    <button
-                        type="button"
-                        @click="toggleDarkMode()"
-                        class="header-icon-btn"
-                        :class="darkMode && 'is-active'"
-                        :title="darkMode ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الليلي'"
-                        :aria-label="darkMode ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الليلي'"
-                    >
-                        <i x-show="!darkMode" data-lucide="moon"></i>
-                        <i x-show="darkMode" data-lucide="sun"></i>
-                    </button>
 
                     <!-- Notifications -->
                     <div
@@ -1743,16 +1512,13 @@
             return {
                 sidebarOpen: true,
                 mobileMenuOpen: false,
-                darkMode: false,
                 initShell() {
                     try {
                         const stored = sessionStorage.getItem('sidebarOpen');
                         if (stored === '0') this.sidebarOpen = false;
-                        this.darkMode = localStorage.getItem('theme') === 'dark';
                     } catch (e) {}
                     document.documentElement.classList.remove('sidebar-collapsed-init');
                     this.syncSidebarClass();
-                    this.syncDarkMode();
                     this.$nextTick(() => lucide.createIcons());
                 },
                 toggleSidebar() {
@@ -1760,20 +1526,9 @@
                     this.syncSidebarClass();
                     this.$nextTick(() => lucide.createIcons());
                 },
-                toggleDarkMode() {
-                    this.darkMode = !this.darkMode;
-                    this.syncDarkMode();
-                    this.$nextTick(() => lucide.createIcons());
-                },
                 syncSidebarClass() {
                     try {
                         sessionStorage.setItem('sidebarOpen', this.sidebarOpen ? '1' : '0');
-                    } catch (e) {}
-                },
-                syncDarkMode() {
-                    document.documentElement.classList.toggle('dark', this.darkMode);
-                    try {
-                        localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
                     } catch (e) {}
                 },
             };

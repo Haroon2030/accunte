@@ -1,0 +1,7 @@
+<span class="px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap
+{% if status == 'new' %}bg-indigo-100 text-indigo-700
+{% elif status == 'in_progress' %}bg-blue-100 text-blue-700
+{% elif status == 'waiting_vendor' %}bg-yellow-100 text-yellow-800
+{% elif status == 'escalated' %}bg-red-100 text-red-700
+{% elif status == 'resolved' %}bg-green-100 text-green-700
+{% else %}bg-slate-200 text-slate-600{% endif %}">{{ label }}</span>

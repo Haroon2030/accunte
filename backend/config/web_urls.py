@@ -4,6 +4,14 @@ Web URLs - روابط واجهة الويب
 from django.urls import path, include
 from django.views.generic import RedirectView
 from apps.core import web_views
+from apps.suppliers import web_views as supplier_views
+from apps.audit import web_views as audit_views
+from apps.reconciliation import views as recon_views
+from apps.reconciliation import dashboard_views
+from apps.proposals import views as proposal_views
+from apps.whatsapp import views as whatsapp_views
+from apps.whatsapp import inbox_views
+from apps.servicedesk import views as sd_views
 
 # Authentication URLs
 auth_patterns = [
@@ -39,6 +47,14 @@ cost_center_patterns = [
 # Supplier URLs
 supplier_patterns = [
     path('search.json', web_views.suppliers_search_json, name='search'),
+    path('import/', supplier_views.import_upload, name='import'),
+    path('import/template/', supplier_views.import_template, name='import_template'),
+    path('import/<int:pk>/', supplier_views.import_preview, name='import_preview'),
+    path('import/<int:pk>/confirm/', supplier_views.import_confirm, name='import_confirm'),
+    path('import/<int:pk>/cancel/', supplier_views.import_cancel, name='import_cancel'),
+    path('<int:pk>/', supplier_views.supplier_detail, name='detail'),
+    path('<int:pk>/contacts/add/', supplier_views.contact_add, name='contact_add'),
+    path('<int:pk>/contacts/<int:contact_pk>/delete/', supplier_views.contact_delete, name='contact_delete'),
     path('', web_views.SupplierListView.as_view(), name='list'),
     path('create/', web_views.supplier_create, name='create'),
     path('<int:pk>/update/', web_views.supplier_update, name='update'),
@@ -107,6 +123,89 @@ notification_patterns = [
     path('mark-read/', web_views.notifications_mark_read, name='mark_read'),
 ]
 
+# Audit URLs
+audit_patterns = [
+    path('', audit_views.audit_list, name='list'),
+]
+
+# Reconciliation URLs
+reconciliation_patterns = [
+    path('', recon_views.case_list, name='list'),
+    path('create/', recon_views.case_create, name='create'),
+    path('export-excel/', recon_views.case_export_excel, name='export_excel'),
+    path('print/', recon_views.case_print, name='print'),
+    path('executive/', dashboard_views.executive_dashboard, name='executive'),
+    path('executive/export-excel/', dashboard_views.executive_export_excel, name='executive_excel'),
+    path('executive/print/', dashboard_views.executive_print, name='executive_print'),
+    path('distribution/', recon_views.distribution, name='distribution'),
+    path('<int:pk>/', recon_views.case_detail, name='detail'),
+    path('<int:pk>/transition/', recon_views.case_transition, name='transition'),
+    path('<int:pk>/documents/upload/', recon_views.document_upload, name='document_upload'),
+    path('<int:pk>/documents/<int:doc_pk>/download/', recon_views.document_download, name='document_download'),
+    path('<int:pk>/documents/<int:doc_pk>/delete/', recon_views.document_delete, name='document_delete'),
+    path('<int:pk>/result/', recon_views.result_save, name='result_save'),
+    path('<int:pk>/differences/add/', recon_views.difference_add, name='difference_add'),
+    path('<int:pk>/differences/<int:diff_pk>/toggle/', recon_views.difference_toggle, name='difference_toggle'),
+    path('<int:pk>/differences/<int:diff_pk>/delete/', recon_views.difference_delete, name='difference_delete'),
+]
+
+# Payment proposal URLs
+proposal_patterns = [
+    path('', proposal_views.proposal_list, name='list'),
+    path('create/', proposal_views.proposal_create, name='create'),
+    path('<int:pk>/', proposal_views.proposal_detail, name='detail'),
+    path('<int:pk>/edit/', proposal_views.proposal_edit, name='edit'),
+    path('<int:pk>/transition/', proposal_views.proposal_transition, name='transition'),
+    path('<int:pk>/attachments/upload/', proposal_views.attachment_upload, name='attachment_upload'),
+    path('<int:pk>/attachments/<int:att_pk>/download/', proposal_views.attachment_download, name='attachment_download'),
+    path('<int:pk>/attachments/<int:att_pk>/delete/', proposal_views.attachment_delete, name='attachment_delete'),
+]
+
+# WhatsApp URLs
+whatsapp_patterns = [
+    path('', whatsapp_views.connect_page, name='connect'),
+    path('status/', whatsapp_views.status, name='status'),
+    path('qr/', whatsapp_views.request_qr, name='qr'),
+    path('disconnect/', whatsapp_views.disconnect, name='disconnect'),
+    path('test/', whatsapp_views.send_test, name='test'),
+    path('webhook/setup/', inbox_views.setup_webhook, name='setup_webhook'),
+    path('webhook/<str:secret>/', inbox_views.webhook, name='webhook'),
+]
+
+# WhatsApp inbox URLs
+inbox_patterns = [
+    path('', inbox_views.inbox, name='inbox'),
+    path('<int:pk>/', inbox_views.conversation, name='conversation'),
+    path('<int:pk>/claim/', inbox_views.claim, name='claim'),
+    path('<int:pk>/release/', inbox_views.release, name='release'),
+    path('<int:pk>/assign/', inbox_views.assign, name='assign'),
+    path('<int:pk>/status/', inbox_views.set_status, name='set_status'),
+    path('<int:pk>/send/', inbox_views.send, name='send'),
+    path('<int:pk>/typing/', inbox_views.typing, name='typing'),
+    path('<int:pk>/messages/<int:msg_pk>/resend/', inbox_views.resend, name='resend'),
+    path('<int:pk>/link-supplier/', inbox_views.link_supplier, name='link_supplier'),
+    path('<int:pk>/link-case/', inbox_views.link_case, name='link_case'),
+]
+
+# Service desk URLs
+servicedesk_patterns = [
+    path('', sd_views.request_list, name='list'),
+    path('create/', sd_views.request_create, name='create'),
+    path('types/', sd_views.type_list, name='types'),
+    path('types/new/', sd_views.type_edit, name='type_new'),
+    path('types/<int:pk>/', sd_views.type_edit, name='type_edit'),
+    path('appointments/', sd_views.appointment_list, name='appointments'),
+    path('<int:pk>/', sd_views.request_detail, name='detail'),
+    path('<int:pk>/claim/', sd_views.request_claim, name='claim'),
+    path('<int:pk>/assign/', sd_views.request_assign, name='assign'),
+    path('<int:pk>/transition/', sd_views.request_transition, name='transition'),
+    path('<int:pk>/documents/upload/', sd_views.document_upload, name='document_upload'),
+    path('<int:pk>/documents/<int:doc_pk>/download/', sd_views.document_download, name='document_download'),
+    path('<int:pk>/documents/<int:doc_pk>/delete/', sd_views.document_delete, name='document_delete'),
+    path('<int:pk>/appointments/add/', sd_views.appointment_add, name='appointment_add'),
+    path('<int:pk>/appointments/<int:appt_pk>/status/', sd_views.appointment_status, name='appointment_status'),
+]
+
 # Main URL patterns
 urlpatterns = [
     # Dashboard
@@ -130,4 +229,10 @@ urlpatterns = [
     path('users/', include((user_patterns, 'users'))),
     path('roles/', include((role_patterns, 'roles'))),
     path('notifications/', include((notification_patterns, 'notifications'))),
+    path('audit/', include((audit_patterns, 'audit'))),
+    path('reconciliation/', include((reconciliation_patterns, 'reconciliation'))),
+    path('proposals/', include((proposal_patterns, 'proposals'))),
+    path('whatsapp/', include((whatsapp_patterns, 'whatsapp'))),
+    path('inbox/', include((inbox_patterns, 'whatsapp_inbox'))),
+    path('service-requests/', include((servicedesk_patterns, 'servicedesk'))),
 ]

@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'apps.core',
+    'apps.audit',
     'apps.branches',
     'apps.banks',
     'apps.cost_centers',
@@ -55,6 +56,10 @@ INSTALLED_APPS = [
     'apps.items',
     'apps.space_rentals',
     'apps.payments',
+    'apps.reconciliation',
+    'apps.proposals',
+    'apps.whatsapp',
+    'apps.servicedesk',
 ]
 
 MIDDLEWARE = [
@@ -67,6 +72,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'apps.audit.middleware.AuditContextMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -149,9 +155,10 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ar'
+FORMAT_MODULE_PATH = ['config.formats']   # يثبّت النقطة كفاصل عشري (انظر config/formats/ar/formats.py)
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Riyadh'
 
 USE_I18N = True
 
@@ -182,6 +189,42 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Cloudflare R2 (تخزين كل الملفات المرفوعة) — القيم من البيئة ولا تُكتب هنا
+# ══════════════════════════════════════════════════════════════════════════════
+from decouple import config as _r2env  # noqa: E402
+
+USE_R2 = _r2env('USE_R2', default=False, cast=bool)
+R2_ACCESS_KEY_ID = _r2env('R2_ACCESS_KEY_ID', default='')
+R2_SECRET_ACCESS_KEY = _r2env('R2_SECRET_ACCESS_KEY', default='')
+R2_BUCKET_NAME = _r2env('R2_BUCKET_NAME', default='')
+R2_ENDPOINT_URL = _r2env('R2_ENDPOINT_URL', default='').rstrip('/')
+R2_REGION = _r2env('R2_REGION', default='auto')
+R2_PUBLIC_DOMAIN = _r2env('R2_PUBLIC_DOMAIN', default='').strip()
+R2_SIGNED_URLS = _r2env('R2_SIGNED_URLS', default=True, cast=bool)
+R2_SIGNED_URL_EXPIRE = _r2env('R2_SIGNED_URL_EXPIRE', default=3600, cast=int)
+# true: التطبيق يمرّر الملف بنفسه بعد فحص الصلاحية (الأكثر أمانًا). false: يعيد توجيه المستخدم لرابط موقّع مؤقت
+R2_PROXY_MEDIA = _r2env('R2_PROXY_MEDIA', default=True, cast=bool)
+# مجلد داخل الـbucket يخص هذا النظام، كي لا تختلط ملفاته بتطبيقات أخرى تشارك نفس الـbucket
+R2_PREFIX = _r2env('R2_PREFIX', default='accounting').strip('/')
+
+
+if USE_R2:
+    from types import SimpleNamespace
+
+    from django.core.exceptions import ImproperlyConfigured
+
+    from config.r2 import missing_settings, storage_options
+
+    _r2_cfg = SimpleNamespace(**{k: v for k, v in globals().items() if k.startswith('R2_')})
+    _missing = missing_settings(_r2_cfg)
+    if _missing:
+        raise ImproperlyConfigured('USE_R2=True لكن هذه المتغيرات ناقصة: ' + ', '.join(_missing))
+    STORAGES['default'] = {'BACKEND': 'storages.backends.s3.S3Storage', 'OPTIONS': storage_options(_r2_cfg)}
+
+# مرفقات المطابقة: خارج MEDIA ولا تُخدَّم مباشرة (التنزيل عبر عرض يتحقق من الصلاحية)
+PRIVATE_MEDIA_ROOT = BASE_DIR / 'private_media'
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Authentication Settings
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -199,3 +242,19 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = None  # Disable COOP header (causes warnings
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WhatsApp (Evolution API) — القيم من .env ولا تُكتب هنا
+# ══════════════════════════════════════════════════════════════════════════════
+from decouple import config as _env  # noqa: E402
+
+WHATSAPP_ENABLED = _env('WHATSAPP_ENABLED', default=False, cast=bool)
+WHATSAPP_ASYNC_DISPATCH = _env('WHATSAPP_ASYNC_DISPATCH', default=True, cast=bool)
+EVOLUTION_API_URL = _env('EVOLUTION_API_URL', default='').rstrip('/')
+EVOLUTION_API_KEY = _env('EVOLUTION_API_KEY', default='')
+EVOLUTION_INSTANCE = _env('EVOLUTION_INSTANCE', default='hr')
+EVOLUTION_API_TIMEOUT = _env('EVOLUTION_API_TIMEOUT', default=20, cast=int)
+WHATSAPP_DEFAULT_COUNTRY = _env('WHATSAPP_DEFAULT_COUNTRY', default='966')
+WHATSAPP_WEBHOOK_SECRET = _env('WHATSAPP_WEBHOOK_SECRET', default='')
+WHATSAPP_PUBLIC_BASE_URL = _env('WHATSAPP_PUBLIC_BASE_URL', default='').rstrip('/')

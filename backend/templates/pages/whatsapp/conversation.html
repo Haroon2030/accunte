@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - نظام المدفوعات{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5" x-data="{ escOpen: false }">
+
+    <!-- المحادثة -->
+    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col" style="min-height: 70vh">
+        <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-3 min-w-0">
+                <a href="{% url 'whatsapp_inbox:inbox' %}" class="btn btn-secondary btn-sm"><i data-lucide="arrow-right"></i></a>
+                <div class="min-w-0">
+                    <div class="font-bold text-slate-800 truncate">{{ conv.display_name|default:conv.contact_number }}</div>
+                    <div class="text-xs text-slate-500" dir="ltr" style="text-align:right">+{{ conv.contact_number }}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                    {% if conv.status == 'new' %}bg-indigo-100 text-indigo-700{% elif conv.status == 'open' %}bg-blue-100 text-blue-700{% elif conv.status == 'pending' %}bg-yellow-100 text-yellow-800{% elif conv.status == 'escalated' %}bg-red-100 text-red-700{% else %}bg-slate-200 text-slate-600{% endif %}">{{ conv.get_status_display }}</span>
+                {% if conv.is_unanswered_overdue %}<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">بلا رد {{ conv.waiting_minutes }} د</span>{% endif %}
+            </div>
+        </div>
+
+        <div id="thread" class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50" style="max-height: 60vh"
+             hx-get="{% url 'whatsapp_inbox:conversation' conv.pk %}" hx-trigger="every 5s" hx-swap="innerHTML">
+            {% include "pages/whatsapp/_thread.html" %}
+        </div>
+
+        {% if can_act and conv.status != 'closed' %}
+        <form method="post" action="{% url 'whatsapp_inbox:send' conv.pk %}" class="border-t border-slate-200 p-3 flex gap-2 items-end" x-data="{ last: 0 }">
+            {% csrf_token %}
+            <textarea name="text" rows="2" required maxlength="4000" placeholder="اكتب ردك..."
+                class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none"
+                @input="if (Date.now() - last > 20000) { last = Date.now(); fetch('{% url 'whatsapp_inbox:typing' conv.pk %}', {method:'POST', headers:{'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content}}); }"
+                @keydown.ctrl.enter="$el.form.submit()"></textarea>
+            <button type="submit" class="btn btn-success"><i data-lucide="send"></i> إرسال</button>
+        </form>
+        {% elif conv.status == 'closed' %}
+        <div class="border-t border-slate-200 p-3 text-sm text-slate-500 text-center">المحادثة مغلقة.</div>
+        {% else %}
+        <div class="border-t border-slate-200 p-3 text-sm text-slate-500 text-center">
+            {% if can_claim %}استلم المحادثة لتتمكن من الرد.{% else %}عرض فقط. المحادثة مسندة إلى {{ conv.assigned_agent.get_full_name|default:conv.assigned_agent.username }}.{% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- الجانب -->
+    <div class="space-y-4">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3 text-sm">
+            <h3 class="font-semibold text-slate-700">الإدارة</h3>
+            <div class="text-xs text-slate-500">المسؤول: <b class="text-slate-700">{% if conv.assigned_agent %}{{ conv.assigned_agent.get_full_name|default:conv.assigned_agent.username }}{% else %}— غير مسندة{% endif %}</b></div>
+
+            <div class="flex flex-wrap gap-2">
+                {% if can_claim %}
+                <form method="post" action="{% url 'whatsapp_inbox:claim' conv.pk %}">{% csrf_token %}<button class="btn btn-primary btn-sm"><i data-lucide="user-check"></i> استلام</button></form>
+                {% endif %}
+                {% if can_act and conv.assigned_agent %}
+                <form method="post" action="{% url 'whatsapp_inbox:release' conv.pk %}">{% csrf_token %}<button class="btn btn-secondary btn-sm">إعادة للصندوق</button></form>
+                {% endif %}
+            </div>
+
+            {% if can_act %}
+            <div class="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+                {% if conv.status != 'closed' %}
+                <form method="post" action="{% url 'whatsapp_inbox:set_status' conv.pk %}">{% csrf_token %}<input type="hidden" name="to" value="pending"><button class="btn btn-soft btn-sm">بانتظار العميل</button></form>
+                <button type="button" class="btn btn-warning btn-sm" @click="escOpen = !escOpen">تصعيد</button>
+                <form method="post" action="{% url 'whatsapp_inbox:set_status' conv.pk %}" onsubmit="return confirm('إغلاق المحادثة؟')">{% csrf_token %}<input type="hidden" name="to" value="closed"><button class="btn btn-danger btn-sm">إغلاق</button></form>
+                {% else %}
+                <form method="post" action="{% url 'whatsapp_inbox:set_status' conv.pk %}">{% csrf_token %}<input type="hidden" name="to" value="open"><button class="btn btn-primary btn-sm">إعادة فتح</button></form>
+                {% endif %}
+            </div>
+            <form x-show="escOpen" x-cloak method="post" action="{% url 'whatsapp_inbox:set_status' conv.pk %}" class="space-y-2">
+                {% csrf_token %}<input type="hidden" name="to" value="escalated">
+                <textarea name="reason" rows="2" required placeholder="سبب التصعيد" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"></textarea>
+                <button class="btn btn-warning btn-sm">تأكيد التصعيد</button>
+            </form>
+            {% if conv.status == 'escalated' and conv.escalation_reason %}<div class="text-xs bg-red-50 text-red-800 rounded p-2">سبب التصعيد: {{ conv.escalation_reason }}</div>{% endif %}
+            {% endif %}
+
+            {% if is_supervisor and conv.status != 'closed' %}
+            <form method="post" action="{% url 'whatsapp_inbox:assign' conv.pk %}" class="pt-2 border-t border-slate-100 flex gap-2">
+                {% csrf_token %}<input type="hidden" name="version" value="{{ conv.version }}">
+                <select name="agent" class="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white">
+                    <option value="">إسناد إلى...</option>
+                    {% for a in agents %}<option value="{{ a.pk }}">{{ a.get_full_name|default:a.username }}</option>{% endfor %}
+                </select>
+                <button class="btn btn-secondary btn-sm">إسناد</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3 text-sm">
+            <h3 class="font-semibold text-slate-700">المورد</h3>
+            {% if conv.supplier %}
+            <div><a href="{% url 'suppliers:detail' conv.supplier.pk %}" class="text-primary-700 hover:underline font-medium">{{ conv.supplier.name }}</a>
+                <span class="font-mono text-xs text-slate-500">({{ conv.supplier.code }})</span></div>
+            {% else %}
+            <div class="text-xs bg-yellow-50 text-yellow-800 rounded p-2">هذا الرقم غير مرتبط بأي مورد. اربطه بكود المورد أو أضفه كجهة اتصال في صفحة المورد.</div>
+            {% endif %}
+            {% if can_act %}
+            <form method="post" action="{% url 'whatsapp_inbox:link_supplier' conv.pk %}" class="flex gap-2">
+                {% csrf_token %}
+                <input name="supplier_code" placeholder="كود المورد" value="{{ conv.supplier.code }}" class="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+                <button class="btn btn-secondary btn-sm">ربط</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3 text-sm">
+            <h3 class="font-semibold text-slate-700">حالة المطابقة المرتبطة</h3>
+            {% if conv.reconciliation_case %}
+            <a href="{% url 'reconciliation:detail' conv.reconciliation_case.pk %}" class="text-primary-700 hover:underline font-mono text-xs">{{ conv.reconciliation_case.reference }}</a>
+            {% else %}<div class="text-xs text-slate-500">غير مرتبطة</div>{% endif %}
+            {% if can_act and conv.supplier %}
+            <form method="post" action="{% url 'whatsapp_inbox:link_case' conv.pk %}" class="flex gap-2">
+                {% csrf_token %}
+                <select name="case" class="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white">
+                    <option value="">بدون</option>
+                    {% for c in cases %}<option value="{{ c.pk }}" {% if conv.reconciliation_case_id == c.pk %}selected{% endif %}>{{ c.reference }} · {{ c.get_status_display }}</option>{% endfor %}
+                </select>
+                <button class="btn btn-secondary btn-sm">ربط</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-2 text-sm">
+            <h3 class="font-semibold text-slate-700">طلبات الخدمة</h3>
+            {% for sr in requests %}<a href="{% url 'servicedesk:detail' sr.pk %}" class="block text-xs text-primary-700 hover:underline"><span class="font-mono">{{ sr.reference }}</span> · {{ sr.service_type.name }} · {{ sr.get_status_display }}</a>
+            {% empty %}<div class="text-xs text-slate-400">لا توجد طلبات مرتبطة</div>{% endfor %}
+            {% if can_act and conv.supplier %}<a href="{% url 'servicedesk:create' %}?conversation={{ conv.pk }}" class="btn btn-soft btn-sm btn-block"><i data-lucide="plus"></i> إنشاء طلب خدمة</a>
+            {% elif can_act %}<div class="text-[11px] text-slate-400">اربط المحادثة بمورد أولًا لإنشاء طلب.</div>{% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 text-xs text-slate-500 space-y-1">
+            <div>أول رسالة بلا رد منذ: <b class="text-slate-700">{{ conv.awaiting_reply_since|date:"Y-m-d H:i"|default:"—" }}</b></div>
+            <div>آخر زمن استجابة: <b class="text-slate-700">{% if conv.last_response_seconds is not None %}{% widthratio conv.last_response_seconds 60 1 %} د{% else %}—{% endif %}</b></div>
+            <div>مهلة الرد الأول (SLA): <b class="text-slate-700">{{ sla_minutes }} دقيقة</b></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const t = document.getElementById('thread');
+    const down = () => { t.scrollTop = t.scrollHeight; if (window.lucide) lucide.createIcons(); };
+    down();
+    document.body.addEventListener('htmx:afterSwap', function (e) { if (e.target === t) down(); });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - نظام المدفوعات{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+    {% if errors %}
+    <div class="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm space-y-1">
+        {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-5">
+        {% csrf_token %}
+
+        {% if service_request_id %}<input type="hidden" name="service_request" value="{{ service_request_id }}">{% endif %}
+        <div x-data="supplierPicker('{{ pre_supplier.pk|default:'' }}', '{{ pre_supplier.name|default:''|escapejs }}')" class="relative">
+            <label class="block text-sm font-medium text-slate-700 mb-1">المورد *</label>
+            <input type="hidden" name="supplier" :value="selectedId">
+            <input type="text" x-model="query" @input.debounce.250ms="search()" @focus="search()" autocomplete="off"
+                   placeholder="ابحث بالاسم أو الكود..." class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+            <div x-show="open && results.length" x-cloak @click.outside="open=false"
+                 class="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <template x-for="r in results" :key="r.id">
+                    <button type="button" @click="pick(r)" class="w-full text-right px-3 py-2 hover:bg-slate-50 text-sm flex justify-between gap-3">
+                        <span x-text="r.name"></span><span class="font-mono text-xs text-slate-500" x-text="r.code"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">بداية الفترة *</label>
+                <input type="date" name="period_start" value="{{ post.period_start }}" required class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">نهاية الفترة *</label>
+                <input type="date" name="period_end" value="{{ post.period_end }}" required class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">الأولوية</label>
+                <select name="priority" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white">
+                    {% for v, l in priorities %}<option value="{{ v }}" {% if v == 'normal' %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">تاريخ الاستحقاق</label>
+                <input type="date" name="due_date" value="{{ post.due_date }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg">
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">الفروع</label>
+            <div class="flex flex-wrap gap-2">
+                {% for b in branches %}
+                <label class="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-sm cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="branches" value="{{ b.pk }}"> {{ b.name }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">كشف حساب المورد (Excel / PDF)</label>
+            <input type="file" name="statement" accept=".xlsx,.xls,.csv,.pdf" class="block w-full text-sm border border-dashed border-slate-300 rounded-lg p-3 bg-slate-50">
+            <p class="text-xs text-slate-500 mt-1">عند رفع الكشف تصبح الحالة «جاهزة للتوزيع» تلقائيًا، وإلا تبقى «جديدة».</p>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">ملاحظات</label>
+            <textarea name="notes" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg">{{ post.notes }}</textarea>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="btn btn-primary btn-grow">حفظ</button>
+            <a href="{% url 'reconciliation:list' %}" class="btn btn-secondary">إلغاء</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function supplierPicker(preId, preName) {
+    return {
+        query: preName || '', selectedId: preId || '', results: [], open: false,
+        async search() {
+            this.selectedId = '';
+            try {
+                const r = await fetch('{% url "suppliers:search" %}?q=' + encodeURIComponent(this.query));
+                this.results = (await r.json()).results || [];
+                this.open = true;
+            } catch (e) { this.results = []; }
+        },
+        pick(r) { this.selectedId = r.id; this.query = r.name + ' (' + r.code + ')'; this.open = false; },
+    };
+}
+</script>
+{% endblock %}

@@ -66,21 +66,21 @@
                     <div class="flex items-center justify-center gap-0.5">
                         <button
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ rental.id }}, viewOnly: true, data: { code: '{{ rental.code|escapejs }}', title: '{{ rental.title|escapejs }}', branch: '{{ rental.branch_id }}', supplier: '{{ rental.supplier_id }}', supplier_name: '{{ rental.supplier.name|escapejs }}', rental_type: '{{ rental.rental_type }}', monthly_rent: '{{ rental.monthly_rent }}', start_date: '{{ rental.start_date|date:'Y-m-d' }}', end_date: '{% if rental.end_date %}{{ rental.end_date|date:'Y-m-d' }}{% endif %}', notes: '{{ rental.notes|escapejs|default:'' }}' } })"
-                            class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                            class="btn btn-icon"
                             title="عرض"
                         >
                             <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                         </button>
                         <button
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ rental.id }}, data: { code: '{{ rental.code|escapejs }}', title: '{{ rental.title|escapejs }}', branch: '{{ rental.branch_id }}', supplier: '{{ rental.supplier_id }}', supplier_name: '{{ rental.supplier.name|escapejs }}', rental_type: '{{ rental.rental_type }}', monthly_rent: '{{ rental.monthly_rent }}', start_date: '{{ rental.start_date|date:'Y-m-d' }}', end_date: '{% if rental.end_date %}{{ rental.end_date|date:'Y-m-d' }}{% endif %}', notes: '{{ rental.notes|escapejs|default:'' }}' } })"
-                            class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            class="btn btn-icon btn-icon-primary"
                             title="تعديل"
                         >
                             <i data-lucide="edit" class="w-3.5 h-3.5"></i>
                         </button>
                         <button
                             @click="$dispatch('open-delete', { url: '{% url 'space_rentals:delete' rental.id %}' })"
-                            class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            class="btn btn-icon btn-icon-danger"
                             title="حذف"
                         >
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -218,13 +218,13 @@
                     <textarea name="notes" x-model="editData.notes" rows="1" class="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"></textarea>
                 </div>
                 <div class="flex gap-2 pt-1 pb-1" x-show="!viewOnly">
-                    <button type="submit" class="flex-1 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">حفظ</button>
-                    <button type="button" @click="open = false; viewOnly = false" class="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">إلغاء</button>
+                    <button type="submit" class="btn btn-primary btn-grow">حفظ</button>
+                    <button type="button" @click="open = false; viewOnly = false" class="btn btn-secondary btn-sm">إلغاء</button>
                 </div>
             </form>
             </fieldset>
             <div x-show="viewOnly" x-cloak class="pt-2 pb-1">
-                <button type="button" @click="open = false; viewOnly = false" class="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">إغلاق</button>
+                <button type="button" @click="open = false; viewOnly = false" class="btn btn-secondary btn-sm btn-block">إغلاق</button>
             </div>
             </div>
         </div>
