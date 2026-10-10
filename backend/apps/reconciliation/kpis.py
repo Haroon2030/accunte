@@ -78,6 +78,27 @@ def _fmt_duration(td):
     return {'days': round(hours / 24, 1), 'hours': round(hours, 1)}
 
 
+def service_request_kpis(period=DEFAULT_PERIOD):
+    """مؤشرات طلبات الخدمة للفترة. (لا تُفلتر بالفرع: الطلب مرتبط بمورد لا بفرع.)"""
+    from apps.servicedesk.models import ServiceRequest as SR
+    qs = SR.objects.all()
+    days = PERIODS.get(period if period in PERIODS else DEFAULT_PERIOD)
+    if days:
+        qs = qs.filter(created_at__gte=timezone.now() - datetime.timedelta(days=days))
+    now = timezone.now()
+    avg = (qs.filter(resolved_at__isnull=False)
+           .annotate(d=ExpressionWrapper(F('resolved_at') - F('created_at'), output_field=DurationField()))
+           .aggregate(avg=Avg('d'))['avg'])
+    return {
+        'total': qs.count(),
+        'open': qs.filter(status__in=SR.OPEN).count(),
+        'overdue': qs.filter(status__in=SR.OPEN, due_at__lt=now).count(),
+        'escalated': qs.filter(status=SR.Status.ESCALATED).count(),
+        'resolved': qs.filter(resolved_at__isnull=False).count(),
+        'avg_resolution': _fmt_duration(avg),
+    }
+
+
 def build(base_qs, period=DEFAULT_PERIOD, branch_id=None):
     """يبني كل أرقام اللوحة. base_qs هو visible_cases للمستخدم."""
     scoped = apply_scope(base_qs, period, branch_id)
@@ -128,6 +149,7 @@ def build(base_qs, period=DEFAULT_PERIOD, branch_id=None):
             'pending_total': pending[0]['total'] + pending[1]['total'],
             'stale_count': stale_props.count(),
         },
+        'requests': service_request_kpis(period),
         'stale_days': STALE_DAYS,
         'overdue_list': list(kpi_queryset('overdue', scoped).select_related('supplier', 'assigned_accountant')
                              .order_by('due_date')[:10]),

@@ -163,6 +163,22 @@
         </div>
     </div>
 
+    <!-- طلبات الخدمة -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-slate-700 text-sm">طلبات الخدمة</h3>
+            <a href="{% url 'servicedesk:list' %}?tab=all" class="text-xs text-primary-700 underline">عرض الكل</a>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <a href="{% url 'servicedesk:list' %}?tab=all" class="border border-slate-200 rounded-lg p-3 hover:shadow"><div class="text-xs text-slate-500">المستلمة</div><div class="text-2xl font-bold">{{ requests.total }}</div></a>
+            <a href="{% url 'servicedesk:list' %}?tab=open" class="border border-slate-200 rounded-lg p-3 hover:shadow"><div class="text-xs text-slate-500">مفتوحة</div><div class="text-2xl font-bold text-blue-700">{{ requests.open }}</div></a>
+            <a href="{% url 'servicedesk:list' %}?tab=overdue" class="border rounded-lg p-3 hover:shadow {% if requests.overdue %}bg-red-50 border-red-200{% else %}border-slate-200{% endif %}"><div class="text-xs {% if requests.overdue %}text-red-700{% else %}text-slate-500{% endif %}">متأخرة</div><div class="text-2xl font-bold {% if requests.overdue %}text-red-700{% endif %}">{{ requests.overdue }}</div></a>
+            <a href="{% url 'servicedesk:list' %}?tab=escalated" class="border border-slate-200 rounded-lg p-3 hover:shadow"><div class="text-xs text-slate-500">مصعَّدة</div><div class="text-2xl font-bold text-orange-600">{{ requests.escalated }}</div></a>
+            <div class="border border-slate-200 rounded-lg p-3"><div class="text-xs text-slate-500">متوسط زمن الحل</div>
+                <div class="text-2xl font-bold">{% if requests.avg_resolution %}{{ requests.avg_resolution.hours }} <span class="text-sm text-slate-500">ساعة</span>{% else %}—{% endif %}</div></div>
+        </div>
+    </div>
+
     <!-- التنبيهات -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div class="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">

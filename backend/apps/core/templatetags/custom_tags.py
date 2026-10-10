@@ -64,7 +64,7 @@ def nav_group_initial(request):
     groups = (
         ('payments', ('/payments/', '/suppliers/')),
         ('reconciliation', ('/reconciliation/', '/proposals/')),
-        ('desk', ('/inbox/',)),
+        ('desk', ('/inbox/', '/service-requests/')),
         ('contracts', ('/contracts/', '/space-rentals/', '/items/')),
         ('system', ('/branches/', '/banks/', '/cost-centers/', '/roles/', '/users/', '/audit/', '/whatsapp/')),
     )

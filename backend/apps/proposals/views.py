@@ -14,7 +14,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.dateparse import parse_date
+from apps.core.dates import safe_parse_date as parse_date
 from django.views.decorators.http import require_POST
 
 from apps.audit.models import AuditLog

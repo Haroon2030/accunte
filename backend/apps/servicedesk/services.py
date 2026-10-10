@@ -1,0 +1,313 @@
+"""
+منطق طلبات الخدمة: التحقق من الحقول الديناميكية، الإنشاء، الاستلام، آلة الحالات، التصعيد التلقائي، الرؤية.
+"""
+import datetime
+import re
+from decimal import Decimal, InvalidOperation
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import F, Q
+from django.utils import timezone
+from apps.core.dates import safe_parse_date as parse_date
+
+from apps.audit.models import AuditLog
+from apps.audit.services import log_action
+from apps.core.access import get_role_type, has_role
+from apps.core.models import Notification, Role
+
+from .models import RequestStatusHistory, ServiceRequest, ServiceType
+
+S = ServiceRequest.Status
+RT = Role.RoleType
+SUPERVISOR_ROLES = (RT.ADMIN, RT.CS_SUPERVISOR, RT.MANAGER, RT.CFO)
+OVERSIGHT_ROLES = SUPERVISOR_ROLES + (RT.AUDITOR,)
+VIEW_ROLES = OVERSIGHT_ROLES + (RT.CS_AGENT, RT.ACCOUNTANT)
+MANAGE_TYPES_ROLES = (RT.ADMIN, RT.CFO, RT.MANAGER)
+
+FIELD_TYPES = ('text', 'textarea', 'number', 'date', 'select')
+KEY_RE = re.compile(r'^[a-z][a-z0-9_]{0,39}$')
+
+
+class RequestError(Exception):
+    """رسالة عربية جاهزة للعرض."""
+
+
+# ── الحقول الديناميكية ─────────────────────────────────────────────────────────
+def validate_schema(schema):
+    """يتحقق من تعريف الحقول الذي يضعه المدير. يُرجع قائمة منقّاة أو يرفع RequestError."""
+    if not isinstance(schema, list):
+        raise RequestError('تعريف الحقول غير صالح')
+    out, seen = [], set()
+    for f in schema:
+        if not isinstance(f, dict):
+            raise RequestError('تعريف الحقول غير صالح')
+        key, label, ftype = str(f.get('key', '')).strip(), str(f.get('label', '')).strip(), f.get('type', 'text')
+        if not KEY_RE.match(key):
+            raise RequestError(f'مفتاح الحقل "{key}" غير صالح (حروف إنجليزية صغيرة وأرقام و _ ويبدأ بحرف)')
+        if key in seen:
+            raise RequestError(f'مفتاح الحقل "{key}" مكرر')
+        if not label:
+            raise RequestError(f'عنوان الحقل "{key}" مطلوب')
+        if ftype not in FIELD_TYPES:
+            raise RequestError(f'نوع الحقل "{key}" غير مدعوم')
+        options = [str(o).strip() for o in (f.get('options') or []) if str(o).strip()]
+        if ftype == 'select' and not options:
+            raise RequestError(f'الحقل "{label}" من نوع قائمة ويحتاج خيارات')
+        seen.add(key)
+        out.append({'key': key, 'label': label[:100], 'type': ftype, 'required': bool(f.get('required')),
+                    'options': options if ftype == 'select' else []})
+    return out
+
+
+def validate_fields(schema, getter):
+    """getter(key) يُرجع القيمة الخام. يُرجع (cleaned, errors)."""
+    cleaned, errors = {}, []
+    for f in schema or []:
+        raw = (getter(f'f_{f["key"]}') or '').strip()
+        if not raw:
+            if f.get('required'):
+                errors.append(f'الحقل "{f["label"]}" مطلوب')
+            continue
+        t = f.get('type')
+        if t == 'number':
+            try:
+                d = Decimal(raw.replace(',', ''))
+                if not d.is_finite():
+                    raise InvalidOperation
+                cleaned[f['key']] = str(d)
+            except InvalidOperation:
+                errors.append(f'الحقل "{f["label"]}" يجب أن يكون رقمًا')
+        elif t == 'date':
+            d = parse_date(raw)
+            if d is None:
+                errors.append(f'الحقل "{f["label"]}" تاريخ غير صالح')
+            else:
+                cleaned[f['key']] = d.isoformat()
+        elif t == 'select':
+            if raw not in f.get('options', []):
+                errors.append(f'قيمة الحقل "{f["label"]}" غير مسموحة')
+            else:
+                cleaned[f['key']] = raw
+        else:
+            cleaned[f['key']] = raw[:2000]
+    return cleaned, errors
+
+
+def labelled_data(req):
+    """بيانات الطلب كأزواج (عنوان، قيمة) حسب تعريف النوع الحالي."""
+    schema = {f['key']: f for f in (req.service_type.field_schema or [])}
+    return [(schema.get(k, {}).get('label', k), v) for k, v in (req.data or {}).items()]
+
+
+# ── الصلاحيات والرؤية ─────────────────────────────────────────────────────────
+def can_create(user, stype):
+    return stype.is_active and has_role(user, *stype.effective_create_roles())
+
+
+def can_handle(user, stype):
+    return has_role(user, *stype.effective_handle_roles())
+
+
+def is_supervisor(user):
+    return has_role(user, *SUPERVISOR_ROLES)
+
+
+def visible_requests(user):
+    qs = ServiceRequest.objects.select_related('service_type', 'supplier', 'assigned_to', 'created_by')
+    if has_role(user, *OVERSIGHT_ROLES):
+        return qs
+    role = get_role_type(user)
+    handled = [t.pk for t in ServiceType.objects.all() if role in t.effective_handle_roles()]
+    return qs.filter(Q(created_by=user) | Q(assigned_to=user)
+                     | Q(assigned_to__isnull=True, service_type_id__in=handled, status__in=ServiceRequest.OPEN))
+
+
+def can_edit_documents(user, req):
+    return not req.is_terminal and (req.created_by_id == user.pk or req.assigned_to_id == user.pk
+                                    or is_supervisor(user))
+
+
+# ── الإنشاء ───────────────────────────────────────────────────────────────────
+def _users_with_role(*roles):
+    return list(get_user_model().objects.filter(is_active=True, profile__role__role_type__in=roles))
+
+
+def _notify(users, title, message, req):
+    seen, rows = set(), []
+    for u in users:
+        if u is None or u.pk in seen or not u.is_active:
+            continue
+        seen.add(u.pk)
+        rows.append(Notification(recipient=u, category=Notification.Category.SYSTEM, title=title, message=message,
+                                 link=f'/service-requests/{req.pk}/'))
+    if rows:
+        Notification.objects.bulk_create(rows)
+
+
+@transaction.atomic
+def create_request(user, stype, supplier, subject, details='', priority='normal', getter=None, conversation=None):
+    if not can_create(user, stype):
+        raise RequestError('ليس لديك صلاحية إنشاء هذا النوع من الطلبات')
+    subject = (subject or '').strip()
+    if not subject:
+        raise RequestError('الموضوع مطلوب')
+    if priority not in ServiceRequest.Priority.values:
+        raise RequestError('أولوية غير صالحة')
+    data, errors = validate_fields(stype.field_schema, getter or (lambda k: ''))
+    if errors:
+        raise RequestError(' · '.join(errors))
+    now = timezone.now()
+    req = ServiceRequest.objects.create(
+        service_type=stype, supplier=supplier, conversation=conversation, subject=subject[:200],
+        details=(details or '').strip(), data=data, priority=priority, created_by=user,
+        due_at=now + datetime.timedelta(hours=stype.sla_hours))
+    RequestStatusHistory.objects.create(request=req, to_status=S.NEW, changed_by=user, reason='إنشاء الطلب')
+    log_action(AuditLog.Action.CREATE, req, entity_type='servicedesk.ServiceRequest',
+               new={'type': stype.code, 'supplier': supplier.pk, 'priority': priority, 'due_at': req.due_at}, actor=user)
+    _notify(_users_with_role(stype.destination_role), 'طلب خدمة جديد',
+            f'{req.reference} · {stype.name} · {supplier.name}', req)
+    return req
+
+
+# ── الاستلام والإسناد ─────────────────────────────────────────────────────────
+@transaction.atomic
+def claim(req_id, user):
+    req = ServiceRequest.objects.select_related('service_type').get(pk=req_id)
+    if not can_handle(user, req.service_type):
+        raise RequestError('هذا الطلب ليس من اختصاصك')
+    rows = (ServiceRequest.objects.filter(pk=req_id, assigned_to__isnull=True, status__in=ServiceRequest.OPEN)
+            .update(assigned_to=user))
+    if rows == 0:
+        raise RequestError('استلمه موظف آخر أو لم يعد متاحًا')
+    log_action(AuditLog.Action.UPDATE, req, entity_type='servicedesk.ServiceRequest',
+               previous={'assigned_to': None}, new={'assigned_to': user.pk}, reason='استلام الطلب', actor=user)
+    return ServiceRequest.objects.get(pk=req_id)
+
+
+@transaction.atomic
+def assign(req_id, agent, by):
+    if not is_supervisor(by):
+        raise RequestError('الإسناد للمشرفين فقط')
+    req = ServiceRequest.objects.select_for_update().select_related('service_type').get(pk=req_id)
+    if req.is_terminal:
+        raise RequestError('الطلب منتهٍ')
+    if not agent.is_active or not can_handle(agent, req.service_type):
+        raise RequestError('هذا المستخدم لا يعالج هذا النوع من الطلبات')
+    old = req.assigned_to_id
+    req.assigned_to = agent
+    req.save(update_fields=['assigned_to', 'updated_at'])
+    log_action(AuditLog.Action.UPDATE, req, entity_type='servicedesk.ServiceRequest', previous={'assigned_to': old},
+               new={'assigned_to': agent.pk}, reason='إسناد الطلب', actor=by)
+    _notify([agent], 'أُسند إليك طلب خدمة', f'{req.reference} · {req.supplier.name}', req)
+    return req
+
+
+# ── آلة الحالات ───────────────────────────────────────────────────────────────
+TRANSITIONS = {
+    S.NEW: {S.IN_PROGRESS: 'handler', S.CANCELLED: 'owner'},
+    S.IN_PROGRESS: {S.WAITING_VENDOR: 'assignee', S.RESOLVED: 'assignee', S.ESCALATED: 'assignee', S.CANCELLED: 'owner'},
+    S.WAITING_VENDOR: {S.IN_PROGRESS: 'assignee', S.RESOLVED: 'assignee', S.CANCELLED: 'owner'},
+    S.ESCALATED: {S.IN_PROGRESS: 'assignee', S.RESOLVED: 'assignee', S.CANCELLED: 'owner'},
+    S.RESOLVED: {S.CLOSED: 'owner', S.IN_PROGRESS: 'owner'},
+    S.CLOSED: {}, S.CANCELLED: {},
+}
+REASON_REQUIRED = {S.CANCELLED, S.ESCALATED}
+
+
+def _allowed(kind, user, req):
+    if kind == 'handler':
+        return can_handle(user, req.service_type) or is_supervisor(user)
+    if kind == 'assignee':
+        if req.assigned_to_id is None:          # طلب غير مسند (مثلًا صُعِّد تلقائيًا): يعالجه المختصون
+            return can_handle(user, req.service_type) or is_supervisor(user)
+        return req.assigned_to_id == user.pk or is_supervisor(user)
+    if kind == 'owner':
+        return req.created_by_id == user.pk or is_supervisor(user)
+    return False
+
+
+def allowed_transitions(user, req):
+    return [to for to, kind in TRANSITIONS.get(req.status, {}).items() if _allowed(kind, user, req)]
+
+
+def missing_documents(req):
+    have = {d.label for d in req.documents.all()}
+    return [lbl for lbl in (req.service_type.required_documents or []) if lbl not in have]
+
+
+@transaction.atomic
+def transition(req_id, to_status, user, reason='', resolution_note=''):
+    req = ServiceRequest.objects.select_for_update().select_related('service_type', 'supplier').get(pk=req_id)
+    if to_status not in S.values:
+        raise RequestError('حالة غير معروفة')
+    to = S(to_status)
+    kind = TRANSITIONS.get(req.status, {}).get(to)
+    if kind is None:
+        raise RequestError(f'لا يمكن الانتقال من "{req.get_status_display()}" إلى "{to.label}"')
+    if not _allowed(kind, user, req):
+        raise RequestError('ليس لديك صلاحية تنفيذ هذا الإجراء')
+    reason = (reason or '').strip()
+    reopening = req.status == S.RESOLVED and to == S.IN_PROGRESS
+    if (to in REASON_REQUIRED or reopening) and not reason:
+        raise RequestError('السبب مطلوب لهذا الإجراء')
+    if to == S.RESOLVED:
+        if not (resolution_note or '').strip():
+            raise RequestError('اكتب ملاحظة الحل')
+        miss = missing_documents(req)
+        if miss:
+            raise RequestError('مستندات إلزامية ناقصة: ' + '، '.join(miss))
+
+    old = req.status
+    now = timezone.now()
+    if kind in ('handler', 'assignee') and req.assigned_to_id is None and can_handle(user, req.service_type):
+        req.assigned_to = user                  # من يعالج طلبًا غير مسند يستلمه
+    if to == S.IN_PROGRESS and old in (S.ESCALATED, S.RESOLVED):
+        req.due_at = now + datetime.timedelta(hours=req.service_type.sla_hours)   # مهلة جديدة بعد التصعيد/إعادة الفتح
+    if to == S.ESCALATED:
+        req.escalated_at = now
+        req.escalation_count += 1
+    if to == S.RESOLVED:
+        req.resolved_at = now
+        req.resolution_note = resolution_note.strip()
+    if reopening:
+        req.resolved_at = None
+    req.status = to
+    req.save()
+    RequestStatusHistory.objects.create(request=req, from_status=old, to_status=to, changed_by=user, reason=reason)
+    log_action(AuditLog.Action.STATUS_CHANGE, req, entity_type='servicedesk.ServiceRequest', previous={'status': old},
+               new={'status': to.value}, reason=reason, actor=user)
+    if to == S.ESCALATED:
+        _notify(_users_with_role(req.service_type.escalation_role), 'طلب خدمة مصعَّد',
+                f'{req.reference} · {reason[:80]}', req)
+    elif to == S.RESOLVED:
+        _notify([req.created_by], 'تم حل طلب الخدمة', f'{req.reference} · {req.supplier.name}', req)
+    return req
+
+
+# ── التصعيد التلقائي ──────────────────────────────────────────────────────────
+def escalate_overdue(now=None):
+    """يُصعِّد الطلبات المتأخرة عن مهلتها. آمن للتكرار: الطلب المصعَّد لا يُصعَّد ثانية حتى يُعاد للمعالجة."""
+    now = now or timezone.now()
+    ids = list(ServiceRequest.objects.filter(
+        status__in=(S.NEW, S.IN_PROGRESS, S.WAITING_VENDOR), due_at__lt=now).values_list('pk', flat=True))
+    done = 0
+    for pk in ids:
+        with transaction.atomic():
+            req = ServiceRequest.objects.select_for_update().select_related('service_type', 'supplier').get(pk=pk)
+            if req.status not in (S.NEW, S.IN_PROGRESS, S.WAITING_VENDOR) or not req.due_at or req.due_at >= now:
+                continue
+            old = req.status
+            req.status = S.ESCALATED
+            req.escalated_at = now
+            req.escalation_count += 1
+            req.save()
+            reason = 'تجاوز مهلة الإنجاز'
+            RequestStatusHistory.objects.create(request=req, from_status=old, to_status=S.ESCALATED, reason=reason)
+            log_action(AuditLog.Action.STATUS_CHANGE, req, entity_type='servicedesk.ServiceRequest',
+                       previous={'status': old}, new={'status': S.ESCALATED.value}, reason=reason,
+                       actor=None, request=None)
+            _notify(_users_with_role(req.service_type.escalation_role) + [req.assigned_to],
+                    'تصعيد تلقائي لطلب خدمة', f'{req.reference} · {req.supplier.name} · تجاوز المهلة', req)
+            done += 1
+    return done

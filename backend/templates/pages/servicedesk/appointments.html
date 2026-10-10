@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - نظام المدفوعات{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <div class="flex items-center justify-between">
+        <a href="{% url 'servicedesk:list' %}" class="btn btn-secondary btn-sm"><i data-lucide="arrow-right"></i> الطلبات</a>
+        <a href="?{% if not show_all %}all=1{% endif %}" class="text-sm text-primary-700 underline">{% if show_all %}عرض القادمة فقط{% else %}عرض كل المواعيد{% endif %}</a>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <ul class="divide-y divide-slate-100 text-sm">
+            {% for a in appointments %}
+            <li class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                <span><b>{{ a.title }}</b> · {{ a.supplier.name }}<br>
+                    <span class="text-xs text-slate-500">{{ a.scheduled_at|date:"Y-m-d H:i" }} · {{ a.duration_minutes }} د{% if a.location %} · {{ a.location }}{% endif %}{% if a.assigned_to %} · {{ a.assigned_to.username }}{% endif %}</span></span>
+                <span class="flex items-center gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{{ a.get_status_display }}</span>
+                    {% if a.request %}<a class="font-mono text-xs text-primary-700 hover:underline" href="{% url 'servicedesk:detail' a.request.pk %}">{{ a.request.reference }}</a>{% endif %}
+                </span>
+            </li>
+            {% empty %}<li class="px-4 py-10 text-center text-slate-400">لا توجد مواعيد</li>{% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

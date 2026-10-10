@@ -38,9 +38,7 @@
 
         {% include "components/nav_sub_item.html" with url="branches:list" icon="building-2" label="الفروع" path="/branches/" %}
 
-        {% include "components/nav_sub_item.html" with url="banks:list" icon="landmark" label="البنوك" path="/banks/" %}
 
-        {% include "components/nav_sub_item.html" with url="cost_centers:list" icon="bar-chart-3" label="مراكز التكلفة" path="/cost-centers/" %}
 
         {% user_has_roles user "cfo,auditor,manager" as can_audit %}
         {% if can_audit %}

@@ -69,6 +69,12 @@
     <tr><th>الإجمالي</th><th>{{ proposals.grand_count }}</th><th dir="ltr" style="text-align:right">{{ proposals.grand_total|floatformat:2 }}</th></tr>
 </table>
 
+<h2>طلبات الخدمة</h2>
+<table>
+    <tr><th>المستلمة</th><th>المفتوحة</th><th>المتأخرة</th><th>المصعَّدة</th><th>متوسط زمن الحل</th></tr>
+    <tr><td>{{ requests.total }}</td><td>{{ requests.open }}</td><td>{{ requests.overdue }}</td><td>{{ requests.escalated }}</td><td>{% if requests.avg_resolution %}{{ requests.avg_resolution.hours }} ساعة{% else %}—{% endif %}</td></tr>
+</table>
+
 <h2>الحالات المتأخرة (أول 10)</h2>
 <table>
     <tr><th>الرقم</th><th>المورد</th><th>المحاسب</th><th>الاستحقاق</th></tr>

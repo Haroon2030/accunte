@@ -72,6 +72,11 @@ def executive_export_excel(request):
         ['إجمالي فروقات غير مسوّاة (ر.س)', float(d['unresolved_amount'])],
         ['مقترحات بانتظار القرار', ctx['proposals']['pending_count']],
         ['مقترحات متأخرة القرار', ctx['proposals']['stale_count']],
+        ['طلبات الخدمة المستلمة', ctx['requests']['total']],
+        ['طلبات الخدمة المفتوحة', ctx['requests']['open']],
+        ['طلبات الخدمة المتأخرة', ctx['requests']['overdue']],
+        ['طلبات الخدمة المصعَّدة', ctx['requests']['escalated']],
+        ['متوسط زمن حل الطلبات (ساعة)', ctx['requests']['avg_resolution']['hours'] if ctx['requests']['avg_resolution'] else '-'],
     ]
     builder = ModernExcelBuilder('لوحة المدير المالي', sheet_name='المؤشرات')
     start = builder.write_report_header(2, meta)

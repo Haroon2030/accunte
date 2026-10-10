@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'apps.reconciliation',
     'apps.proposals',
     'apps.whatsapp',
+    'apps.servicedesk',
 ]
 
 MIDDLEWARE = [

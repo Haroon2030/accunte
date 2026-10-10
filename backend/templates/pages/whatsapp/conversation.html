@@ -125,6 +125,14 @@
             {% endif %}
         </div>
 
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-2 text-sm">
+            <h3 class="font-semibold text-slate-700">طلبات الخدمة</h3>
+            {% for sr in requests %}<a href="{% url 'servicedesk:detail' sr.pk %}" class="block text-xs text-primary-700 hover:underline"><span class="font-mono">{{ sr.reference }}</span> · {{ sr.service_type.name }} · {{ sr.get_status_display }}</a>
+            {% empty %}<div class="text-xs text-slate-400">لا توجد طلبات مرتبطة</div>{% endfor %}
+            {% if can_act and conv.supplier %}<a href="{% url 'servicedesk:create' %}?conversation={{ conv.pk }}" class="btn btn-soft btn-sm btn-block"><i data-lucide="plus"></i> إنشاء طلب خدمة</a>
+            {% elif can_act %}<div class="text-[11px] text-slate-400">اربط المحادثة بمورد أولًا لإنشاء طلب.</div>{% endif %}
+        </div>
+
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 text-xs text-slate-500 space-y-1">
             <div>أول رسالة بلا رد منذ: <b class="text-slate-700">{{ conv.awaiting_reply_since|date:"Y-m-d H:i"|default:"—" }}</b></div>
             <div>آخر زمن استجابة: <b class="text-slate-700">{% if conv.last_response_seconds is not None %}{% widthratio conv.last_response_seconds 60 1 %} د{% else %}—{% endif %}</b></div>

@@ -172,6 +172,7 @@ def conversation(request, pk):
                                   Role.RoleType.MANAGER),
         'is_supervisor': services.is_supervisor(request.user), 'agents': _agents() if services.is_supervisor(request.user) else [],
         'typing_name': services.other_typing(conv, request.user),
+        'requests': conv.service_requests.select_related('service_type')[:10],
         'sla_minutes': SLAConfiguration.current().first_response_minutes,
         'cases': ReconciliationCase.objects.filter(supplier=conv.supplier).exclude(
             status__in=['cancelled']).order_by('-created_at')[:30] if conv.supplier_id else [],

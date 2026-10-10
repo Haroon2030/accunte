@@ -13,7 +13,7 @@ from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.utils.dateparse import parse_date
+from apps.core.dates import safe_parse_date as parse_date
 from django.views.decorators.http import require_POST
 
 from apps.audit.models import AuditLog
@@ -199,12 +199,33 @@ def case_create(request):
                 if stmt:
                     _store_document(case, stmt, 'statement', request.user)
                     workflow.transition(case.pk, S.READY_FOR_DISTRIBUTION, request.user, 'اكتمال المستندات')
+            _link_service_request(request, case)
             messages.success(request, f'تم إنشاء الحالة {case.reference}')
             return redirect('reconciliation:detail', pk=case.pk)
+    pre_supplier = None
+    pre = (request.GET.get('supplier') or request.POST.get('supplier') or '')
+    if pre.isdigit():
+        pre_supplier = Supplier.objects.filter(pk=pre, is_active=True).first()
     return render(request, 'pages/reconciliation/form.html', {
+        'pre_supplier': pre_supplier, 'service_request_id': request.GET.get('service_request') or request.POST.get('service_request') or '',
         'page_title': 'حالة مطابقة جديدة', 'errors': errors, 'branches': Branch.objects.all(),
         'priorities': Case.Priority.choices, 'post': request.POST,
     })
+
+
+def _link_service_request(request, case):
+    """يربط الحالة الجديدة بطلب الخدمة الذي فُتحت منه (إن كان مرئيًا للمستخدم)."""
+    sr_id = request.POST.get('service_request', '')
+    if not sr_id.isdigit():
+        return
+    from apps.servicedesk.models import ServiceRequest
+    from apps.servicedesk.services import visible_requests
+    sr = visible_requests(request.user).filter(pk=sr_id, reconciliation_case__isnull=True).first()
+    if sr is not None:
+        ServiceRequest.objects.filter(pk=sr.pk).update(reconciliation_case=case)
+        log_action(AuditLog.Action.UPDATE, sr, entity_type='servicedesk.ServiceRequest',
+                   previous={'reconciliation_case': None}, new={'reconciliation_case': case.pk},
+                   reason='فتح حالة مطابقة من الطلب', actor=request.user)
 
 
 def _store_document(case, f, doc_type, user):

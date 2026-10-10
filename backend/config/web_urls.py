@@ -11,6 +11,7 @@ from apps.reconciliation import dashboard_views
 from apps.proposals import views as proposal_views
 from apps.whatsapp import views as whatsapp_views
 from apps.whatsapp import inbox_views
+from apps.servicedesk import views as sd_views
 
 # Authentication URLs
 auth_patterns = [
@@ -186,6 +187,25 @@ inbox_patterns = [
     path('<int:pk>/link-case/', inbox_views.link_case, name='link_case'),
 ]
 
+# Service desk URLs
+servicedesk_patterns = [
+    path('', sd_views.request_list, name='list'),
+    path('create/', sd_views.request_create, name='create'),
+    path('types/', sd_views.type_list, name='types'),
+    path('types/new/', sd_views.type_edit, name='type_new'),
+    path('types/<int:pk>/', sd_views.type_edit, name='type_edit'),
+    path('appointments/', sd_views.appointment_list, name='appointments'),
+    path('<int:pk>/', sd_views.request_detail, name='detail'),
+    path('<int:pk>/claim/', sd_views.request_claim, name='claim'),
+    path('<int:pk>/assign/', sd_views.request_assign, name='assign'),
+    path('<int:pk>/transition/', sd_views.request_transition, name='transition'),
+    path('<int:pk>/documents/upload/', sd_views.document_upload, name='document_upload'),
+    path('<int:pk>/documents/<int:doc_pk>/download/', sd_views.document_download, name='document_download'),
+    path('<int:pk>/documents/<int:doc_pk>/delete/', sd_views.document_delete, name='document_delete'),
+    path('<int:pk>/appointments/add/', sd_views.appointment_add, name='appointment_add'),
+    path('<int:pk>/appointments/<int:appt_pk>/status/', sd_views.appointment_status, name='appointment_status'),
+]
+
 # Main URL patterns
 urlpatterns = [
     # Dashboard
@@ -214,4 +234,5 @@ urlpatterns = [
     path('proposals/', include((proposal_patterns, 'proposals'))),
     path('whatsapp/', include((whatsapp_patterns, 'whatsapp'))),
     path('inbox/', include((inbox_patterns, 'whatsapp_inbox'))),
+    path('service-requests/', include((servicedesk_patterns, 'servicedesk'))),
 ]
