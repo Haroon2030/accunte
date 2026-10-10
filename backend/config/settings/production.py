@@ -44,6 +44,9 @@ def _csv(value):
 
 SECURE_SSL_REDIRECT = False  # Handled by reverse proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# عدد الوكلاء العكسيين الموثوقين أمام التطبيق (nginx/Traefik). يُستعمل لقراءة IP العميل الحقيقي في سجل التدقيق
+# وفي تحديد معدل DRF. 0 = لا نثق بـ X-Forwarded-For. تحقق بعد الضبط أن سجل التدقيق يُظهر IP الحقيقي.
+PROXY_HOPS = config('PROXY_HOPS', default=0, cast=int)
 # فعّلها (COOKIES_SECURE=true) عند الوصول عبر HTTPS فقط. مع true لن يعمل الدخول عبر http://IP
 SESSION_COOKIE_SECURE = config('COOKIES_SECURE', default=False, cast=bool)
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
@@ -98,6 +101,8 @@ REST_FRAMEWORK = {
         'anon': '100/hour',
         'user': '1000/hour',
     },
+    # بدونه يرى DRF عنوان الوكيل لكل المستخدمين فيتشاركون حصة واحدة
+    'NUM_PROXIES': PROXY_HOPS or None,
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
