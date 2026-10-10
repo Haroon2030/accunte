@@ -30,17 +30,6 @@ def active_class(request, prefix):
     return 'nav-link-idle'
 
 
-@register.simple_tag
-def nav_dashboard_class(request):
-    """Active class for dashboard nav item"""
-    try:
-        if request.resolver_match.url_name == 'dashboard':
-            return 'nav-link-active'
-    except Exception:
-        pass
-    return 'nav-link-idle'
-
-
 RECON_OWN_ITEMS = ('/reconciliation/executive', '/reconciliation/distribution')
 
 

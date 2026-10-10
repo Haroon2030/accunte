@@ -253,7 +253,7 @@ class ExportTests(DashboardBase):
 
 
 class SidebarHomeLinkTests(DashboardBase):
-    """القائمة الجانبية: لوحة المدير المالي تحل محل «لوحة التحكم» لمن يحق له، وغيرهم يبقى له الرابط القديم."""
+    """القائمة الجانبية: لوحة المدير المالي هي العنصر الأول لمن يحق له، ولا وجود للوحة التحكم القديمة."""
 
     def html(self, user):
         self.client.force_login(user)
@@ -267,9 +267,10 @@ class SidebarHomeLinkTests(DashboardBase):
             self.assertNotIn('title="لوحة التحكم"', html, user.username)
             self.assertIn(reverse('reconciliation:executive'), html)
 
-    def test_others_keep_the_control_panel_link(self):
+    def test_others_have_no_dashboard_item_at_all(self):
+        """لوحة التحكم القديمة أُلغيت: لا رابط لها لأي دور، وغير التنفيذيين لا يرون لوحة المدير المالي."""
         html = self.html(self.acc)
-        self.assertIn('title="لوحة التحكم"', html)
+        self.assertNotIn('title="لوحة التحكم"', html)
         self.assertNotIn('title="لوحة المدير المالي"', html)
 
     def test_no_duplicate_cfo_item_inside_reconciliation_group(self):
