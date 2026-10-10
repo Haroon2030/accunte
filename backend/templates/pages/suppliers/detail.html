@@ -21,19 +21,6 @@
             <div><dt class="text-xs text-slate-500">الرقم الضريبي</dt><dd class="font-mono">{{ supplier.tax_number|default:"—" }}</dd></div>
             <div><dt class="text-xs text-slate-500">الشخص المسؤول</dt><dd>{{ supplier.contact_person|default:"—" }}</dd></div>
             <div><dt class="text-xs text-slate-500">البريد الإلكتروني</dt><dd dir="ltr" class="text-right">{{ supplier.email|default:"—" }}</dd></div>
-            <div><dt class="text-xs text-slate-500">المحاسب المسؤول</dt><dd>
-                {% if can_manage %}
-                <form method="post" action="{% url 'suppliers:set_accountant' supplier.pk %}" class="flex gap-2 items-center">
-                    {% csrf_token %}
-                    <select name="accountant" class="px-2 py-1 border border-slate-200 rounded-lg text-sm bg-white">
-                        <option value="">— بدون —</option>
-                        {% for a in accountants %}<option value="{{ a.pk }}" {% if a.pk == supplier.assigned_accountant_id %}selected{% endif %}>{{ a.get_full_name|default:a.username }}</option>{% endfor %}
-                    </select>
-                    <button class="btn btn-secondary btn-sm">حفظ</button>
-                </form>
-                {% if not accountants %}<p class="text-[11px] text-yellow-800 mt-1">لا يوجد محاسبون. أنشئ مستخدمين بدور «محاسب» من صفحة المستخدمين.</p>{% endif %}
-                {% elif supplier.assigned_accountant %}{{ supplier.assigned_accountant.get_full_name|default:supplier.assigned_accountant.username }}{% else %}—{% endif %}
-            </dd></div>
             <div class="sm:col-span-2">
                 <dt class="text-xs text-slate-500">الفروع المرتبطة</dt>
                 <dd>{% for b in supplier.branches.all %}<span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs ml-1">{{ b.name }}</span>{% empty %}—{% endfor %}</dd>

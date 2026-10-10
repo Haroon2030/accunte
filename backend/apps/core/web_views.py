@@ -486,7 +486,7 @@ class SupplierListView(LoginRequiredMixin, ListView):
     paginate_by = 15
     
     def get_queryset(self):
-        queryset = Supplier.objects.select_related('assigned_accountant')
+        queryset = Supplier.objects.all()
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(Q(name__icontains=search) | Q(code__icontains=search))
@@ -498,8 +498,6 @@ class SupplierListView(LoginRequiredMixin, ListView):
         context['page_subtitle'] = 'إدارة بيانات الموردين'
         context['add_button_text'] = 'إضافة مورد'
         context['search_placeholder'] = 'البحث عن مورد...'
-        from apps.reconciliation.services import accountants
-        context['accountants'] = list(accountants())
         return context
 
 
@@ -529,12 +527,6 @@ def _supplier_fields_from_post(post):
         'bank_account': (post.get('bank_account') or '').strip(),
         'iban': (post.get('iban') or '').strip(),
     }
-    # المحاسب المسؤول: يُعدَّل فقط إن أُرسل الحقل (فلا يُمسح عند تعديل لا يتضمنه)، ويجب أن يكون محاسبًا فعّالًا
-    if 'assigned_accountant' in post:
-        from apps.reconciliation.services import accountants
-        raw = (post.get('assigned_accountant') or '').strip()
-        acc = accountants().filter(pk=raw).first() if raw.isdigit() else None
-        fields['assigned_accountant_id'] = acc.pk if acc else None
     return fields
 
 

@@ -1,0 +1,138 @@
+/* الشريط الجانبي — لغة بصرية واحدة:
+   أيقونات خطية بسماكة موحّدة، شريط تفعيل رفيع على الحافة، عدّادات حية بثلاث درجات (معلومة/تنبيه/عاجل).
+   الألوان: حبر أزرق عميق على أرضية فاتحة. */
+
+:root {
+    --sb-ink: #0f172a;
+    --sb-muted: #5b6b82;
+    --sb-faint: #94a3b8;
+    --sb-line: #e6ebf2;
+    --sb-hover: #f3f6fb;
+    --sb-accent: #1e40af;
+    --sb-accent-soft: #eaf0ff;
+    --sb-brand: #172554;
+}
+
+#app-sidebar { background: #fff; width: 17rem; }
+#app-sidebar .sb-nav { flex: 1; overflow-y: auto; padding: 0.5rem 0.75rem 1rem; scrollbar-width: thin; }
+
+/* ── الشعار ─────────────────────────────────────────── */
+.sb-brand { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1rem 0.9rem; border-bottom: 1px solid var(--sb-line); min-height: 4.25rem; }
+.sb-brand-mark {
+    width: 2.5rem; height: 2.5rem; flex: none; border-radius: 0.7rem; display: grid; place-items: center;
+    background: var(--sb-brand); color: #fff; box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.12);
+}
+.sb-brand-mark svg { width: 1.3rem; height: 1.3rem; stroke-width: 1.75; }
+.sb-brand-title { font-weight: 800; font-size: 1.05rem; color: var(--sb-ink); line-height: 1.2; }
+.sb-brand-sub { font-size: 0.72rem; color: var(--sb-faint); font-weight: 600; margin-top: 0.1rem; }
+
+/* ── الأقسام ────────────────────────────────────────── */
+.sb-section + .sb-section { margin-top: 0.35rem; }
+.sb-section-title { padding: 0.95rem 0.75rem 0.35rem; font-size: 0.72rem; font-weight: 700; color: var(--sb-faint); }
+.sb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.125rem; }
+
+/* ── العنصر ─────────────────────────────────────────── */
+.sb-link {
+    position: relative; display: flex; align-items: center; gap: 0.8rem; padding: 0.6rem 0.75rem;
+    border-radius: 0.65rem; color: var(--sb-muted); font-size: 0.92rem; font-weight: 600; text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.sb-link:hover { background: var(--sb-hover); color: var(--sb-ink); }
+.sb-link:focus-visible { outline: 2px solid #93b4ff; outline-offset: 1px; }
+.sb-icon { width: 1.3rem; height: 1.3rem; flex: none; stroke-width: 1.75; }
+.sb-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.sb-link.is-active { background: var(--sb-accent-soft); color: var(--sb-accent); font-weight: 700; }
+.sb-link.is-active::before {
+    content: ''; position: absolute; inset-block: 0.45rem; inset-inline-start: -0.75rem; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--sb-accent);
+}
+[dir='rtl'] .sb-link.is-active::before { border-radius: 3px 0 0 3px; }
+
+/* ── العدّادات الحية ────────────────────────────────── */
+.sb-badge {
+    flex: none; min-width: 1.4rem; height: 1.4rem; padding: 0 0.42rem; border-radius: 999px; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 800; line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.sb-badge[hidden] { display: none; }
+.sb-badge--info { background: #dbe7ff; color: #1e3a8a; }
+.sb-badge--warn { background: #fde9b8; color: #7a4a05; }
+.sb-badge--danger { background: #dc2626; color: #fff; }
+.sb-badge.is-bumped { animation: sb-bump 0.7s ease-out 1; }
+@keyframes sb-bump { 0% { transform: scale(1); } 30% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+/* ── بطاقة المستخدم ─────────────────────────────────── */
+.sb-user { margin: 0 0.75rem 0.75rem; padding: 0.7rem; border: 1px solid var(--sb-line); border-radius: 0.8rem; display: flex; align-items: center; gap: 0.7rem; }
+.sb-avatar { width: 2.4rem; height: 2.4rem; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--sb-accent-soft); color: var(--sb-accent); font-weight: 800; }
+.sb-user-name { font-weight: 700; font-size: 0.88rem; color: var(--sb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-user-role { font-size: 0.74rem; color: var(--sb-muted); font-weight: 600; }
+.sb-tools { margin-inline-start: auto; display: flex; align-items: center; gap: 0.35rem; }
+.sb-tool { width: 1.9rem; height: 1.9rem; border-radius: 0.5rem; display: grid; place-items: center; color: var(--sb-muted); background: transparent; border: 0; cursor: pointer; }
+.sb-tool:hover { background: var(--sb-hover); color: var(--sb-ink); }
+.sb-tool svg { width: 1.05rem; height: 1.05rem; stroke-width: 1.75; }
+.sb-live-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 3px #dcfce7; flex: none; }
+.sb-live-dot.is-off { background: #f59e0b; box-shadow: 0 0 0 3px #fef3c7; }
+
+/* ── الوضع المطوي (شريط أيقونات) ───────────────────── */
+#app-sidebar.sidebar-collapsed,
+html.sidebar-collapsed-init #app-sidebar { width: 5rem; }
+#app-sidebar.sidebar-collapsed .sb-brand-text,
+#app-sidebar.sidebar-collapsed .sb-label,
+#app-sidebar.sidebar-collapsed .sb-section-title,
+#app-sidebar.sidebar-collapsed .sb-user-info,
+#app-sidebar.sidebar-collapsed .sb-tools .sb-tool,
+html.sidebar-collapsed-init .sb-brand-text,
+html.sidebar-collapsed-init .sb-label,
+html.sidebar-collapsed-init .sb-section-title,
+html.sidebar-collapsed-init .sb-user-info,
+html.sidebar-collapsed-init .sb-tools .sb-tool { display: none !important; }
+#app-sidebar.sidebar-collapsed .sb-brand,
+html.sidebar-collapsed-init .sb-brand { justify-content: center; padding-inline: 0; }
+#app-sidebar.sidebar-collapsed .sb-link,
+html.sidebar-collapsed-init .sb-link { justify-content: center; padding: 0.7rem 0; }
+#app-sidebar.sidebar-collapsed .sb-section + .sb-section,
+html.sidebar-collapsed-init .sb-section + .sb-section { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--sb-line); }
+#app-sidebar.sidebar-collapsed .sb-badge,
+html.sidebar-collapsed-init .sb-badge { position: absolute; top: 0.3rem; inset-inline-end: 0.9rem; min-width: 0.6rem; height: 0.6rem; padding: 0; font-size: 0; }
+#app-sidebar.sidebar-collapsed .sb-user,
+html.sidebar-collapsed-init .sb-user { justify-content: center; padding: 0.5rem 0; border: 0; margin-inline: 0; }
+#app-sidebar.sidebar-collapsed .sb-tools,
+html.sidebar-collapsed-init .sb-tools { display: none; }
+
+/* ── الجوال والتابلت: درج منزلق ─────────────────────── */
+.sb-backdrop { display: none; }
+@media (max-width: 1023px) {
+    #app-sidebar,
+    #app-sidebar.sidebar-collapsed,
+    html.sidebar-collapsed-init #app-sidebar {
+        position: fixed; inset-block: 0; inset-inline-start: 0; width: 18rem; z-index: 60;
+        transform: translateX(100%); transition: transform 0.25s ease;
+    }
+    [dir='ltr'] #app-sidebar { transform: translateX(-100%); }
+    #app-sidebar.sb-mobile-open { transform: none; box-shadow: 0 0 0 100vmax rgba(15, 23, 42, 0.35); }
+    /* في الجوال نعرض الدرج كاملًا حتى لو كان الوضع المطوي محفوظًا */
+    #app-sidebar .sb-label, #app-sidebar .sb-section-title, #app-sidebar .sb-brand-text, #app-sidebar .sb-user-info { display: revert !important; }
+    #app-sidebar .sb-link { justify-content: flex-start; padding: 0.6rem 0.75rem; }
+    #app-sidebar .sb-badge { position: static; min-width: 1.4rem; height: 1.4rem; padding: 0 0.42rem; font-size: 0.72rem; }
+    .sb-backdrop.is-open { display: block; position: fixed; inset: 0; z-index: 55; }
+}
+
+/* ── تنبيه الرسالة الجديدة ──────────────────────────── */
+.sb-toast {
+    position: fixed; bottom: 1.25rem; inset-inline-start: 1.25rem; z-index: 90; max-width: 22rem; background: #fff;
+    border: 1px solid var(--sb-line); border-inline-start: 4px solid #16a34a; border-radius: 0.8rem;
+    box-shadow: 0 12px 32px -12px rgba(15, 23, 42, 0.35); padding: 0.8rem 1rem; text-decoration: none; display: block;
+    animation: sb-toast-in 0.25s ease-out 1;
+}
+.sb-toast strong { display: block; color: var(--sb-ink); font-size: 0.9rem; }
+.sb-toast span { display: block; color: var(--sb-muted); font-size: 0.82rem; margin-top: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes sb-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .sb-badge.is-bumped, .sb-toast { animation: none; }
+    .sb-link, #app-sidebar { transition: none; }
+}
+
+/* الشريط السفلي الثابت للموقع (حقوق التطوير) لا يجوز أن يغطي بطاقة المستخدم */
+#app-sidebar { padding-bottom: 2.25rem; }

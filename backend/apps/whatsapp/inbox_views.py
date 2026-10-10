@@ -2,6 +2,7 @@
 واجهات صندوق واتساب المشترك + استقبال الـ webhook.
 """
 import datetime
+import hashlib
 import hmac
 import json
 import logging
@@ -13,6 +14,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -123,9 +125,7 @@ def _tab_counts(user):
     }
 
 
-@login_required
-@view_required
-def inbox(request):
+def _inbox_ctx(request):
     tab = request.GET.get('tab', 'new')
     if tab not in dict(TABS):
         tab = 'new'
@@ -145,8 +145,42 @@ def inbox(request):
         'sla_minutes': SLAConfiguration.current().first_response_minutes,
         'can_manage': services.is_supervisor(request.user),
     }
+    ctx['sig'] = _inbox_signature(ctx)
+    return ctx
+
+
+def _inbox_signature(ctx):
+    """بصمة ما يظهر في القائمة: تتغير فقط عند تغيّر محادثة أو عدّاد، أو كل دقيقة (لتحديث «منذ ...» و«بلا رد»)."""
+    rows = [(c.pk, c.status, c.unread_count, c.assigned_agent_id,
+             int(c.last_message_at.timestamp()) if c.last_message_at else 0, c.is_unanswered_overdue)
+            for c in ctx['page_obj']]
+    raw = repr((rows, sorted(ctx['counts'].items()), ctx['page_obj'].number, int(timezone.now().timestamp() // 60)))
+    return hashlib.md5(raw.encode()).hexdigest()[:16]
+
+
+@login_required
+@view_required
+def inbox(request):
+    ctx = _inbox_ctx(request)
     template = 'pages/whatsapp/_inbox_list.html' if request.headers.get('HX-Request') else 'pages/whatsapp/inbox.html'
-    return render(request, template, ctx)
+    return _no_store(render(request, template, ctx))
+
+
+@login_required
+@view_required
+def inbox_live(request):
+    """تحديث لحظي لقائمة الصندوق: لا يُرجع شيئًا إن لم يتغير ما يظهر (sig)، وإلا يُرجع القائمة الجديدة."""
+    ctx = _inbox_ctx(request)
+    if request.GET.get('sig') == ctx['sig']:
+        return _no_store(JsonResponse({'changed': False, 'sig': ctx['sig']}))
+    html = render_to_string('pages/whatsapp/_inbox_list.html', ctx, request=request)
+    return _no_store(JsonResponse({'changed': True, 'sig': ctx['sig'], 'html': html}))
+
+
+def _no_store(response):
+    response['Cache-Control'] = 'no-store'
+    response['Vary'] = 'HX-Request'
+    return response
 
 
 def _conv(pk):
@@ -185,7 +219,7 @@ def conversation(request, pk):
             status__in=['cancelled']).order_by('-created_at')[:30] if conv.supplier_id else [],
     }
     template = 'pages/whatsapp/_thread.html' if request.headers.get('HX-Request') else 'pages/whatsapp/conversation.html'
-    return render(request, template, ctx)
+    return _no_store(render(request, template, ctx))
 
 
 def _act(request, pk, fn, success=None):
@@ -344,3 +378,63 @@ def media_download(request, pk, msg_pk):
     log_action(AuditLog.Action.EXPORT, msg, entity_type='whatsapp.Message',
                entity_repr=f'فتح ملف واتساب {name}'[:300], new={'type': msg.kind, 'size': msg.media_size})
     return response
+
+
+# ── التحديث اللحظي لصفحة المحادثة ─────────────────────────────────────────────
+def _render_message(request, conv, msg, can_act):
+    return render_to_string('pages/whatsapp/_message.html', {'m': msg, 'conv': conv, 'can_act': can_act}, request=request)
+
+
+def _parse_known(raw):
+    """'12:sent,13:pending' ← حالات الرسائل الصادرة التي يعرضها المتصفح الآن (حد أقصى 60)."""
+    out = {}
+    for part in (raw or '').split(',')[:60]:
+        mid, _, st = part.partition(':')
+        if mid.isdigit():
+            out[int(mid)] = st
+    return out
+
+
+@login_required
+@view_required
+def conversation_live(request, pk):
+    """يُرجع فقط ما تغيّر منذ آخر استعلام: رسائل جديدة (بعد after) + الصادرة التي تغيّرت حالتها (known) + ميتا المحادثة."""
+    conv = _conv(pk)
+    can_act = services.can_act(request.user, conv)
+    after = request.GET.get('after', '')
+    after = int(after) if after.isdigit() else 0
+    new = list(conv.messages.select_related('sent_by').filter(pk__gt=after).order_by('pk')[:100])
+    if can_act and conv.unread_count and any(m.direction == 'in' for m in new):
+        services.mark_read(conv.pk)               # يقرأها الموظف فعلًا الآن: يختفي العدّاد من الصندوق والشريط
+
+    known = _parse_known(request.GET.get('known'))
+    updates = []
+    if known:
+        for m in conv.messages.select_related('sent_by').filter(pk__in=list(known), direction='out'):
+            if m.status != known[m.pk]:
+                updates.append({'id': m.pk, 'html': _render_message(request, conv, m, can_act)})
+
+    data = {
+        'messages': [{'id': m.pk, 'html': _render_message(request, conv, m, can_act)} for m in new],
+        'updates': updates,
+        'version': conv.version,
+        'status': conv.status, 'status_label': conv.get_status_display(),
+        'late_minutes': conv.waiting_minutes if conv.is_unanswered_overdue else 0,
+        'typing': services.other_typing(conv, request.user) or '',
+    }
+    return _no_store(JsonResponse(data))
+
+
+@login_required
+@view_required
+@require_POST
+def send_ajax(request, pk):
+    """إرسال الرد بلا إعادة تحميل: يُرجع الرسالة جاهزة للإلحاق فورًا (⏳ ثم تتحدث حالتها حيًّا)."""
+    conv = get_object_or_404(SupplierConversation, pk=pk)
+    try:
+        msg = services.send_reply(conv.pk, request.user, request.POST.get('text', ''))
+    except ConversationError as exc:
+        return _no_store(JsonResponse({'ok': False, 'error': str(exc)}, status=400))
+    msg.refresh_from_db()
+    conv = _conv(pk)
+    return _no_store(JsonResponse({'ok': True, 'id': msg.pk, 'html': _render_message(request, conv, msg, True)}))

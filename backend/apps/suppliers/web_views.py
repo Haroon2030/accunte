@@ -9,7 +9,6 @@ from django.views.decorators.http import require_POST
 
 from apps.audit.models import AuditLog
 from apps.audit.services import log_action, snapshot
-from apps.reconciliation.services import accountants
 from apps.core.access import SUPPLIER_IMPORT_ROLES, SUPPLIER_MANAGE_ROLES, SUPPLIER_VIEW_ROLES, has_role, role_required
 
 from . import importer
@@ -95,11 +94,10 @@ def import_cancel(request, pk):
 @role_required(*SUPPLIER_VIEW_ROLES)
 def supplier_detail(request, pk):
     supplier = get_object_or_404(
-        Supplier.objects.select_related('assigned_accountant').prefetch_related('contacts', 'branches'), pk=pk)
+        Supplier.objects.prefetch_related('contacts', 'branches'), pk=pk)
     return render(request, 'pages/suppliers/detail.html', {
         'page_title': supplier.name, 'supplier': supplier,
         'can_manage': has_role(request.user, *SUPPLIER_MANAGE_ROLES),
-        'accountants': list(accountants()),
     })
 
 
@@ -137,27 +135,4 @@ def contact_delete(request, pk, contact_pk):
     log_action(AuditLog.Action.DELETE, contact, previous=before)
     contact.delete()
     messages.success(request, 'تم حذف جهة الاتصال')
-    return redirect('suppliers:detail', pk=pk)
-
-
-@login_required
-@role_required(*SUPPLIER_MANAGE_ROLES)
-@require_POST
-def set_accountant(request, pk):
-    """يربط المورد بمحاسب مسؤول (أو يفكّ الربط). المختار يجب أن يكون محاسبًا فعّالًا."""
-    supplier = get_object_or_404(Supplier, pk=pk)
-    raw = request.POST.get('accountant', '').strip()
-    new = None
-    if raw:
-        new = accountants().filter(pk=raw).first() if raw.isdigit() else None
-        if new is None:
-            messages.error(request, 'اختر محاسبًا من القائمة (مستخدم بدور «محاسب»)')
-            return redirect('suppliers:detail', pk=pk)
-    old = supplier.assigned_accountant_id
-    if old != (new.pk if new else None):
-        supplier.assigned_accountant = new
-        supplier.save(update_fields=['assigned_accountant'])
-        log_action(AuditLog.Action.UPDATE, supplier, previous={'assigned_accountant': old},
-                   new={'assigned_accountant': new.pk if new else None}, reason='ربط المورد بمحاسب')
-    messages.success(request, 'تم ربط المحاسب' if new else 'تم فك ربط المحاسب')
     return redirect('suppliers:detail', pk=pk)
