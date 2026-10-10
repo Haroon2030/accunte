@@ -75,10 +75,14 @@ class ModernExcelBuilder:
         row = 4
         if meta_items:
             for label, value in meta_items:
-                self.ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
-                self.ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=num_columns)
+                if num_columns >= 3:
+                    self.ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+                    self.ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=num_columns)
+                    value_col = 3
+                else:   # جدول بعمودين: التسمية في الأول والقيمة في الثاني بلا دمج
+                    value_col = num_columns
                 label_cell = self.ws.cell(row=row, column=1, value=label)
-                value_cell = self.ws.cell(row=row, column=3, value=value)
+                value_cell = self.ws.cell(row=row, column=value_col, value=value)
                 label_cell.font = self._styles['meta_label_font']
                 value_cell.font = self._styles['meta_value_font']
                 label_cell.alignment = self._styles['right']

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}{{ supplier.name }} - نظام المدفوعات{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <a href="{% url 'suppliers:list' %}" class="btn btn-secondary btn-sm"><i data-lucide="arrow-right"></i> الموردين</a>
+        <span class="px-3 py-1 rounded-full text-xs font-medium {% if supplier.is_active %}bg-green-100 text-green-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+            {% if supplier.is_active %}نشط{% else %}معطل{% endif %}
+        </span>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h2 class="text-lg font-bold text-slate-800 mb-4">بيانات المورد</h2>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+            <div><dt class="text-xs text-slate-500">المعرّف الداخلي</dt><dd class="font-mono">{{ supplier.pk }}</dd></div>
+            <div><dt class="text-xs text-slate-500">رقم المورد</dt><dd class="font-mono">{{ supplier.code }}</dd></div>
+            <div><dt class="text-xs text-slate-500">رقم النظام المالي</dt><dd class="font-mono">{{ supplier.financial_system_id|default:"—" }}</dd></div>
+            <div><dt class="text-xs text-slate-500">الرقم الضريبي</dt><dd class="font-mono">{{ supplier.tax_number|default:"—" }}</dd></div>
+            <div><dt class="text-xs text-slate-500">الشخص المسؤول</dt><dd>{{ supplier.contact_person|default:"—" }}</dd></div>
+            <div><dt class="text-xs text-slate-500">البريد الإلكتروني</dt><dd dir="ltr" class="text-right">{{ supplier.email|default:"—" }}</dd></div>
+            <div><dt class="text-xs text-slate-500">المحاسب المسؤول</dt><dd>{% if supplier.assigned_accountant %}{{ supplier.assigned_accountant.get_full_name|default:supplier.assigned_accountant.username }}{% else %}—{% endif %}</dd></div>
+            <div class="sm:col-span-2">
+                <dt class="text-xs text-slate-500">الفروع المرتبطة</dt>
+                <dd>{% for b in supplier.branches.all %}<span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs ml-1">{{ b.name }}</span>{% empty %}—{% endfor %}</dd>
+            </div>
+            <div class="sm:col-span-2 lg:col-span-3"><dt class="text-xs text-slate-500">ملاحظات الحالة</dt><dd class="whitespace-pre-line">{{ supplier.notes|default:"—" }}</dd></div>
+        </dl>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-200 font-semibold text-slate-700 text-sm">جهات الاتصال المعتمدة</div>
+        <div class="data-table-wrap overflow-x-auto">
+            <table class="data-table w-full text-sm">
+                <thead><tr>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الاسم</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الهاتف</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">المسمى</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">رئيسي</th>
+                    <th class="px-3 py-2 text-center text-xs font-semibold text-slate-600">إجراءات</th>
+                </tr></thead>
+                <tbody>
+                {% for c in supplier.contacts.all %}
+                    <tr>
+                        <td class="px-3 py-2">{{ c.name|default:"—" }}</td>
+                        <td class="px-3 py-2 font-mono text-xs" dir="ltr">+{{ c.phone }}</td>
+                        <td class="px-3 py-2 text-xs">{{ c.job_title|default:"—" }}</td>
+                        <td class="px-3 py-2 text-xs">{% if c.is_primary %}<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">رئيسي</span>{% endif %}</td>
+                        <td class="px-3 py-2">
+                            {% if can_manage %}
+                            <form method="post" action="{% url 'suppliers:contact_delete' supplier.pk c.pk %}" class="flex justify-center"
+                                  onsubmit="return confirm('حذف جهة الاتصال؟')">
+                                {% csrf_token %}
+                                <button class="btn btn-icon btn-icon-danger" title="حذف"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr class="data-table-empty"><td colspan="5"><p class="text-slate-500 text-sm py-6">لا توجد جهات اتصال</p></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if can_manage %}
+        <form method="post" action="{% url 'suppliers:contact_add' supplier.pk %}" class="p-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+            {% csrf_token %}
+            <input name="name" placeholder="الاسم" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+            <input name="phone" placeholder="الهاتف (05XXXXXXXX)" required dir="ltr" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+            <input name="job_title" placeholder="المسمى" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+            <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="is_primary"> رئيسي</label>
+            <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> إضافة</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

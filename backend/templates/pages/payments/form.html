@@ -309,10 +309,10 @@
             <a href="{% url 'payments:list' %}" class="px-6 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                 إلغاء
             </a>
-            <button type="submit" name="action" value="draft" class="px-6 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors">
+            <button type="submit" name="action" value="draft" class="btn btn-secondary">
                 حفظ كمسودة
             </button>
-            <button type="submit" name="action" value="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+            <button type="submit" name="action" value="submit" class="btn btn-primary">
                 حفظ وتقديم
             </button>
         </div>
@@ -386,8 +386,8 @@
                 placeholder="أدخل الملاحظات..."
             ></textarea>
             <div class="flex justify-end gap-3 mt-4">
-                <button type="button" @click="showNotesModal = false" class="px-5 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition-colors">إلغاء</button>
-                <button type="button" @click="saveNotes()" class="px-5 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">حفظ</button>
+                <button type="button" @click="showNotesModal = false" class="btn btn-secondary">إلغاء</button>
+                <button type="button" @click="saveNotes()" class="btn btn-primary">حفظ</button>
             </div>
         </div>
     </div>

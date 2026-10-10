@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'apps.core',
+    'apps.audit',
     'apps.branches',
     'apps.banks',
     'apps.cost_centers',
@@ -55,6 +56,8 @@ INSTALLED_APPS = [
     'apps.items',
     'apps.space_rentals',
     'apps.payments',
+    'apps.reconciliation',
+    'apps.proposals',
 ]
 
 MIDDLEWARE = [
@@ -67,6 +70,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'apps.audit.middleware.AuditContextMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -149,9 +153,10 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ar'
+FORMAT_MODULE_PATH = ['config.formats']   # يثبّت النقطة كفاصل عشري (انظر config/formats/ar/formats.py)
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Riyadh'
 
 USE_I18N = True
 
@@ -180,6 +185,9 @@ STORAGES = {
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# مرفقات المطابقة: خارج MEDIA ولا تُخدَّم مباشرة (التنزيل عبر عرض يتحقق من الصلاحية)
+PRIVATE_MEDIA_ROOT = BASE_DIR / 'private_media'
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Authentication Settings

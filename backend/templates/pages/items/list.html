@@ -92,14 +92,14 @@
                             <div class="flex items-center justify-center gap-0.5">
                                 <a
                                     href="{% url 'items:detail' batch.id %}"
-                                    class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                                    class="btn btn-icon"
                                     title="عرض"
                                 >
                                     <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                                 </a>
                                 <button
                                     @click="$dispatch('open-delete', { url: '{% url 'items:delete' batch.id %}' })"
-                                    class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    class="btn btn-icon btn-icon-danger"
                                     title="حذف الملف"
                                 >
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -129,11 +129,11 @@
         </p>
         <div class="flex items-center gap-2">
             {% if page_obj.has_previous %}
-            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">السابق</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="btn btn-secondary">السابق</a>
             {% endif %}
             <span class="px-4 py-2 text-sm text-slate-600">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
             {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">التالي</a>
+            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" class="btn btn-secondary">التالي</a>
             {% endif %}
         </div>
     </div>
@@ -156,9 +156,9 @@
             <div class="flex gap-3">
                 <form :action="deleteUrl" method="post" class="flex-1">
                     {% csrf_token %}
-                    <button type="submit" class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">حذف</button>
+                    <button type="submit" class="btn btn-danger btn-block">حذف</button>
                 </form>
-                <button @click="open = false" class="flex-1 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">إلغاء</button>
+                <button @click="open = false" class="btn btn-secondary btn-grow">إلغاء</button>
             </div>
         </div>
     </div>

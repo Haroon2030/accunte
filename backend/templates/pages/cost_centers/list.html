@@ -33,21 +33,21 @@
                     <div class="flex items-center justify-center gap-0.5">
                         <button 
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ cc.id }}, viewOnly: true, data: { name: '{{ cc.name }}', code: '{{ cc.code }}', description: '{{ cc.description|default:"" }}' } })"
-                            class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                            class="btn btn-icon"
                             title="عرض"
                         >
                             <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                         </button>
                         <button 
                             @click="$dispatch('open-modal', { id: 'create-modal', editId: {{ cc.id }}, data: { name: '{{ cc.name }}', code: '{{ cc.code }}', description: '{{ cc.description|default:"" }}' } })"
-                            class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            class="btn btn-icon btn-icon-primary"
                             title="تعديل"
                         >
                             <i data-lucide="edit" class="w-3.5 h-3.5"></i>
                         </button>
                         <button 
                             @click="$dispatch('open-delete', { url: '{% url 'cost_centers:delete' cc.id %}' })"
-                            class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            class="btn btn-icon btn-icon-danger"
                             title="حذف"
                         >
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -107,10 +107,10 @@
         ></textarea>
     </div>
     <div class="flex gap-3 pt-4">
-        <button type="submit" class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+        <button type="submit" class="btn btn-primary btn-grow">
             حفظ
         </button>
-        <button type="button" @click="open = false" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+        <button type="button" @click="open = false" class="btn btn-secondary">
             إلغاء
         </button>
     </div>

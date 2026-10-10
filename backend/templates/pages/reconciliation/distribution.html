@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - نظام المدفوعات{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- أحمال المحاسبين -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-200 font-semibold text-slate-700 text-sm">أحمال المحاسبين الحالية</div>
+        <div class="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {% for u in loads %}
+            <div class="border border-slate-200 rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold text-sm">{{ u.get_full_name|default:u.username }}</span>
+                    <span class="text-xs text-slate-500">{{ u.open_count }} مفتوحة</span>
+                </div>
+                <div class="h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                    <div class="h-full bg-primary-600 rounded-full" style="width: {% widthratio u.open_count max_open 100 %}%"></div>
+                </div>
+                <div class="flex gap-3 mt-2 text-xs">
+                    <span class="{% if u.overdue_count %}text-red-700 font-semibold{% else %}text-slate-500{% endif %}">{{ u.overdue_count }} متأخرة</span>
+                    <span class="{% if u.urgent_count %}text-orange-600 font-semibold{% else %}text-slate-500{% endif %}">{{ u.urgent_count }} عاجلة</span>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-sm text-slate-500 col-span-full">لا يوجد محاسبون. أنشئ مستخدمين بدور «محاسب» من صفحة المستخدمين.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- الحالات الجاهزة -->
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+          x-data="{ all: false, toggle() { document.querySelectorAll('input[name=case_ids]').forEach(c => c.checked = this.all) } }">
+        {% csrf_token %}
+        <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center gap-3 justify-between">
+            <span class="font-semibold text-slate-700 text-sm">الحالات الجاهزة للتوزيع ({{ ready|length }})</span>
+            <div class="flex flex-wrap items-center gap-2">
+                <select name="accountant" class="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                    <option value="">اختر المحاسب...</option>
+                    {% for u in loads %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.open_count }})</option>{% endfor %}
+                </select>
+                <button type="submit" name="action" value="assign" class="btn btn-primary btn-sm"><i data-lucide="user-check"></i> إسناد المحدد</button>
+                <button type="submit" name="action" value="suggest" class="btn btn-soft btn-sm"><i data-lucide="wand-sparkles"></i> اقتراح توزيع متوازن</button>
+            </div>
+        </div>
+
+        {% if suggestion %}
+        <div class="p-4 bg-blue-50 border-b border-blue-200 space-y-3">
+            <div class="text-sm font-semibold text-blue-900">التوزيع المقترح (يوازن الأحمال ويقدّم العاجل والأقرب استحقاقًا)</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                {% for case, user in suggestion %}
+                <div class="flex items-center justify-between bg-white rounded-lg border border-blue-100 px-3 py-2">
+                    <span><span class="font-mono text-xs">{{ case.reference }}</span> · {{ case.supplier.name|truncatechars:28 }}</span>
+                    <span class="font-semibold text-blue-800">{{ user.get_full_name|default:user.username }}</span>
+                    <input type="hidden" name="assign_{{ case.pk }}" value="{{ user.pk }}">
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit" name="action" value="apply" class="btn btn-success"><i data-lucide="check"></i> اعتماد التوزيع المقترح</button>
+        </div>
+        {% endif %}
+
+        <div class="data-table-wrap overflow-x-auto">
+            <table class="data-table w-full text-sm">
+                <thead><tr>
+                    <th class="px-3 py-2 w-10"><input type="checkbox" x-model="all" @change="toggle()"></th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الرقم</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">المورد</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الأولوية</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">الاستحقاق</th>
+                </tr></thead>
+                <tbody>
+                {% for c in ready %}
+                    <tr>
+                        <td class="px-3 py-2"><input type="checkbox" name="case_ids" value="{{ c.pk }}"></td>
+                        <td class="px-3 py-2"><a href="{% url 'reconciliation:detail' c.pk %}" class="font-mono text-xs text-primary-700 hover:underline">{{ c.reference }}</a></td>
+                        <td class="px-3 py-2 max-w-[260px] truncate">{{ c.supplier.name }}</td>
+                        <td class="px-3 py-2 text-xs {% if c.priority == 'urgent' %}text-red-700 font-bold{% elif c.priority == 'high' %}text-orange-600 font-semibold{% endif %}">{{ c.get_priority_display }}</td>
+                        <td class="px-3 py-2 text-xs {% if c.is_overdue %}text-red-700 font-bold{% endif %}">{{ c.due_date|date:"Y-m-d"|default:"—" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr class="data-table-empty"><td colspan="5"><p class="text-slate-500 text-sm py-6">لا توجد حالات جاهزة للتوزيع</p></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+</div>
+{% endblock %}

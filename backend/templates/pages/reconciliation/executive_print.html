@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة المدير المالي - {{ now|date:"Y-m-d" }}</title>
+<style>
+    @page { size: A4; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif; color: #1e293b; background: #fff; font-size: 12px; margin: 0; padding: 16px; }
+    h1 { font-size: 20px; margin: 0 0 4px; color: #1d4ed8; }
+    h2 { font-size: 14px; margin: 18px 0 6px; padding-bottom: 4px; border-bottom: 2px solid #e2e8f0; }
+    .meta { color: #64748b; font-size: 11px; margin-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .card { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; break-inside: avoid; }
+    .card .l { font-size: 10px; color: #64748b; }
+    .card .v { font-size: 20px; font-weight: 700; }
+    .red { color: #b91c1c; } .orange { color: #c2410c; } .green { color: #15803d; }
+    table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    th, td { border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; }
+    th { background: #f1f5f9; }
+    tr { break-inside: avoid; }
+    .toolbar { margin-bottom: 12px; }
+    .toolbar button { padding: 8px 16px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; }
+    @media print { .toolbar { display: none; } body { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="toolbar"><button onclick="window.print()">طباعة / حفظ كـ PDF</button></div>
+<h1>لوحة المدير المالي</h1>
+<div class="meta">الفترة: {{ period_label }} · الفرع: {{ branch_name }} · تاريخ التقرير: {{ now|date:"Y-m-d H:i" }}</div>
+
+<h2>المؤشرات الرئيسية</h2>
+<div class="grid">
+    <div class="card"><div class="l">الحالات المستلمة</div><div class="v">{{ counts.all }}</div></div>
+    <div class="card"><div class="l">جديدة / قبل الإسناد</div><div class="v">{{ counts.new }}</div></div>
+    <div class="card"><div class="l">قيد التنفيذ</div><div class="v">{{ counts.in_progress }}</div></div>
+    <div class="card"><div class="l">مكتملة</div><div class="v green">{{ counts.completed }}</div></div>
+    <div class="card"><div class="l">متأخرة</div><div class="v {% if counts.overdue %}red{% endif %}">{{ counts.overdue }}</div></div>
+    <div class="card"><div class="l">بانتظار رد المورد</div><div class="v">{{ counts.waiting_vendor }}</div></div>
+    <div class="card"><div class="l">راكدة (&gt; {{ stale_days }} أيام)</div><div class="v {% if counts.stale %}orange{% endif %}">{{ counts.stale }}</div></div>
+    <div class="card"><div class="l">متوسط زمن الحل</div><div class="v">{% if avg_resolution %}{{ avg_resolution.days }} يوم{% else %}—{% endif %}</div></div>
+</div>
+
+<h2>الفروقات</h2>
+<table>
+    <tr><th>نسبة الحالات ذات الفروقات</th><td>{{ discrepancy.rate }}% ({{ discrepancy.cases }} من {{ discrepancy.worked }})</td></tr>
+    <tr><th>بنود غير مسوّاة</th><td>{{ discrepancy.unresolved_items }}</td></tr>
+    <tr><th>إجمالي غير المسوّى (ر.س)</th><td dir="ltr" style="text-align:right">{{ discrepancy.unresolved_amount|floatformat:2 }}</td></tr>
+</table>
+
+<h2>توزيع الحالات</h2>
+<table>
+    <tr><th>الحالة</th><th>العدد</th></tr>
+    {% for value, label, n in status_rows %}<tr><td>{{ label }}</td><td>{{ n }}</td></tr>{% endfor %}
+</table>
+
+<h2>أحمال المحاسبين</h2>
+<table>
+    <tr><th>المحاسب</th><th>مفتوحة</th><th>متأخرة</th><th>عاجلة</th></tr>
+    {% for u in loads %}<tr><td>{{ u.get_full_name|default:u.username }}</td><td>{{ u.open_count }}</td><td>{{ u.overdue_count }}</td><td>{{ u.urgent_count }}</td></tr>
+    {% empty %}<tr><td colspan="4">لا يوجد محاسبون</td></tr>{% endfor %}
+</table>
+
+<h2>مقترحات الدفع</h2>
+<table>
+    <tr><th>الحالة</th><th>العدد</th><th>الإجمالي (ر.س)</th></tr>
+    {% for value, label, v in proposals.by_status %}<tr><td>{{ label }}</td><td>{{ v.count }}</td><td dir="ltr" style="text-align:right">{{ v.total|floatformat:2 }}</td></tr>{% endfor %}
+    <tr><th>الإجمالي</th><th>{{ proposals.grand_count }}</th><th dir="ltr" style="text-align:right">{{ proposals.grand_total|floatformat:2 }}</th></tr>
+</table>
+
+<h2>الحالات المتأخرة (أول 10)</h2>
+<table>
+    <tr><th>الرقم</th><th>المورد</th><th>المحاسب</th><th>الاستحقاق</th></tr>
+    {% for c in overdue_list %}<tr><td>{{ c.reference }}</td><td>{{ c.supplier.name }}</td><td>{{ c.assigned_accountant.username|default:"—" }}</td><td>{{ c.due_date|date:"Y-m-d" }}</td></tr>
+    {% empty %}<tr><td colspan="4">لا توجد</td></tr>{% endfor %}
+</table>
+
+<h2>الحالات الراكدة (أول 10)</h2>
+<table>
+    <tr><th>الرقم</th><th>المورد</th><th>المحاسب</th><th>الحالة</th></tr>
+    {% for c in stale_list %}<tr><td>{{ c.reference }}</td><td>{{ c.supplier.name }}</td><td>{{ c.assigned_accountant.username|default:"—" }}</td><td>{{ c.get_status_display }}</td></tr>
+    {% empty %}<tr><td colspan="4">لا توجد</td></tr>{% endfor %}
+</table>
+</body>
+</html>

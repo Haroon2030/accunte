@@ -76,7 +76,7 @@
                             <div class="flex items-center justify-center gap-1">
                                 <button
                                     @click="showModal = true; viewOnly = true; editId = {{ role.pk }}; editData = { name: '{{ role.name|escapejs }}', role_type: '{{ role.role_type }}', description: '{{ role.description|escapejs }}' };"
-                                    class="p-1.5 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                                    class="btn btn-icon"
                                     title="عرض"
                                 >
                                     <i data-lucide="eye" class="w-4 h-4"></i>
@@ -84,14 +84,14 @@
                                 {% if not role.is_system_role %}
                                 <button 
                                     @click="showModal = true; viewOnly = false; editId = {{ role.pk }}; editData = { name: '{{ role.name|escapejs }}', role_type: '{{ role.role_type }}', description: '{{ role.description|escapejs }}' };"
-                                    class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors" 
+                                    class="btn btn-icon btn-icon-primary" 
                                     title="تعديل"
                                 >
                                     <i data-lucide="edit-2" class="w-4 h-4"></i>
                                 </button>
                                 <form method="post" action="{% url 'roles:delete' role.pk %}" class="inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا الدور؟')">
                                     {% csrf_token %}
-                                    <button type="submit" class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors" title="حذف">
+                                    <button type="submit" class="btn btn-icon btn-icon-danger" title="حذف">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
                                 </form>
@@ -172,14 +172,14 @@
                 <div class="flex gap-3 pt-4" x-show="!viewOnly">
                     <button 
                         type="submit"
-                        class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                        class="btn btn-primary btn-grow"
                     >
                         <span x-text="editId ? 'تحديث' : 'إضافة'"></span>
                     </button>
                     <button 
                         type="button"
                         @click="showModal = false; viewOnly = false"
-                        class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                        class="btn btn-secondary"
                     >
                         إلغاء
                     </button>
@@ -187,7 +187,7 @@
             </form>
             </fieldset>
             <div x-show="viewOnly" x-cloak class="pt-4">
-                <button type="button" @click="showModal = false; viewOnly = false" class="w-full px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                <button type="button" @click="showModal = false; viewOnly = false" class="btn btn-secondary btn-block">
                     إغلاق
                 </button>
             </div>
