@@ -49,6 +49,8 @@ class PaymentProposal(models.Model):
     updated_at = models.DateTimeField('آخر تحديث', auto_now=True)
     submitted_at = models.DateTimeField('تاريخ التقديم', null=True, blank=True)
     decided_at = models.DateTimeField('تاريخ القرار', null=True, blank=True)
+    # عمود ظل: معرّف المطابقة ما دام المقترح نشطًا (غير مرفوض/ملغى) وإلا NULL، فيفرض مقترحًا نشطًا واحدًا
+    active_case_key = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
 
     class Meta:
         verbose_name = 'مقترح دفع'
@@ -57,10 +59,6 @@ class PaymentProposal(models.Model):
         constraints = [
             models.CheckConstraint(check=Q(proposed_amount__gt=0), name='proposal_amount_positive'),
             models.CheckConstraint(check=Q(proposed_amount__lte=F('total_dues')), name='proposal_not_above_dues'),
-            # مقترح نشط واحد فقط لكل حالة مطابقة: يمنع العدّ المزدوج في التقارير
-            models.UniqueConstraint(
-                fields=['reconciliation_case'], name='one_active_proposal_per_case',
-                condition=~Q(status__in=['rejected', 'cancelled'])),
         ]
         indexes = [models.Index(fields=['status', '-created_at']), models.Index(fields=['supplier', 'status'])]
 
@@ -72,6 +70,8 @@ class PaymentProposal(models.Model):
         return self.status in self.TERMINAL
 
     def save(self, *args, **kwargs):
+        # مقترح نشط واحد فقط لكل حالة مطابقة (يمنع العدّ المزدوج في التقارير)
+        self.active_case_key = None if self.status in self.INACTIVE else self.reconciliation_case_id
         super().save(*args, **kwargs)
         if not self.reference:
             self.reference = f'PP-{self.created_at:%Y}-{self.pk:05d}'

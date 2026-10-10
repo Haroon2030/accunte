@@ -10,8 +10,9 @@ class Supplier(models.Model):
     """المورد"""
     name = models.CharField("اسم المورد", max_length=300)
     code = models.CharField("رقم المورد", max_length=50, unique=True)
+    # فريد عادي يقبل NULL (القيمة الفارغة تُخزَّن None). لا نستعمل فهرسًا مشروطًا لأن MySQL/MariaDB لا تدعمه.
     financial_system_id = models.CharField(
-        "رقم المورد في النظام المالي", max_length=50, null=True, blank=True)
+        "رقم المورد في النظام المالي", max_length=50, null=True, blank=True, unique=True)
     contact_person = models.CharField("الشخص المسؤول", max_length=150, blank=True)
     branches = models.ManyToManyField(
         'branches.Branch', verbose_name="الفروع المرتبطة", related_name="suppliers", blank=True)
@@ -23,6 +24,8 @@ class Supplier(models.Model):
     email = models.EmailField("البريد الإلكتروني", blank=True)
     address = models.TextField("العنوان", blank=True)
     tax_number = models.CharField("الرقم الضريبي", max_length=50, blank=True)
+    # عمود ظل لفرض تفرّد الرقم الضريبي غير الفارغ على كل قواعد البيانات (يُملأ تلقائيًا في save)
+    tax_key = models.CharField(max_length=50, null=True, blank=True, unique=True, editable=False)
     commercial_register = models.CharField("السجل التجاري", max_length=50, blank=True)
     bank_name = models.CharField("اسم البنك", max_length=100, blank=True)
     bank_account = models.CharField("رقم الحساب البنكي", max_length=50, blank=True)
@@ -36,16 +39,6 @@ class Supplier(models.Model):
         verbose_name = "مورد"
         verbose_name_plural = "الموردين"
         ordering = ["name"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["financial_system_id"], name="uniq_supplier_financial_id",
-                condition=models.Q(financial_system_id__isnull=False) & ~models.Q(financial_system_id=""),
-            ),
-            models.UniqueConstraint(
-                fields=["tax_number"], name="uniq_supplier_tax_number",
-                condition=~models.Q(tax_number=""),
-            ),
-        ]
         indexes = [
             models.Index(fields=["name"]),
             models.Index(fields=["is_active", "name"]),
@@ -53,6 +46,15 @@ class Supplier(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        self.financial_system_id = (self.financial_system_id or '').strip() or None
+        self.tax_number = (self.tax_number or '').strip()
+        self.tax_key = self.tax_number or None
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'financial_system_id', 'tax_number', 'tax_key'}
+        super().save(*args, **kwargs)
 
     @property
     def total_payments(self):

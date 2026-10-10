@@ -88,7 +88,7 @@ def assign_cases(pairs, by_user, note=''):
         if case.status not in (S.READY_FOR_DISTRIBUTION, S.ASSIGNED):
             continue
         old_status, old_acc = case.status, case.assigned_accountant_id
-        case.assignments.filter(is_active=True).update(is_active=False, ended_at=timezone.now())
+        case.assignments.filter(is_active=True).update(is_active=False, active_case=None, ended_at=timezone.now())
         WorkAssignment.objects.create(case=case, accountant=accountant, assigned_by=by_user, note=note[:300])
         case.assigned_accountant = accountant
         case.status = S.ASSIGNED

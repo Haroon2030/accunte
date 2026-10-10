@@ -249,7 +249,8 @@ def commit(job, user=None):
         Supplier.objects.bulk_create([
             Supplier(
                 name=r['name'], code=r['code'], financial_system_id=r['financial_system_id'] or None,
-                tax_number=r['tax_number'], phone=(r['phones'][0] if r['phones'] else ''),
+                tax_number=r['tax_number'], tax_key=r['tax_number'] or None,
+                phone=(r['phones'][0] if r['phones'] else ''),
                 email=r['email'], contact_person=r['contact_person'], notes=r['notes'],
                 bank_name=r['bank_name'], iban=r['iban'], assigned_accountant_id=r['accountant_id'],
             ) for r in part

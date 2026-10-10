@@ -199,6 +199,8 @@ class WorkAssignment(models.Model):
                                     related_name='+', verbose_name='أسندها')
     is_active = models.BooleanField('نشط', default=True)
     note = models.CharField('ملاحظة', max_length=300, blank=True)
+    # عمود ظل: يساوي معرّف الحالة ما دام الإسناد نشطًا وإلا NULL، فيفرض "إسناد نشط واحد" بقيد فريد عادي
+    active_case = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
     assigned_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
 
@@ -206,12 +208,13 @@ class WorkAssignment(models.Model):
         verbose_name = 'إسناد'
         verbose_name_plural = 'الإسنادات'
         ordering = ['-assigned_at']
-        constraints = [
-            models.UniqueConstraint(fields=['case'], condition=Q(is_active=True), name='one_active_assignment'),
-        ]
 
     def __str__(self):
         return f'{self.case} → {self.accountant}'
+
+    def save(self, *args, **kwargs):
+        self.active_case = self.case_id if self.is_active else None
+        super().save(*args, **kwargs)
 
 
 class StatusHistory(models.Model):

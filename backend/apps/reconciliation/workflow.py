@@ -125,4 +125,4 @@ def transition(case_id, to_status, user, reason=''):
 
 
 def _end_active_assignment(case):
-    case.assignments.filter(is_active=True).update(is_active=False, ended_at=timezone.now())
+    case.assignments.filter(is_active=True).update(is_active=False, active_case=None, ended_at=timezone.now())

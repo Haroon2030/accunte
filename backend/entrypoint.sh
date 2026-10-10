@@ -10,35 +10,28 @@ sleep 5
 echo "=== Running migrations ==="
 python manage.py migrate --noinput
 
-echo "=== Creating superuser if not exists ==="
+echo "=== Creating first admin (only if ADMIN_PASSWORD is provided) ==="
+if [ -n "$ADMIN_PASSWORD" ]; then
 python manage.py shell << 'EOF'
+import os
 from django.contrib.auth import get_user_model
 User = get_user_model()
-if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser('admin', 'admin@admin.com', '123456')
+username = os.environ.get('ADMIN_USERNAME', 'admin')
+if not User.objects.filter(username=username).exists():
+    User.objects.create_superuser(username, os.environ.get('ADMIN_EMAIL', ''), os.environ['ADMIN_PASSWORD'])
     print('Superuser created')
 else:
-    print('Superuser exists')
+    print('Superuser exists (password untouched)')
 EOF
+else
+    echo "ADMIN_PASSWORD not set: skipping admin creation"
+fi
 
-echo "=== Creating default roles if not exist ==="
-python manage.py shell << 'EOF'
-from apps.core.models import Role
+echo "=== Creating/updating system roles ==="
+python manage.py setup_roles
 
-roles = [
-    {'name': 'مدير النظام', 'role_type': 'admin', 'description': 'صلاحيات كاملة'},
-    {'name': 'مدير', 'role_type': 'manager', 'description': 'إدارة الطلبات'},
-    {'name': 'مدقق', 'role_type': 'auditor', 'description': 'مراجعة الطلبات'},
-    {'name': 'موظف فرع', 'role_type': 'branch_employee', 'description': 'إنشاء طلبات'},
-]
-
-for r in roles:
-    obj, created = Role.objects.get_or_create(
-        name=r['name'],
-        defaults={'role_type': r['role_type'], 'description': r['description'], 'is_system_role': True}
-    )
-    print(f"{'Created' if created else 'Exists'}: {r['name']}")
-EOF
+echo "=== Mirroring legacy payment audit log (idempotent) ==="
+python manage.py backfill_payment_audit
 
 echo "=== Collecting static files ==="
 python manage.py collectstatic --clear --noinput

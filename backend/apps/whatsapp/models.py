@@ -112,7 +112,8 @@ class ConversationMessage(models.Model):
 
     conversation = models.ForeignKey(SupplierConversation, on_delete=models.CASCADE, related_name='messages')
     direction = models.CharField(max_length=3, choices=Direction.choices)
-    wa_message_id = models.CharField('معرّف رسالة واتساب', max_length=128, blank=True)
+    # فريد عادي يقبل NULL: الرسائل التي لم تُرسَل بعد بلا معرّف (None). MySQL لا يدعم الفهرس المشروط.
+    wa_message_id = models.CharField('معرّف رسالة واتساب', max_length=128, null=True, blank=True, unique=True)
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.TEXT)
     body = models.TextField('النص', blank=True)
     media_name = models.CharField(max_length=255, blank=True)
@@ -128,11 +129,6 @@ class ConversationMessage(models.Model):
         verbose_name = 'رسالة'
         verbose_name_plural = 'الرسائل'
         ordering = ['timestamp', 'id']
-        constraints = [
-            # منع تكرار الرسالة نفسها إذا أعاد Evolution إرسال الحدث (Idempotency)
-            models.UniqueConstraint(fields=['wa_message_id'], condition=~Q(wa_message_id=''),
-                                    name='uniq_whatsapp_message_id'),
-        ]
         indexes = [models.Index(fields=['conversation', 'timestamp'])]
 
     def __str__(self):
@@ -145,6 +141,7 @@ class ConversationAssignment(models.Model):
     agent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+')
     assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+')
     is_active = models.BooleanField(default=True)
+    active_conversation = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
     assigned_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
 
@@ -152,7 +149,7 @@ class ConversationAssignment(models.Model):
         verbose_name = 'إسناد محادثة'
         verbose_name_plural = 'إسنادات المحادثات'
         ordering = ['-assigned_at']
-        constraints = [
-            models.UniqueConstraint(fields=['conversation'], condition=Q(is_active=True),
-                                    name='one_active_conversation_assignment'),
-        ]
+
+    def save(self, *args, **kwargs):
+        self.active_conversation = self.conversation_id if self.is_active else None
+        super().save(*args, **kwargs)

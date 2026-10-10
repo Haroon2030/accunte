@@ -44,3 +44,7 @@ pnpm-debug.log*
 
 backend/private_media/
 private_media/
+
+# سجلات التشغيل
+logs/
+*.log

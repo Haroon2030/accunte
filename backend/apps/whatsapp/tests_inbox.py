@@ -110,8 +110,8 @@ class IdempotencyTests(Base):
         M.objects.create(conversation=c, direction='in', wa_message_id='X1', body='a')
         with self.assertRaises(IntegrityError), transaction.atomic():
             M.objects.create(conversation=c, direction='in', wa_message_id='X1', body='b')
-        M.objects.create(conversation=c, direction='out', wa_message_id='', body='1')   # الفارغ لا يتعارض
-        M.objects.create(conversation=c, direction='out', wa_message_id='', body='2')
+        M.objects.create(conversation=c, direction='out', body='1')   # الفارغ لا يتعارض
+        M.objects.create(conversation=c, direction='out', body='2')
 
     def test_batch_payload_with_repeated_ids(self):
         p = upsert('B1')

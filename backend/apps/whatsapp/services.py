@@ -240,7 +240,7 @@ def can_act(user, conv):
 
 
 def _record_assignment(conv, agent, by):
-    conv.assignments.filter(is_active=True).update(is_active=False, ended_at=timezone.now())
+    conv.assignments.filter(is_active=True).update(is_active=False, active_conversation=None, ended_at=timezone.now())
     if agent is not None:
         ConversationAssignment.objects.create(conversation=conv, agent=agent, assigned_by=by)
 
@@ -441,7 +441,7 @@ def deliver(message_id):
     except WhatsAppError as exc:
         M.objects.filter(pk=msg.pk).update(status=M.DeliveryStatus.FAILED, error=str(exc)[:300])
         return M.objects.get(pk=msg.pk)
-    wa_id = str(((resp or {}).get('key') or {}).get('id') or '')[:128]
+    wa_id = str(((resp or {}).get('key') or {}).get('id') or '')[:128] or None
     try:
         with transaction.atomic():
             M.objects.filter(pk=msg.pk).update(status=M.DeliveryStatus.SENT, wa_message_id=wa_id, error='')
