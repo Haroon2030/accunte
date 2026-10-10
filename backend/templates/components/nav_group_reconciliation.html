@@ -19,10 +19,6 @@
     </button>
 
     <div class="nav-group-panel space-y-0.5" x-show="isOpen('reconciliation')" x-cloak>
-        {% user_has_roles user "cfo,manager,auditor" as can_exec %}
-        {% if can_exec %}
-            {% include "components/nav_sub_item.html" with url="reconciliation:executive" icon="layout-dashboard" label="لوحة المدير المالي" path="/reconciliation/executive/" %}
-        {% endif %}
         {% user_has_roles user "cfo,manager,auditor,cs_supervisor,cs_agent,accountant" as can_cases %}
         {% if can_cases %}
             {% include "components/nav_sub_item.html" with url="reconciliation:list" icon="clipboard-check" label="حالات المطابقة" path="/reconciliation/" %}

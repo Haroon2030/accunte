@@ -250,3 +250,46 @@ class ExportTests(DashboardBase):
         self.assertIn('500.50', html2)
         self.assertNotIn('500,50', html2)
         self.assertEqual(AuditLog.objects.filter(action=AuditLog.Action.EXPORT, entity_repr__contains='PDF').count(), 2)
+
+
+class SidebarHomeLinkTests(DashboardBase):
+    """القائمة الجانبية: لوحة المدير المالي تحل محل «لوحة التحكم» لمن يحق له، وغيرهم يبقى له الرابط القديم."""
+
+    def html(self, user):
+        self.client.force_login(user)
+        return self.client.get(reverse('reconciliation:list') if user.profile.role.role_type != 'auditor'
+                               else reverse('reconciliation:executive')).content.decode()
+
+    def test_executives_see_cfo_dashboard_instead_of_control_panel(self):
+        for user in (self.cfo, self.auditor):
+            html = self.html(user)
+            self.assertIn('title="لوحة المدير المالي"', html, user.username)
+            self.assertNotIn('title="لوحة التحكم"', html, user.username)
+            self.assertIn(reverse('reconciliation:executive'), html)
+
+    def test_others_keep_the_control_panel_link(self):
+        html = self.html(self.acc)
+        self.assertIn('title="لوحة التحكم"', html)
+        self.assertNotIn('title="لوحة المدير المالي"', html)
+
+    def test_no_duplicate_cfo_item_inside_reconciliation_group(self):
+        html = self.html(self.cfo)
+        self.assertEqual(html.count('title="لوحة المدير المالي"'), 1)
+
+    def test_active_state_on_executive_page(self):
+        self.client.force_login(self.cfo)
+        html = self.client.get(reverse('reconciliation:executive')).content.decode()
+        i = html.index('title="لوحة المدير المالي"')
+        self.assertIn('nav-link-active', html[max(0, i - 200):i])
+
+    def test_cases_item_not_active_on_executive_or_distribution_pages(self):
+        import re
+        self.client.force_login(self.cfo)
+        for name in ('executive', 'distribution'):
+            html = self.client.get(reverse(f'reconciliation:{name}')).content.decode()
+            m = re.search(r'<a[^>]*class="([^"]*)"[^>]*title="حالات المطابقة"', html)
+            self.assertIsNotNone(m, name)
+            self.assertNotIn('nav-sub-link-active', m.group(1), name)
+        html = self.client.get(reverse('reconciliation:list')).content.decode()
+        m = re.search(r'<a[^>]*class="([^"]*)"[^>]*title="حالات المطابقة"', html)
+        self.assertIn('nav-sub-link-active', m.group(1))
