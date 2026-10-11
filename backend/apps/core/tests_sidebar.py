@@ -34,13 +34,13 @@ def keys_for(user):
 
 
 EXECUTIVE = {'executive'}
-WORK_ALL = {'inbox', 'requests', 'cases', 'proposals', 'suppliers'}
+WORK_ALL = {'inbox', 'requests', 'cases', 'proposals', 'suppliers', 'statement'}
 
 EXPECTED = {
     RT.ADMIN: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'users', 'roles', 'audit', 'whatsapp_link'},
     RT.CFO: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'audit', 'whatsapp_link'},
-    RT.CS_SUPERVISOR: {'inbox', 'requests', 'cases', 'distribution', 'proposals', 'suppliers', 'whatsapp_link'},
-    RT.ACCOUNTANT: {'requests', 'cases', 'proposals', 'suppliers'},
+    RT.CS_SUPERVISOR: {'inbox', 'requests', 'cases', 'distribution', 'proposals', 'suppliers', 'whatsapp_link', 'statement'},
+    RT.ACCOUNTANT: {'requests', 'cases', 'proposals', 'suppliers', 'statement'},
     RT.SUPPLIER: set(),
 }
 
@@ -98,6 +98,7 @@ class ActiveItemTests(TestCase):
             '/reconciliation/': ['cases'],
             '/reconciliation/12/': ['cases'],
             '/reconciliation/distribution/': ['distribution'],
+            '/statement-matcher/': ['statement'],
             '/service-requests/': ['requests'],
             '/service-requests/5/': ['requests'],
             '/service-requests/types/': ['service_types'],

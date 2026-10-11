@@ -8,6 +8,7 @@ from apps.suppliers import web_views as supplier_views
 from apps.audit import web_views as audit_views
 from apps.reconciliation import views as recon_views
 from apps.reconciliation import dashboard_views
+from apps.reconciliation import statement_views
 from apps.proposals import views as proposal_views
 from apps.whatsapp import views as whatsapp_views
 from apps.core import live as core_live
@@ -250,6 +251,7 @@ urlpatterns = [
     path('notifications/', include((notification_patterns, 'notifications'))),
     path('audit/', include((audit_patterns, 'audit'))),
     path('reconciliation/', include((reconciliation_patterns, 'reconciliation'))),
+    path('statement-matcher/', statement_views.statement_matcher, name='statement_matcher'),
     path('proposals/', include((proposal_patterns, 'proposals'))),
     path('whatsapp/', include((whatsapp_patterns, 'whatsapp'))),
     path('inbox/', include((inbox_patterns, 'whatsapp_inbox'))),

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} - نظام المدفوعات{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="{% static 'statement/statement.css' %}?v={{ asset_version }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div id="sm-root" class="sm" aria-live="polite"></div>
+<noscript><p class="text-red-700">هذه الأداة تحتاج تفعيل JavaScript في المتصفح.</p></noscript>
+{% endblock %}
+
+{% block extra_js %}
+<script>window.__SM_STATIC__ = "{% static 'statement/' %}";</script>
+{% for name in scripts %}<script src="{% static 'statement/' %}{{ name }}?v={{ asset_version }}"></script>
+{% endfor %}
+<script>SM.app.mount(document.getElementById('sm-root'));</script>
+{% endblock %}

@@ -32,20 +32,20 @@ class NavItem:
 
 # عنوان رئيسي تحته شاشات فرعية: مفتاح المجموعة ← (التسمية، الأيقونة)
 GROUPS = {
-    'service': ('خدمة العملاء', 'headphones'),
-    'recon': ('المطابقة', 'scale'),
-    'setup': ('الإعدادات', 'settings'),
-    'access': ('المستخدمون والصلاحيات', 'users'),
+    'service': ('مركز دعم الموردين', 'headset'),
+    'recon': ('المطابقة المالية', 'scale'),
+    'setup': ('تهيئة النظام', 'settings-2'),
+    'access': ('الهوية والصلاحيات', 'key-round'),
 }
 
 
 SECTIONS = (
-    ('', (
+    ('نظرة عامة', (
         NavItem('executive', 'لوحة المدير المالي', 'layout-dashboard', 'reconciliation:executive',
                 ('/reconciliation/executive/',), OVERSIGHT),
     )),
-    ('تشغيل', (
-        NavItem('inbox', 'صندوق واتساب', 'message-circle', 'whatsapp_inbox:inbox', ('/inbox/',), OVERSIGHT + CS, group='service'),
+    ('العمليات', (
+        NavItem('inbox', 'صندوق الرسائل الواردة', 'inbox', 'whatsapp_inbox:inbox', ('/inbox/',), OVERSIGHT + CS, group='service'),
         NavItem('requests', 'طلبات الخدمة', 'clipboard-list', 'servicedesk:list', ('/service-requests/',),
                 OVERSIGHT + CS + (RT.ACCOUNTANT,), exclude=('/service-requests/types',), group='service',
                 label_by_role={RT.ACCOUNTANT: 'مهامي'}),
@@ -53,23 +53,25 @@ SECTIONS = (
                 OVERSIGHT + CS + (RT.ACCOUNTANT,),
                 exclude=('/reconciliation/executive', '/reconciliation/distribution'),
                 group='recon'),
-        NavItem('distribution', 'توزيع الملفات', 'split', 'reconciliation:distribution',
+        NavItem('distribution', 'توزيع المهام', 'git-fork', 'reconciliation:distribution',
                 ('/reconciliation/distribution/',), (RT.CFO, RT.CS_SUPERVISOR), group='recon'),
+        NavItem('statement', 'مطابقة كشوف الحساب', 'file-spreadsheet', 'statement_matcher', ('/statement-matcher/',),
+                (RT.CFO, RT.CS_SUPERVISOR, RT.ACCOUNTANT), group='recon'),
         NavItem('proposals', 'مقترحات الدفع', 'file-check-2', 'proposals:list', ('/proposals/',),
                 OVERSIGHT + (RT.CS_SUPERVISOR, RT.ACCOUNTANT)),
     )),
-    ('إدارة', (
-        NavItem('suppliers', 'الموردين', 'briefcase', 'suppliers:list', ('/suppliers/',),
+    ('البيانات الرئيسية', (
+        NavItem('suppliers', 'سجل الموردين', 'contact-round', 'suppliers:list', ('/suppliers/',),
                 OVERSIGHT + CS + (RT.ACCOUNTANT,)),
-        NavItem('service_types', 'أنواع الخدمات', 'sliders-horizontal', 'servicedesk:types',
+        NavItem('service_types', 'تصنيفات الخدمة', 'tags', 'servicedesk:types',
                 ('/service-requests/types',), (RT.CFO,), group='setup'),
-        NavItem('branches', 'الفروع', 'building-2', 'branches:list', ('/branches/',), (RT.CFO,), group='setup'),
+        NavItem('branches', 'الفروع ومراكز العمل', 'building-2', 'branches:list', ('/branches/',), (RT.CFO,), group='setup'),
     )),
-    ('حوكمة', (
-        NavItem('users', 'المستخدمين', 'users', 'users:list', ('/users/',), (), group='access'),
-        NavItem('roles', 'الأدوار', 'shield-check', 'roles:list', ('/roles/',), (), group='access'),
+    ('الحوكمة والامتثال', (
+        NavItem('users', 'حسابات المستخدمين', 'users', 'users:list', ('/users/',), (), group='access'),
+        NavItem('roles', 'مصفوفة الأدوار', 'shield-check', 'roles:list', ('/roles/',), (), group='access'),
         NavItem('audit', 'سجل التدقيق', 'history', 'audit:list', ('/audit/',), OVERSIGHT),
-        NavItem('whatsapp_link', 'ربط واتساب', 'plug', 'whatsapp:connect', ('/whatsapp/',),
+        NavItem('whatsapp_link', 'تكامل واتساب', 'plug-zap', 'whatsapp:connect', ('/whatsapp/',),
                 (RT.CFO, RT.CS_SUPERVISOR)),
     )),
 )
