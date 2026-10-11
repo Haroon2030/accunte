@@ -259,12 +259,8 @@ def change_password_view(request):
 HOME_BY_ROLE = {
     Role.RoleType.ADMIN: 'reconciliation:executive',
     Role.RoleType.CFO: 'reconciliation:executive',
-    Role.RoleType.MANAGER: 'reconciliation:executive',
-    Role.RoleType.AUDITOR: 'reconciliation:executive',
     Role.RoleType.ACCOUNTANT: 'reconciliation:list',
     Role.RoleType.CS_SUPERVISOR: 'whatsapp_inbox:inbox',
-    Role.RoleType.CS_AGENT: 'whatsapp_inbox:inbox',
-    Role.RoleType.PAYMENT_OFFICER: 'proposals:list',
     Role.RoleType.SUPPLIER: 'portal:home',
 }
 DEFAULT_HOME = 'payments:list'

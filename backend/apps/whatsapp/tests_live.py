@@ -47,7 +47,7 @@ class ConversationLiveTests(LiveBase):
         self.c.unread_count = 2
         self.c.save()
         self.msg('A')
-        self.live(self.a2)                                 # موظف آخر لا يملك المحادثة: لا يقرأها
+        self.live(self.cfo)                                # يطّلع فقط ولا يتصرف: لا يقرأها
         self.c.refresh_from_db()
         self.assertEqual(self.c.unread_count, 2)
         self.live(self.a1)
@@ -128,9 +128,9 @@ class SendAjaxTests(LiveBase):
         self.assertTrue(resp.json()['error'])
         self.assertEqual(M.objects.count(), 0)
 
-    def test_other_agent_cannot_send_on_someone_elses_conversation(self):
+    def test_viewer_cannot_send(self):
         with mock.patch('apps.whatsapp.client.send_text') as sent:
-            resp = self.post(self.a2)
+            resp = self.post(self.cfo)
         self.assertEqual(resp.status_code, 400)
         sent.assert_not_called()
         self.assertEqual(M.objects.count(), 0)

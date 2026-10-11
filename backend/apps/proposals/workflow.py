@@ -22,9 +22,9 @@ from .models import PaymentApproval, PaymentExecutionRecord, PaymentProposal
 S = PaymentProposal.Status
 RT = Role.RoleType
 
-CREATOR_ROLES = (RT.ADMIN, RT.CFO, RT.MANAGER, RT.CS_SUPERVISOR, RT.ACCOUNTANT)
-OVERSIGHT_ROLES = (RT.ADMIN, RT.CFO, RT.MANAGER, RT.AUDITOR)
-VIEW_ROLES = CREATOR_ROLES + (RT.AUDITOR, RT.PAYMENT_OFFICER)
+CREATOR_ROLES = (RT.ADMIN, RT.CFO, RT.CS_SUPERVISOR, RT.ACCOUNTANT)
+OVERSIGHT_ROLES = (RT.ADMIN, RT.CFO)
+VIEW_ROLES = CREATOR_ROLES
 
 DEFAULT_CFO_THRESHOLD = Decimal('50000')
 THRESHOLD_KEY = 'proposal_cfo_threshold'
@@ -63,23 +63,19 @@ EDITABLE = (S.DRAFT, S.NEEDS_INFO)
 def _allowed(kind, user, p, execution=None):
     is_creator = user.pk == p.created_by_id
     if kind == 'owner':
-        return is_creator or has_role(user, RT.CFO, RT.MANAGER)
+        return is_creator or has_role(user, RT.CFO)
     if kind == 'reviewer':
-        return has_role(user, RT.CFO, RT.MANAGER) and not is_creator
+        return has_role(user, RT.CFO) and not is_creator
     if kind == 'approver':
-        if is_creator:
-            return False
-        if p.requires_cfo:
-            return has_role(user, RT.CFO)
-        return has_role(user, RT.CFO, RT.MANAGER)
+        return has_role(user, RT.CFO) and not is_creator
     if kind == 'cfo':
         return has_role(user, RT.CFO)
     if kind == 'dispatcher':
-        return has_role(user, RT.PAYMENT_OFFICER) and not is_creator
+        return has_role(user, RT.CFO) and not is_creator
     if kind == 'confirmer':
         if execution is not None and execution.dispatched_by_id == user.pk:
-            return False
-        return has_role(user, RT.PAYMENT_OFFICER, RT.AUDITOR, RT.CFO)
+            return False                    # من صرف لا يؤكد: يؤكد الآخر (المدير المالي أو مدير النظام)
+        return has_role(user, RT.CFO)
     return False
 
 
@@ -89,7 +85,7 @@ def allowed_transitions(user, p):
 
 
 def can_edit(user, p):
-    return p.status in EDITABLE and (user.pk == p.created_by_id or has_role(user, RT.CFO, RT.MANAGER))
+    return p.status in EDITABLE and (user.pk == p.created_by_id or has_role(user, RT.CFO))
 
 
 def _notify(recipients, title, message, p):
@@ -173,17 +169,17 @@ def transition(proposal_id, to_status, user, reason='', extra=None):
 def _notify_after(p, to, user):
     creator = [p.created_by]
     if to == S.SUBMITTED:
-        recipients = _users_with_role(RT.CFO) if p.requires_cfo else _users_with_role(RT.CFO, RT.MANAGER)
+        recipients = _users_with_role(RT.CFO)
         _notify([u for u in recipients if u.pk != user.pk], 'مقترح دفع بانتظار المراجعة',
                 f'{p.reference} · {p.supplier.name} · {p.proposed_amount} {p.currency}', p)
     elif to in (S.APPROVED, S.REJECTED, S.NEEDS_INFO):
         label = {S.APPROVED: 'اعتماد', S.REJECTED: 'رفض', S.NEEDS_INFO: 'طلب استيضاح'}[to]
         _notify(creator, f'قرار على مقترحك: {label}', f'{p.reference} · {p.supplier.name}', p)
         if to == S.APPROVED:
-            _notify(_users_with_role(RT.PAYMENT_OFFICER), 'مقترح معتمد جاهز للصرف',
+            _notify(_users_with_role(RT.CFO), 'مقترح معتمد جاهز للصرف',
                     f'{p.reference} · {p.supplier.name} · {p.proposed_amount} {p.currency}', p)
     elif to == S.DISPATCHED:
-        _notify(creator + _users_with_role(RT.CFO, RT.AUDITOR), 'تم صرف دفعة بانتظار التأكيد',
+        _notify(creator + _users_with_role(RT.CFO), 'تم صرف دفعة بانتظار التأكيد',
                 f'{p.reference} · {p.supplier.name}', p)
     elif to == S.CONFIRMED_PAID:
         _notify(creator, 'تأكد سداد مقترحك', f'{p.reference} · {p.supplier.name}', p)

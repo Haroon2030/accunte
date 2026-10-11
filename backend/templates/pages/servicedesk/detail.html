@@ -95,7 +95,7 @@
             <ul class="divide-y divide-slate-100 text-sm">
                 {% for d in docs %}
                 <li class="px-4 py-2 flex items-center justify-between gap-3">
-                    <span class="truncate"><b>{{ d.original_name }}</b> {% if d.label %}<span class="text-xs text-slate-500">· {{ d.label }}</span>{% endif %}<span class="text-xs text-slate-400"> · {{ d.size|filesizeformat }} · {{ d.uploaded_by.username }}</span></span>
+                    <span class="truncate"><b>{{ d.original_name }}</b> {% if d.label %}<span class="text-xs text-slate-500">· {{ d.label }}</span>{% endif %}<span class="text-xs text-slate-400"> · {{ d.size|filesizeformat }} · {{ d.uploaded_by.username }}</span>{% if d.shared_with_supplier %} <span class="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-800">مشارَك مع المورد</span>{% endif %}</span>
                     <span class="flex gap-1">
                         <a href="{% url 'servicedesk:document_download' r.pk d.pk %}" class="btn btn-icon btn-icon-primary"><i data-lucide="download" class="w-3.5 h-3.5"></i></a>
                         {% if can_docs %}<form method="post" action="{% url 'servicedesk:document_delete' r.pk d.pk %}" onsubmit="return confirm('حذف المستند؟')">{% csrf_token %}<button class="btn btn-icon btn-icon-danger"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></form>{% endif %}
@@ -109,6 +109,7 @@
                 <input type="file" name="file" required class="sm:col-span-2 text-xs border border-slate-200 rounded-lg p-1.5">
                 <input name="label" list="doc-labels" placeholder="نوع المستند" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
                 <datalist id="doc-labels">{% for label, ok in required_docs %}<option value="{{ label }}">{% endfor %}</datalist>
+                {% if r.source == 'portal' %}<label class="sm:col-span-4 flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" name="share" checked> مشاركة مع المورد (يظهر له في البوابة ويستطيع تنزيله)</label>{% endif %}
                 <button class="btn btn-primary btn-sm"><i data-lucide="upload"></i> رفع</button>
             </form>
             {% endif %}

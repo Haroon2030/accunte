@@ -73,7 +73,7 @@ def webhook_url():
 
 
 @login_required
-@role_required(Role.RoleType.ADMIN, Role.RoleType.CS_SUPERVISOR, Role.RoleType.MANAGER, Role.RoleType.CFO)
+@role_required(Role.RoleType.ADMIN, Role.RoleType.CS_SUPERVISOR, Role.RoleType.CFO)
 @require_POST
 def setup_webhook(request):
     url = webhook_url()
@@ -189,11 +189,11 @@ def _conv(pk):
 
 
 def _agents():
-    """من يصلح لإسناد المحادثات إليه: نفس من تقبله services.assign (موظف/مشرف خدمة العملاء، المدير، مدير النظام)."""
+    """من يصلح لإسناد المحادثات إليه: نفس من تقبله services.assign (مشرفو الدعم ومدير النظام)."""
     from django.contrib.auth import get_user_model
     RT = Role.RoleType
     return get_user_model().objects.filter(
-        Q(profile__role__role_type__in=[RT.CS_AGENT, RT.CS_SUPERVISOR, RT.MANAGER, RT.ADMIN]) | Q(is_superuser=True),
+        Q(profile__role__role_type__in=[RT.CS_SUPERVISOR, RT.ADMIN]) | Q(is_superuser=True),
         is_active=True).distinct().order_by('username')
 
 
@@ -208,8 +208,7 @@ def conversation(request, pk):
     ctx = {
         'page_title': conv.display_name or conv.contact_number, 'conv': conv, 'msgs': msgs, 'can_act': can_act,
         'can_claim': conv.assigned_agent_id is None and conv.status != S.CLOSED
-                     and has_role(request.user, Role.RoleType.CS_AGENT, Role.RoleType.CS_SUPERVISOR, Role.RoleType.ADMIN,
-                                  Role.RoleType.MANAGER),
+                     and services.is_supervisor(request.user),
         'is_supervisor': services.is_supervisor(request.user), 'agents': _agents() if services.is_supervisor(request.user) else [],
         'typing_name': services.other_typing(conv, request.user),
         'can_create_supplier': can_act and has_role(request.user, *SUPPLIER_MANAGE_ROLES),

@@ -22,7 +22,6 @@ DAY = datetime.timedelta(days=1)
 class DashboardBase(Base):
     def setUp(self):
         super().setUp()
-        self.auditor = make_user('aud', Role.RoleType.AUDITOR)
         self.today = timezone.localdate()
         self.b1 = Branch.objects.create(name='الرياض', code='RYD')
         self.b2 = Branch.objects.create(name='جدة', code='JED')
@@ -172,9 +171,9 @@ class DrillDownConsistencyTests(DashboardBase):
 class DashboardAccessTests(DashboardBase):
     def test_roles(self):
         url = reverse('reconciliation:executive')
-        for user, code in ((self.cfo, 200), (self.auditor, 200), (make_user('mgr', Role.RoleType.MANAGER), 200),
+        for user, code in ((self.cfo, 200), (make_user('adm', Role.RoleType.ADMIN), 200),
                            (self.acc, 302), (make_user('sup_x', Role.RoleType.CS_SUPERVISOR), 302),
-                           (make_user('po', Role.RoleType.PAYMENT_OFFICER), 302)):
+                           (make_user('vendor', Role.RoleType.SUPPLIER), 302)):
             self.client.force_login(user)
             self.assertEqual(self.client.get(url).status_code, code, user.username)
         self.client.logout()

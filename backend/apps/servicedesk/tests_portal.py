@@ -1,9 +1,13 @@
 """
 بوابة الموردين: حساب المورد يرى الخدمات ويطلبها ويتابع طلباته فقط، وكل ما عداها مغلق أمامه.
 """
+import shutil
+import tempfile
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.files.storage import FileSystemStorage
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -12,7 +16,7 @@ from apps.core.models import Notification, Role, UserProfile
 from apps.suppliers.models import Supplier
 
 from . import services
-from .models import ServiceRequest, ServiceType
+from .models import ServiceRequest, ServiceRequestDocument, ServiceType
 from .services import RequestError
 
 User = get_user_model()
@@ -27,6 +31,17 @@ def make_user(username, role_type, supplier=None):
 
 
 class PortalBase(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.tmp = tempfile.mkdtemp()
+        ServiceRequestDocument._meta.get_field('file').storage = FileSystemStorage(location=cls.tmp)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+        super().tearDownClass()
+
     def setUp(self):
         self.s1 = Supplier.objects.create(name='شركة الأفق', code='P1')
         self.s2 = Supplier.objects.create(name='شركة النور', code='P2')
@@ -219,3 +234,160 @@ class UserAdminTests(PortalBase):
 
     def test_seeded_supplier_role_exists(self):
         self.assertTrue(Role.objects.filter(role_type='supplier').exists())
+
+
+class UploadTests(PortalBase):
+    def pdf(self, name='kashf.pdf', data=b'%PDF-1.4 test'):
+        return SimpleUploadedFile(name, data, content_type='application/pdf')
+
+    def test_every_portal_service_offers_file_upload(self):
+        for t in ServiceType.objects.filter(is_active=True, portal_menu=True):
+            html = self.client.get(reverse('portal:new', args=[t.code])).content.decode()
+            self.assertIn('name="files"', html, t.code)
+            self.assertIn('multiple', html, t.code)
+            self.assertIn('multipart/form-data', html, t.code)
+
+    def test_files_are_stored_with_hash_and_audited(self):
+        self.order(files=[self.pdf(), self.pdf('b.pdf', b'%PDF second')])
+        req = ServiceRequest.objects.get()
+        docs = list(req.documents.order_by('original_name'))
+        self.assertEqual([d.original_name for d in docs], ['b.pdf', 'kashf.pdf'])
+        self.assertTrue(all(len(d.sha256) == 64 and d.uploaded_by == self.vendor and d.label == 'مرفق المورد' for d in docs))
+        self.assertEqual(AuditLog.objects.filter(entity_type='servicedesk.Document', action='create').count(), 2)
+
+    def test_files_are_optional(self):
+        self.order()
+        self.assertEqual(ServiceRequest.objects.get().documents.count(), 0)
+
+    def test_bad_extension_or_size_rejects_whole_request(self):
+        resp = self.order(files=[self.pdf(), SimpleUploadedFile('virus.exe', b'MZ')])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ServiceRequest.objects.count(), 0)
+        self.assertEqual(ServiceRequestDocument.objects.count(), 0)
+        with mock.patch('apps.reconciliation.services.MAX_FILE_BYTES', 5):
+            self.order(files=[self.pdf()])
+        self.assertEqual(ServiceRequest.objects.count(), 0)
+
+    def test_more_than_five_files_rejected(self):
+        resp = self.order(files=[self.pdf(f'f{i}.pdf') for i in range(6)])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ServiceRequest.objects.count(), 0)
+        self.assertIn('الحد الأقصى', ''.join(resp.context['errors']))
+
+    def test_supplier_downloads_only_own_files(self):
+        self.order(files=[self.pdf()])
+        req = ServiceRequest.objects.get()
+        doc = req.documents.get()
+        url = reverse('portal:document', args=[req.pk, doc.pk])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(b''.join(resp.streaming_content), b'%PDF-1.4 test')
+        self.assertContains(self.client.get(reverse('portal:detail', args=[req.pk])), 'kashf.pdf')
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_staff_see_the_uploaded_files(self):
+        self.order(files=[self.pdf()])
+        req = ServiceRequest.objects.get()
+        services.assign(req.pk, self.acc, self.sup)
+        self.client.force_login(self.acc)
+        doc = req.documents.get()
+        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[req.pk, doc.pk])).status_code, 200)
+
+    def test_complaint_attachments_stay_confidential(self):
+        complaint = ServiceType.objects.get(code='complaint')
+        self.order(complaint, files=[self.pdf('proof.pdf')])
+        req = ServiceRequest.objects.get()
+        doc = req.documents.get()
+        self.client.force_login(self.sup)
+        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[req.pk, doc.pk])).status_code, 404)
+        self.client.force_login(make_user('boss', RT.CFO))
+        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[req.pk, doc.pk])).status_code, 200)
+
+
+class AccountStatementTests(PortalBase):
+    """«طلب كشف حساب»: المورد يحدد الفترة، والمطابق يرفع الكشف ويشاركه، والمورد ينزّله من البوابة."""
+
+    def setUp(self):
+        super().setUp()
+        self.t = ServiceType.objects.get(code='account-statement')
+
+    def order_statement(self, **kw):
+        data = {'f_period_start': '2026-01-01', 'f_period_end': '2026-03-31', 'f_format': 'PDF'}
+        data.update(kw)
+        return self.client.post(reverse('portal:new', args=[self.t.code]), data)
+
+    def pdf(self, name='statement.pdf'):
+        return SimpleUploadedFile(name, b'%PDF-1.4 statement', content_type='application/pdf')
+
+    def test_type_converted_from_document_request(self):
+        self.assertEqual(self.t.name, 'طلب كشف حساب')
+        self.assertFalse(ServiceType.objects.filter(code='document-request').exists())
+        self.assertEqual([f['key'] for f in self.t.field_schema], ['period_start', 'period_end', 'format'])
+        self.assertEqual(self.t.required_documents, ['كشف حساب المورد'])
+
+    def test_period_is_required_and_ordered(self):
+        self.order_statement(f_period_start='')
+        self.order_statement(f_period_start='2026-05-01', f_period_end='2026-01-01')
+        self.assertEqual(ServiceRequest.objects.count(), 0)
+        self.order_statement()
+        self.assertEqual(ServiceRequest.objects.get().data['period_start'], '2026-01-01')
+
+    def deliver(self, share=True):
+        self.order_statement()
+        req = ServiceRequest.objects.get()
+        services.assign(req.pk, self.acc, self.sup)
+        self.client.force_login(self.acc)
+        services.transition(req.pk, 'in_progress', self.acc)
+        self.client.post(reverse('servicedesk:document_upload', args=[req.pk]),
+                         {'file': self.pdf(), 'label': 'كشف حساب المورد', **({'share': 'on'} if share else {})})
+        return req
+
+    def test_cannot_resolve_until_statement_is_shared_with_supplier(self):
+        req = self.deliver(share=False)
+        with self.assertRaises(RequestError) as cm:
+            services.transition(req.pk, 'resolved', self.acc, resolution_note='تم')
+        self.assertIn('شارك المستند', str(cm.exception))
+
+    def test_full_flow_supplier_downloads_the_statement(self):
+        req = self.deliver()
+        services.transition(req.pk, 'resolved', self.acc, resolution_note='أُرسل الكشف')
+        doc = req.documents.get()
+        self.assertTrue(doc.shared_with_supplier)
+        self.client.force_login(self.vendor)
+        html = self.client.get(reverse('portal:detail', args=[req.pk])).content.decode()
+        self.assertIn('statement.pdf', html)
+        self.assertIn('أُرسل الكشف', html)
+        resp = self.client.get(reverse('portal:document', args=[req.pk, doc.pk]))
+        self.assertEqual(b''.join(resp.streaming_content), b'%PDF-1.4 statement')
+
+    def test_internal_documents_are_never_shown_or_downloadable(self):
+        req = self.deliver(share=False)
+        doc = req.documents.get()
+        self.assertFalse(doc.shared_with_supplier)
+        self.client.force_login(self.vendor)
+        self.assertNotContains(self.client.get(reverse('portal:detail', args=[req.pk])), 'statement.pdf')
+        self.assertEqual(self.client.get(reverse('portal:document', args=[req.pk, doc.pk])).status_code, 404)
+
+    def test_staff_form_offers_share_checkbox_only_for_portal_requests(self):
+        self.order_statement()
+        portal_req = ServiceRequest.objects.get()
+        services.assign(portal_req.pk, self.acc, self.sup)
+        self.client.force_login(self.acc)
+        self.assertContains(self.client.get(reverse('servicedesk:detail', args=[portal_req.pk])), 'name="share"')
+        staff_req = services.create_request(self.sup, self.pay, self.supplier_obj(), 'x', getter={'f_invoice_number': '1'}.get)
+        services.assign(staff_req.pk, self.acc, self.sup)
+        self.assertNotContains(self.client.get(reverse('servicedesk:detail', args=[staff_req.pk])), 'name="share"')
+
+    def supplier_obj(self):
+        return self.s1
+
+    def test_share_flag_is_ignored_for_non_portal_requests(self):
+        staff_req = services.create_request(self.sup, self.pay, self.s1, 'x', getter={'f_invoice_number': '1'}.get)
+        services.assign(staff_req.pk, self.acc, self.sup)
+        self.client.force_login(self.acc)
+        self.client.post(reverse('servicedesk:document_upload', args=[staff_req.pk]), {'file': self.pdf(), 'share': 'on'})
+        self.assertFalse(staff_req.documents.get().shared_with_supplier)
+

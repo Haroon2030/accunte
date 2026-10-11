@@ -46,12 +46,11 @@ class Base(TestCase):
 
     def setUp(self):
         self.sup = make_user('sup', RT.CS_SUPERVISOR)
-        self.agent = make_user('agent', RT.CS_AGENT)
+        self.agent = make_user('agent', RT.ACCOUNTANT)      # موظف عادي: ينشئ طلبات ولا يوزّع
         self.acc1 = make_user('acc1', RT.ACCOUNTANT)
         self.acc2 = make_user('acc2', RT.ACCOUNTANT)
         self.cfo = make_user('cfo', RT.CFO)
-        self.aud = make_user('aud', RT.AUDITOR)
-        self.po = make_user('po', RT.PAYMENT_OFFICER)
+        self.po = make_user('po', RT.SUPPLIER)              # حساب بلا أي وصول لوحدة الطلبات
         self.supplier = Supplier.objects.create(name='مورد', code='S1')
         self.t_pay = ServiceType.objects.get(code='payment-status')       # مستلمها المحاسب
         self.t_meet = ServiceType.objects.get(code='meeting')              # مستلمها مشرف خدمة العملاء
@@ -67,7 +66,7 @@ class Base(TestCase):
 
 class SchemaTests(TestCase):
     def test_seeded_types(self):
-        self.assertEqual(ServiceType.objects.count(), 6)
+        self.assertEqual(ServiceType.objects.count(), 7)
         self.assertEqual(ServiceType.objects.get(code='account-reconciliation').required_documents, ['كشف حساب المورد'])
 
     def test_validate_schema(self):
@@ -115,7 +114,7 @@ class CreateTests(Base):
 
     def test_permissions_and_inactive_type(self):
         with self.assertRaises(RequestError):
-            self.make(user=self.po)                  # مسؤول المدفوعات لا ينشئ
+            self.make(user=self.po)                  # حساب المورد لا ينشئ من لوحة الموظفين
         self.t_pay.is_active = False
         self.t_pay.save()
         with self.assertRaises(RequestError):
@@ -159,9 +158,9 @@ class VisibilityTests(Base):
         self.assertEqual(ids(self.acc1), {pay.pk})
         self.assertEqual(ids(self.agent), {pay.pk, meet.pk})  # منشئهما
         self.assertEqual(ids(self.cfo), {pay.pk, meet.pk})
-        self.assertEqual(ids(self.aud), {pay.pk, meet.pk})
+        self.assertEqual(ids(self.sup), {pay.pk, meet.pk})
         self.assertEqual(ids(self.po), set())
-        self.assertEqual(ids(make_user('agent2', RT.CS_AGENT)), {meet.pk} - {meet.pk})
+        self.assertEqual(ids(make_user('other', RT.ACCOUNTANT)), set())
 
     def test_assigned_request_hidden_from_peer_handler(self):
         r = self.make()
@@ -192,12 +191,12 @@ class VisibilityTests(Base):
 
 class ClaimAndWorkflowTests(Base):
     def test_only_one_handler_wins_and_non_handlers_blocked(self):
-        general = ServiceType.objects.get(code='general-support')           # مستلمها موظف خدمة العملاء
-        agent2 = make_user('agent2', RT.CS_AGENT)
+        general = ServiceType.objects.get(code='general-support')           # مستلمها مشرف الدعم
+        sup2 = make_user('sup2', RT.CS_SUPERVISOR)
         r = self.make(general)
-        services.claim(r.pk, self.agent)
+        services.claim(r.pk, self.sup)
         with self.assertRaises(RequestError) as cm:
-            services.claim(r.pk, agent2)
+            services.claim(r.pk, sup2)
         self.assertIn('موظف آخر', str(cm.exception))
         with self.assertRaises(RequestError):
             services.claim(self.make(general).pk, self.po)
@@ -350,7 +349,7 @@ class DocumentsAndAppointmentsTests(Base):
         self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 200)
         self.client.force_login(self.po)
         self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 302)
-        other = make_user('agent2', RT.CS_AGENT)
+        other = make_user('agent2', RT.ACCOUNTANT)
         self.client.force_login(other)
         self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 404)
 
@@ -393,7 +392,7 @@ class DocumentsAndAppointmentsTests(Base):
 
 class TypeAdminTests(Base):
     def test_access(self):
-        for user, code in ((self.cfo, 200), (make_user('mgr', RT.MANAGER), 200), (self.sup, 302), (self.acc1, 302)):
+        for user, code in ((self.cfo, 200), (make_user('adm', RT.ADMIN), 200), (self.sup, 302), (self.acc1, 302)):
             self.client.force_login(user)
             self.assertEqual(self.client.get(reverse('servicedesk:types')).status_code, code, user.username)
 
@@ -401,9 +400,9 @@ class TypeAdminTests(Base):
         self.client.force_login(self.cfo)
         schema = [{'key': 'city', 'label': 'المدينة', 'type': 'select', 'options': ['الرياض', 'جدة'], 'required': True}]
         r = self.client.post(reverse('servicedesk:type_new'), {
-            'code': 'site-visit', 'name': 'زيارة موقع', 'destination_role': 'cs_agent', 'escalation_role': 'manager',
+            'code': 'site-visit', 'name': 'زيارة موقع', 'destination_role': 'cs_supervisor', 'escalation_role': 'cfo',
             'sla_hours': '12', 'field_schema': json.dumps(schema), 'required_documents': 'صورة الموقع\n\n',
-            'create_roles': ['cs_agent'], 'is_active': 'on'})
+            'create_roles': ['accountant'], 'is_active': 'on'})
         self.assertRedirects(r, reverse('servicedesk:types'))
         t = ServiceType.objects.get(code='site-visit')
         self.assertEqual((t.sla_hours, t.required_documents, t.field_schema[0]['options']), (12, ['صورة الموقع'], ['الرياض', 'جدة']))
@@ -415,7 +414,7 @@ class TypeAdminTests(Base):
 
     def test_invalid_input_rejected(self):
         self.client.force_login(self.cfo)
-        base = {'code': 'x', 'name': 'x', 'destination_role': 'cs_agent', 'escalation_role': 'manager', 'sla_hours': '12',
+        base = {'code': 'x', 'name': 'x', 'destination_role': 'cs_supervisor', 'escalation_role': 'cfo', 'sla_hours': '12',
                 'field_schema': '[]'}
         for patch in ({'field_schema': '[{"key": "Bad Key", "label": "x"}]'}, {'field_schema': 'not json'},
                       {'sla_hours': '0'}, {'sla_hours': 'abc'}, {'destination_role': 'hacker'}, {'code': ''},
@@ -436,9 +435,9 @@ class TypeAdminTests(Base):
 class IntegrationTests(Base):
     def test_whatsapp_conversation_shows_requests_and_create_button(self):
         conv = SupplierConversation.objects.create(contact_number='966500000002', supplier=self.supplier,
-                                                   status='open', assigned_agent=self.agent)
+                                                   status='open', assigned_agent=self.sup)
         r = self.make(conversation=conv)
-        self.client.force_login(self.agent)
+        self.client.force_login(self.sup)
         html = self.client.get(reverse('whatsapp_inbox:conversation', args=[conv.pk])).content.decode()
         self.assertIn(r.reference, html)
         self.assertIn('إنشاء طلب خدمة', html)
@@ -522,7 +521,7 @@ class InvalidDateRegressionTests(Base):
         p = PaymentProposal.objects.create(
             supplier=self.supplier, branch=Branch.objects.create(name='ب', code='B'), reconciliation_case=case,
             total_dues=100, proposed_amount=50, justification='x', created_by=self.acc1, status='approved')
-        self.client.force_login(self.po)
+        self.client.force_login(self.cfo)
         r = self.client.post(reverse('proposals:transition', args=[p.pk]),
                              {'to': 'dispatched', 'bank_reference': 'T1', 'payment_date': self.BAD}, follow=True)
         self.assertEqual(r.status_code, 200)

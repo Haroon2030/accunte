@@ -13,8 +13,8 @@ from apps.core.models import Role
 
 RT = Role.RoleType
 
-CS = (RT.CS_SUPERVISOR, RT.CS_AGENT)
-OVERSIGHT = (RT.CFO, RT.MANAGER, RT.AUDITOR)
+CS = (RT.CS_SUPERVISOR,)
+OVERSIGHT = (RT.CFO,)
 
 
 @dataclass(frozen=True)
@@ -54,23 +54,23 @@ SECTIONS = (
                 exclude=('/reconciliation/executive', '/reconciliation/distribution'),
                 group='recon'),
         NavItem('distribution', 'توزيع الملفات', 'split', 'reconciliation:distribution',
-                ('/reconciliation/distribution/',), (RT.CFO, RT.MANAGER, RT.CS_SUPERVISOR), group='recon'),
+                ('/reconciliation/distribution/',), (RT.CFO, RT.CS_SUPERVISOR), group='recon'),
         NavItem('proposals', 'مقترحات الدفع', 'file-check-2', 'proposals:list', ('/proposals/',),
-                OVERSIGHT + (RT.CS_SUPERVISOR, RT.ACCOUNTANT, RT.PAYMENT_OFFICER)),
+                OVERSIGHT + (RT.CS_SUPERVISOR, RT.ACCOUNTANT)),
     )),
     ('إدارة', (
         NavItem('suppliers', 'الموردين', 'briefcase', 'suppliers:list', ('/suppliers/',),
-                OVERSIGHT + CS + (RT.ACCOUNTANT, RT.PAYMENT_OFFICER)),
+                OVERSIGHT + CS + (RT.ACCOUNTANT,)),
         NavItem('service_types', 'أنواع الخدمات', 'sliders-horizontal', 'servicedesk:types',
-                ('/service-requests/types',), (RT.CFO, RT.MANAGER), group='setup'),
-        NavItem('branches', 'الفروع', 'building-2', 'branches:list', ('/branches/',), (RT.CFO, RT.MANAGER), group='setup'),
+                ('/service-requests/types',), (RT.CFO,), group='setup'),
+        NavItem('branches', 'الفروع', 'building-2', 'branches:list', ('/branches/',), (RT.CFO,), group='setup'),
     )),
     ('حوكمة', (
         NavItem('users', 'المستخدمين', 'users', 'users:list', ('/users/',), (), group='access'),
         NavItem('roles', 'الأدوار', 'shield-check', 'roles:list', ('/roles/',), (), group='access'),
         NavItem('audit', 'سجل التدقيق', 'history', 'audit:list', ('/audit/',), OVERSIGHT),
         NavItem('whatsapp_link', 'ربط واتساب', 'plug', 'whatsapp:connect', ('/whatsapp/',),
-                (RT.CFO, RT.MANAGER, RT.CS_SUPERVISOR)),
+                (RT.CFO, RT.CS_SUPERVISOR)),
     )),
 )
 

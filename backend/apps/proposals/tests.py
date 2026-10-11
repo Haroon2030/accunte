@@ -51,10 +51,8 @@ class Base(TestCase):
         self.acc = make_user('acc', RT.ACCOUNTANT)
         self.acc2 = make_user('acc2', RT.ACCOUNTANT)
         self.cfo = make_user('cfo', RT.CFO)
-        self.mgr = make_user('mgr', RT.MANAGER)
-        self.po = make_user('po1', RT.PAYMENT_OFFICER)
-        self.po2 = make_user('po2', RT.PAYMENT_OFFICER)
-        self.auditor = make_user('aud', RT.AUDITOR)
+        self.admin = make_user('adm', RT.ADMIN)          # الصارف المدير المالي، والمؤكِّد غيره: مدير النظام
+        self.sup = make_user('sup', RT.CS_SUPERVISOR)
         self.branch = Branch.objects.create(name='الرياض', code='RYD')
         self.supplier = Supplier.objects.create(name='مورد', code='S1')
 
@@ -96,61 +94,64 @@ class ConstraintTests(Base):
 
 class LifecycleTests(Base):
     def test_full_lifecycle_with_separation_of_duties(self):
-        p = self.proposal(amount='75000')              # فوق الحد 50,000 → المدير المالي
+        p = self.proposal(amount='75000')              # فوق الحد 50,000
         self.go(p, S.SUBMITTED, self.acc)
         p.refresh_from_db()
         self.assertTrue(p.requires_cfo)
         self.assertTrue(Notification.objects.filter(recipient=self.cfo, title__contains='بانتظار المراجعة').exists())
-        self.assertFalse(Notification.objects.filter(recipient=self.mgr).exists())
 
         with self.assertRaises(ProposalError):          # المنشئ لا يراجع
             self.go(p, S.PENDING_REVIEW, self.acc)
+        with self.assertRaises(ProposalError):          # ومشرف الدعم لا يراجع
+            self.go(p, S.PENDING_REVIEW, self.sup)
         self.go(p, S.PENDING_REVIEW, self.cfo)
 
-        with self.assertRaises(ProposalError):          # المدير لا يعتمد مبلغًا فوق الحد
-            self.go(p, S.APPROVED, self.mgr)
+        with self.assertRaises(ProposalError):          # المطابق لا يعتمد
+            self.go(p, S.APPROVED, self.acc2)
         self.go(p, S.APPROVED, self.cfo, 'موافق')
-        self.assertTrue(Notification.objects.filter(recipient=self.po).exists())
+        self.assertTrue(Notification.objects.filter(recipient=self.cfo, title__contains='جاهز للصرف').exists())
 
         with self.assertRaises(ProposalError):          # الصرف يتطلب مرجعًا وتاريخًا
-            self.go(p, S.DISPATCHED, self.po)
-        with self.assertRaises(ProposalError):          # المدير المالي لا يصرف
-            self.go(p, S.DISPATCHED, self.cfo, bank_reference='X', payment_date=datetime.date.today())
-        self.go(p, S.DISPATCHED, self.po, bank_reference='TRF-1', payment_date=datetime.date(2026, 5, 1))
+            self.go(p, S.DISPATCHED, self.cfo)
+        with self.assertRaises(ProposalError):          # المنشئ لا يصرف
+            self.go(p, S.DISPATCHED, self.acc, bank_reference='X', payment_date=datetime.date.today())
+        self.go(p, S.DISPATCHED, self.cfo, bank_reference='TRF-1', payment_date=datetime.date(2026, 5, 1))
         ex = p.execution
         self.assertEqual(ex.executed_amount, Decimal('75000.00'))
 
         with self.assertRaises(ProposalError):          # من صرف لا يؤكد
-            self.go(p, S.CONFIRMED_PAID, self.po)
-        self.go(p, S.CONFIRMED_PAID, self.po2)
+            self.go(p, S.CONFIRMED_PAID, self.cfo)
+        self.go(p, S.CONFIRMED_PAID, self.admin)
         ex.refresh_from_db()
-        self.assertEqual(ex.confirmed_by, self.po2)
+        self.assertEqual(ex.confirmed_by, self.admin)
         p.refresh_from_db()
         self.assertTrue(p.is_terminal)
         with self.assertRaises(ProposalError):
             self.go(p, S.CANCELLED, self.cfo, 'x')
 
-    def test_threshold_routing(self):
+    def test_threshold_flag_is_configurable_and_only_cfo_approves(self):
         low = self.proposal(amount='20000')
         self.go(low, S.SUBMITTED, self.acc)
-        self.go(low, S.PENDING_REVIEW, self.mgr)
-        self.go(low, S.APPROVED, self.mgr)              # المدير يكفي تحت الحد
+        low.refresh_from_db()
+        self.assertFalse(low.requires_cfo)
+        self.go(low, S.PENDING_REVIEW, self.cfo)
+        with self.assertRaises(ProposalError):
+            self.go(low, S.APPROVED, self.sup)
+        self.go(low, S.APPROVED, self.cfo)
 
         SystemSettings.objects.create(key=workflow.THRESHOLD_KEY, value='10000')   # الحد قابل للضبط
         mid = self.proposal(amount='20000')
         self.go(mid, S.SUBMITTED, self.acc)
         mid.refresh_from_db()
         self.assertTrue(mid.requires_cfo)
-        self.go(mid, S.PENDING_REVIEW, self.mgr)
-        with self.assertRaises(ProposalError):
-            self.go(mid, S.APPROVED, self.mgr)
 
     def test_creator_cannot_approve_even_if_cfo(self):
         p = self.proposal(amount='80000', creator=self.cfo)
         self.go(p, S.SUBMITTED, self.cfo)
-        self.go(p, S.PENDING_REVIEW, self.mgr)
+        self.go(p, S.PENDING_REVIEW, self.admin)
         with self.assertRaises(ProposalError):
             self.go(p, S.APPROVED, self.cfo)
+        self.go(p, S.APPROVED, self.admin)
 
     def test_needs_info_loop_and_reasons(self):
         p = self.proposal()
@@ -203,10 +204,10 @@ class AmountLockAndAuditTests(Base):
     def test_approval_decision_audited(self):
         p = self.proposal(amount='5000')
         self.go(p, S.SUBMITTED, self.acc)
-        self.go(p, S.PENDING_REVIEW, self.mgr)
-        self.go(p, S.APPROVED, self.mgr, 'تمام')
+        self.go(p, S.PENDING_REVIEW, self.cfo)
+        self.go(p, S.APPROVED, self.cfo, 'تمام')
         appr = AuditLog.objects.get(action=AuditLog.Action.APPROVAL)
-        self.assertEqual((appr.actor, appr.reason, appr.new_state['decision']), (self.mgr, 'تمام', 'approved'))
+        self.assertEqual((appr.actor, appr.reason, appr.new_state['decision']), (self.cfo, 'تمام', 'approved'))
         sc = AuditLog.objects.filter(action=AuditLog.Action.STATUS_CHANGE).order_by('id')
         self.assertEqual([l.new_state['status'] for l in sc], ['submitted', 'pending_review', 'approved'])
 
@@ -241,18 +242,17 @@ class VisibilityAndHttpTests(Base):
         r = self.client.post(reverse('proposals:transition', args=[peer.pk]), {'to': 'submitted'})
         self.assertEqual(r.status_code, 404)
 
-    def test_payment_officer_sees_only_approved_onward(self):
-        draft = self.proposal()
-        appr = self.proposal(status=S.APPROVED)
-        self.client.force_login(self.po)
-        refs = [p.reference for p in self.client.get(reverse('proposals:list')).context['page_obj']]
-        self.assertEqual(refs, [appr.reference])
-        self.assertEqual(self.client.get(reverse('proposals:detail', args=[draft.pk])).status_code, 404)
+    def test_cfo_sees_everything(self):
+        a = self.proposal(creator=self.acc)
+        b = self.proposal(creator=self.acc2)
+        self.client.force_login(self.cfo)
+        refs = {p.reference for p in self.client.get(reverse('proposals:list')).context['page_obj']}
+        self.assertEqual(refs, {a.reference, b.reference})
 
-    def test_auditor_sees_all_but_cannot_act(self):
+    def test_supervisor_sees_only_own_and_cannot_act_on_others(self):
         p = self.proposal(status=S.PENDING_REVIEW, amount='500')
-        self.client.force_login(self.auditor)
-        self.assertEqual(self.client.get(reverse('proposals:detail', args=[p.pk])).status_code, 200)
+        self.client.force_login(self.sup)
+        self.assertEqual(self.client.get(reverse('proposals:detail', args=[p.pk])).status_code, 404)
         self.client.post(reverse('proposals:transition', args=[p.pk]), {'to': 'approved'})
         p.refresh_from_db()
         self.assertEqual(p.status, S.PENDING_REVIEW)

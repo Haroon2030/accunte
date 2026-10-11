@@ -2,7 +2,7 @@
 {% load custom_tags %}
 
 {% block header_extra_buttons %}
-{% user_has_roles user "cfo,manager" as can_import %}
+{% user_has_roles user "cfo" as can_import %}
 {% if can_import %}
 <a href="{% url 'suppliers:import' %}" class="page-toolbar-btn page-toolbar-btn--export">
     <i data-lucide="file-up"></i>

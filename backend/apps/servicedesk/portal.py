@@ -16,10 +16,11 @@ from django.utils.html import format_html
 
 from apps.core.access import is_portal_supplier
 
+from apps.reconciliation.storage import serve_file
 from apps.whatsapp import client as wa_client
 
 from . import services
-from .models import ServiceRequest, ServiceType
+from .models import ServiceRequest, ServiceRequestDocument, ServiceType
 from .services import RequestError
 
 
@@ -79,7 +80,7 @@ def request_new(request, code):
     if request.method == 'POST':
         try:
             req = services.create_from_portal(request.user, stype, post.get('subject', ''), post.get('details', ''),
-                                              getter=post.get)
+                                              getter=post.get, files=request.FILES.getlist('files'))
         except RequestError as exc:
             errors.append(str(exc))
         else:
@@ -87,6 +88,7 @@ def request_new(request, code):
             return redirect('portal:detail', pk=req.pk)
     return render(request, 'pages/portal/form.html', {
         'stype': stype, 'schema': stype.field_schema or [], 'errors': errors, 'post': post,
+        'max_files': services.MAX_PORTAL_FILES,
         'supplier': request.user.profile.supplier,
     })
 
@@ -102,5 +104,12 @@ def request_detail(request, pk):
     req = get_object_or_404(_my_requests(request), pk=pk)          # طلبات هذا المورد فقط
     return render(request, 'pages/portal/detail.html', {
         'supplier': request.user.profile.supplier, 'r': req, 'fields': services.labelled_data(req),
-        'history': req.history.all(),
+        'history': req.history.all(), 'documents': req.documents.filter(shared_with_supplier=True),
     })
+
+
+@supplier_required
+def document_download(request, pk, doc_pk):
+    req = get_object_or_404(_my_requests(request), pk=pk)           # مرفقات طلبات هذا المورد فقط
+    doc = get_object_or_404(ServiceRequestDocument, pk=doc_pk, request=req, shared_with_supplier=True)
+    return serve_file(doc.file, doc.original_name)

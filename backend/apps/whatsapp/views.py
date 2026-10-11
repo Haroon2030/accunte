@@ -15,7 +15,7 @@ from apps.core.models import Role
 from . import client
 from .client import WhatsAppError
 
-MANAGE_ROLES = (Role.RoleType.ADMIN, Role.RoleType.CFO, Role.RoleType.MANAGER, Role.RoleType.CS_SUPERVISOR)
+MANAGE_ROLES = (Role.RoleType.ADMIN, Role.RoleType.CFO, Role.RoleType.CS_SUPERVISOR)
 manage_required = role_required(*MANAGE_ROLES)
 
 STATE_LABELS = {'open': 'متصل', 'connecting': 'جارٍ الاتصال', 'close': 'غير متصل', 'not_found': 'غير مُنشأ'}

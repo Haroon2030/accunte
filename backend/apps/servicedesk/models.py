@@ -10,7 +10,7 @@ from apps.reconciliation.models import document_upload_path
 from apps.reconciliation.storage import private_storage
 
 RT = Role.RoleType
-DEFAULT_CREATE_ROLES = [RT.ADMIN, RT.CFO, RT.MANAGER, RT.CS_SUPERVISOR, RT.CS_AGENT, RT.ACCOUNTANT]
+DEFAULT_CREATE_ROLES = [RT.ADMIN, RT.CFO, RT.CS_SUPERVISOR, RT.ACCOUNTANT]
 
 
 class ServiceType(models.Model):
@@ -19,7 +19,7 @@ class ServiceType(models.Model):
     name = models.CharField('الاسم', max_length=120)
     description = models.TextField('الوصف', blank=True)
     destination_role = models.CharField('الجهة المستلمة (دور)', max_length=20, choices=RT.choices,
-                                        default=RT.CS_AGENT)
+                                        default=RT.CS_SUPERVISOR)
     sla_hours = models.PositiveIntegerField('مهلة الإنجاز (ساعة)', default=24)
     escalation_role = models.CharField('جهة التصعيد (دور)', max_length=20, choices=RT.choices,
                                        default=RT.CS_SUPERVISOR)
@@ -30,6 +30,8 @@ class ServiceType(models.Model):
     spawns_reconciliation = models.BooleanField('يُنشئ حالة مطابقة', default=False)
     whatsapp_menu = models.BooleanField('يظهر في قائمة واتساب الآلية', default=True)
     portal_menu = models.BooleanField('يظهر في بوابة الموردين', default=True)
+    confidential = models.BooleanField('سرّي (للمدير المالي ومدير النظام فقط)', default=False,
+                                       help_text='لا يراه ولا يتعامل معه مشرف الدعم ولا المطابقون')
     is_active = models.BooleanField('فعّال', default=True)
     sort_order = models.PositiveIntegerField('الترتيب', default=100)
 
@@ -46,7 +48,9 @@ class ServiceType(models.Model):
 
     def effective_handle_roles(self):
         base = list(self.handle_roles or [])
-        for r in (self.destination_role, RT.CS_SUPERVISOR, RT.MANAGER):
+        if self.confidential:                 # السرّي: الجهة المستلمة فقط (لا مشرف الدعم)
+            return base + ([self.destination_role] if self.destination_role not in base else [])
+        for r in (self.destination_role, RT.CS_SUPERVISOR):
             if r not in base:
                 base.append(r)
         return base
@@ -139,6 +143,8 @@ class ServiceRequestDocument(models.Model):
     original_name = models.CharField(max_length=255)
     size = models.PositiveIntegerField(default=0)
     sha256 = models.CharField(max_length=64, blank=True)
+    # يراه المورد في البوابة (مرفقاته هو، أو ما يشاركه الموظف معه كالكشف المطلوب). الداخلي لا يظهر له أبدًا.
+    shared_with_supplier = models.BooleanField('مشارَك مع المورد', default=False)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

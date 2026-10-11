@@ -44,14 +44,9 @@ class Role(models.Model):
     
     class RoleType(models.TextChoices):
         ADMIN = 'admin', 'مدير النظام'
-        MANAGER = 'manager', 'مدير'
-        AUDITOR = 'auditor', 'مدقق مالي'
-        BRANCH_EMPLOYEE = 'branch_employee', 'موظف فرع'
         CFO = 'cfo', 'المدير المالي'
-        CS_SUPERVISOR = 'cs_supervisor', 'مشرف خدمة العملاء'
-        CS_AGENT = 'cs_agent', 'موظف خدمة العملاء'
-        ACCOUNTANT = 'accountant', 'محاسب'
-        PAYMENT_OFFICER = 'payment_officer', 'مسؤول المدفوعات'
+        CS_SUPERVISOR = 'cs_supervisor', 'مشرف الدعم'
+        ACCOUNTANT = 'accountant', 'مطابق'
         SUPPLIER = 'supplier', 'مورد (بوابة الموردين)'
     
     name = models.CharField("اسم الدور", max_length=100, unique=True)
@@ -59,7 +54,7 @@ class Role(models.Model):
         "نوع الدور",
         max_length=20,
         choices=RoleType.choices,
-        default=RoleType.BRANCH_EMPLOYEE
+        default=RoleType.ACCOUNTANT
     )
     description = models.TextField("الوصف", blank=True)
     permissions = models.ManyToManyField(
@@ -163,35 +158,11 @@ class UserProfile(models.Model):
         return self.role and self.role.role_type == Role.RoleType.ADMIN
     
     @property
-    def is_manager(self):
-        """هل المستخدم مدير؟"""
-        return self.role and self.role.role_type == Role.RoleType.MANAGER
-    
-    @property
-    def is_auditor(self):
-        """هل المستخدم مدقق؟"""
-        return self.role and self.role.role_type == Role.RoleType.AUDITOR
-    
-    @property
-    def is_branch_employee(self):
-        """هل المستخدم موظف فرع؟"""
-        return self.role and self.role.role_type == Role.RoleType.BRANCH_EMPLOYEE
-    
-    @property
     def can_see_all_branches(self):
         """هل يمكن للمستخدم رؤية جميع الفروع؟"""
         if not self.role:
             return False
-        return self.role.role_type in [
-            Role.RoleType.ADMIN, Role.RoleType.MANAGER, Role.RoleType.AUDITOR,
-            Role.RoleType.CFO, Role.RoleType.CS_SUPERVISOR, Role.RoleType.PAYMENT_OFFICER,
-        ]
-    
-    def can_edit_auditor_status(self):
-        """هل يمكن للمستخدم تغيير حالة المدقق؟"""
-        if not self.role:
-            return False
-        return self.role.role_type in [Role.RoleType.ADMIN, Role.RoleType.AUDITOR]
+        return self.role.role_type in [Role.RoleType.ADMIN, Role.RoleType.CFO, Role.RoleType.CS_SUPERVISOR]
 
 
 class SystemSettings(models.Model):

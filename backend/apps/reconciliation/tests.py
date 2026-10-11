@@ -48,7 +48,7 @@ class Base(TestCase):
     def setUp(self):
         self.supervisor = make_user('sup', Role.RoleType.CS_SUPERVISOR)
         self.cfo = make_user('cfo', Role.RoleType.CFO)
-        self.agent = make_user('agent', Role.RoleType.CS_AGENT)
+        self.agent = make_user('agent', Role.RoleType.CS_SUPERVISOR)
         self.acc = make_user('acc1', Role.RoleType.ACCOUNTANT)
         self.acc2 = make_user('acc2', Role.RoleType.ACCOUNTANT)
         self.supplier = Supplier.objects.create(name='مورد تجريبي', code='S1')
@@ -237,7 +237,7 @@ class WorkloadBalanceTests(Base):
     def test_non_supervisor_cannot_assign(self):
         c = self.new_case(status=S.READY_FOR_DISTRIBUTION)
         with self.assertRaises(TransitionError):
-            services.assign_cases([(c.pk, self.acc)], self.agent)
+            services.assign_cases([(c.pk, self.acc)], self.acc2)
 
     def test_assigning_non_accountant_rejected(self):
         c = self.new_case(status=S.READY_FOR_DISTRIBUTION)
@@ -293,18 +293,18 @@ class AccessControlTests(Base):
         self.assertEqual(self.client.get(reverse('reconciliation:distribution')).status_code, 302)
         self.assertEqual(self.client.get(reverse('reconciliation:create')).status_code, 302)
 
-    def test_branch_employee_has_no_access(self):
-        u = make_user('emp', Role.RoleType.BRANCH_EMPLOYEE)
+    def test_supplier_account_has_no_access(self):
+        u = make_user('emp', Role.RoleType.SUPPLIER)
         self.client.force_login(u)
         self.assertEqual(self.client.get(reverse('reconciliation:list')).status_code, 302)
 
     def test_anonymous_redirected_to_login(self):
         self.assertEqual(self.client.get(reverse('reconciliation:list')).status_code, 302)
 
-    def test_cfo_sees_all_but_cs_agent_cannot_work(self):
+    def test_cfo_sees_all_but_a_peer_accountant_cannot_save_results(self):
         self.client.force_login(self.cfo)
         self.assertEqual(len(self.client.get(reverse('reconciliation:list')).context['page_obj']), 2)
-        self.client.force_login(self.agent)
+        self.client.force_login(self.acc2)
         self.client.post(reverse('reconciliation:result_save', args=[self.mine.pk]),
                          {'supplier_balance': '9', 'company_balance': '1'})
         self.assertFalse(ReconciliationResult.objects.filter(case=self.mine).exists())

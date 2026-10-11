@@ -21,19 +21,18 @@ class AgentsListTests(TestCase):
     """قائمة «إسناد إلى...» كانت فارغة لأنها تستثني مدير النظام والمدير، بينما services.assign يقبلهما."""
 
     def test_agents_list_matches_who_assign_accepts(self):
-        users = {r: make_user(f'u_{r}', r) for r in (RT.ADMIN, RT.CS_SUPERVISOR, RT.CS_AGENT, RT.MANAGER, RT.ACCOUNTANT,
-                                                    RT.CFO, RT.AUDITOR, RT.PAYMENT_OFFICER)}
+        users = {r: make_user(f'u_{r}', r) for r in (RT.ADMIN, RT.CS_SUPERVISOR, RT.ACCOUNTANT, RT.CFO)}
         root = User.objects.create_superuser('root', password='x-Pass-12345')          # بلا دور (مثل أول مدير في الإنتاج)
-        inactive = make_user('gone', RT.CS_AGENT)
+        inactive = make_user('gone', RT.CS_SUPERVISOR)
         inactive.is_active = False
         inactive.save()
         names = {u.username for u in _agents()}
-        self.assertEqual(names, {'u_admin', 'u_cs_supervisor', 'u_cs_agent', 'u_manager', 'root'})
+        self.assertEqual(names, {'u_admin', 'u_cs_supervisor', 'root'})
         conv = SupplierConversation.objects.create(contact_number=NUMBER, status='new')
         sup = users[RT.CS_SUPERVISOR]
         for u in _agents():                          # كل من يظهر في القائمة يقبله الإسناد فعلًا
             services.assign(conv.pk, u, sup)
-        for r in (RT.ACCOUNTANT, RT.CFO, RT.AUDITOR, RT.PAYMENT_OFFICER):                # ومن لا يظهر يرفضه الإسناد
+        for r in (RT.ACCOUNTANT, RT.CFO):                # ومن لا يظهر يرفضه الإسناد
             with self.assertRaises(ConversationError):
                 services.assign(conv.pk, users[r], sup)
         self.assertIsNotNone(root)
@@ -52,7 +51,7 @@ class AgentsListTests(TestCase):
 @override_settings(**CFG)
 class LinkSupplierTests(TestCase):
     def setUp(self):
-        self.agent = make_user('agent', RT.CS_AGENT)
+        self.agent = make_user('agent', RT.CS_SUPERVISOR)
         self.admin = make_user('adm', RT.ADMIN)
         self.cfo = make_user('cfo', RT.CFO)
         self.conv = SupplierConversation.objects.create(contact_number=NUMBER, display_name='شركة الأفق', status='open',
@@ -98,8 +97,8 @@ class LinkSupplierTests(TestCase):
         self.conv.refresh_from_db()
         self.assertIsNone(self.conv.supplier)
 
-    def test_peer_cannot_link_someone_elses_conversation(self):
-        other = make_user('agent2', RT.CS_AGENT)
+    def test_non_supervisor_cannot_link_conversations(self):
+        other = make_user('acc', RT.ACCOUNTANT)
         self.link(other, supplier=self.supplier.pk)
         self.conv.refresh_from_db()
         self.assertIsNone(self.conv.supplier)
@@ -114,10 +113,10 @@ class LinkSupplierTests(TestCase):
 @override_settings(**CFG)
 class CreateSupplierFromConversationTests(TestCase):
     def setUp(self):
-        self.agent = make_user('agent', RT.CS_AGENT)
+        self.agent = make_user('agent', RT.CS_SUPERVISOR)
         self.sup = make_user('sup', RT.CS_SUPERVISOR)
         self.admin = make_user('adm', RT.ADMIN)
-        self.mgr = make_user('mgr', RT.MANAGER)
+        self.cfo = make_user('cfo', RT.CFO)
         self.conv = SupplierConversation.objects.create(contact_number=NUMBER, display_name='شركة الأفق', status='new')
 
     def create(self, user, **data):
@@ -136,12 +135,14 @@ class CreateSupplierFromConversationTests(TestCase):
         self.assertTrue(AuditLog.objects.filter(entity_type='whatsapp.Conversation', reason='ربط المحادثة بمورد').exists())
 
     def test_roles(self):
-        with self.assertRaises(ConversationError):                    # موظف خدمة العملاء يربط فقط
+        with self.assertRaises(ConversationError):                    # مشرف الدعم يربط فقط
             self.create(self.agent)
         with self.assertRaises(ConversationError):
-            services.create_supplier_from_conversation(self.conv.pk, self.sup, 'x')    # المشرف لا يدير الموردين
+            services.create_supplier_from_conversation(self.conv.pk, self.sup, 'x')    # ولا يدير الموردين
         self.assertEqual(Supplier.objects.count(), 0)
-        self.create(self.mgr)                                          # المدير يستطيع
+        with self.assertRaises(ConversationError):
+            self.create(self.cfo)                                      # المدير المالي يطّلع ولا يتصرف في المحادثة
+        self.create(self.admin)                                        # مدير النظام وحده يجمع الصلاحيتين
         self.assertEqual(Supplier.objects.count(), 1)
 
     def test_validation_and_duplicates(self):

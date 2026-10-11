@@ -17,13 +17,8 @@ RT = Role.RoleType
 EXPECTED_PATH = {
     RT.ADMIN: '/reconciliation/executive/',
     RT.CFO: '/reconciliation/executive/',
-    RT.MANAGER: '/reconciliation/executive/',
-    RT.AUDITOR: '/reconciliation/executive/',
     RT.ACCOUNTANT: '/reconciliation/',
     RT.CS_SUPERVISOR: '/inbox/',
-    RT.CS_AGENT: '/inbox/',
-    RT.PAYMENT_OFFICER: '/proposals/',
-    RT.BRANCH_EMPLOYEE: '/payments/',
     RT.SUPPLIER: '/portal/',
 }
 
@@ -85,7 +80,7 @@ class OldDashboardRemovedTests(TestCase):
             get_template('pages/dashboard.html')
 
     def test_no_control_panel_link_in_any_role_sidebar(self):
-        for role in (RT.CFO, RT.ACCOUNTANT, RT.CS_AGENT, RT.PAYMENT_OFFICER, RT.BRANCH_EMPLOYEE):
+        for role in (RT.CFO, RT.ACCOUNTANT, RT.CS_SUPERVISOR):
             self.client.force_login(make_user(f's_{role}', role))
             html = self.client.get('/', follow=True).content.decode()
             self.assertNotIn('title="لوحة التحكم"', html, role)

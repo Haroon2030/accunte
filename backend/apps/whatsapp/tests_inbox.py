@@ -45,8 +45,8 @@ def upsert(msg_id='ABC1', text='مرحبا', number=NUMBER, from_me=False, name=
 class Base(TestCase):
     def setUp(self):
         self.sup = make_user('sup', Role.RoleType.CS_SUPERVISOR)
-        self.a1 = make_user('agent1', Role.RoleType.CS_AGENT)
-        self.a2 = make_user('agent2', Role.RoleType.CS_AGENT)
+        self.a1 = make_user('agent1', Role.RoleType.CS_SUPERVISOR)
+        self.a2 = make_user('agent2', Role.RoleType.CS_SUPERVISOR)
         self.acc = make_user('acc', Role.RoleType.ACCOUNTANT)
         self.cfo = make_user('cfo', Role.RoleType.CFO)
 
@@ -277,21 +277,21 @@ class ClaimAndConcurrencyTests(Base):
         c.refresh_from_db()
         self.assertEqual(c.assigned_agent, self.a1)
 
-    def test_agent_cannot_assign_but_supervisor_can_reassign(self):
+    def test_only_supervisors_assign_and_can_reassign(self):
         c = self.conv(status=S.OPEN, assigned_agent=self.a1)
         with self.assertRaises(ConversationError):
-            services.assign(c.pk, self.a2, self.a1)
+            services.assign(c.pk, self.a2, self.cfo)
         services.assign(c.pk, self.a2, self.sup)
         c.refresh_from_db()
         self.assertEqual(c.assigned_agent, self.a2)
         self.assertEqual(c.assignments.count(), 1)
         self.assertEqual(ConversationAssignment.objects.filter(conversation=c, is_active=True).count(), 1)
 
-    def test_agent_cannot_touch_peers_conversation(self):
+    def test_viewer_roles_cannot_act_on_conversations(self):
         c = self.conv(status=S.OPEN, assigned_agent=self.a1)
-        for fn in (lambda: services.set_status(c.pk, self.a2, S.PENDING),
-                   lambda: services.release(c.pk, self.a2),
-                   lambda: services.send_reply(c.pk, self.a2, 'مرحبا')):
+        for fn in (lambda: services.set_status(c.pk, self.cfo, S.PENDING),
+                   lambda: services.release(c.pk, self.cfo),
+                   lambda: services.send_reply(c.pk, self.cfo, 'مرحبا')):
             with self.assertRaises(ConversationError):
                 fn()
 
@@ -312,15 +312,16 @@ class ClaimAndConcurrencyTests(Base):
         c.refresh_from_db()
         self.assertEqual((c.assigned_agent, c.status), (None, S.NEW))
 
-    def test_typing_lock_blocks_other_agent_but_not_supervisor(self):
+    def test_typing_lock_blocks_the_other_supervisor_until_it_expires(self):
         c = self.conv(status=S.OPEN, assigned_agent=self.a1)
         services.ping_typing(c.pk, self.a2)
         with self.assertRaises(ConversationError) as cm:
             services.send_reply(c.pk, self.a1, 'x')
         self.assertIn('يكتب', str(cm.exception))
+        SupplierConversation.objects.filter(pk=c.pk).update(typing_until=timezone.now() - datetime.timedelta(seconds=1))
         with mock.patch('apps.whatsapp.client.send_text', return_value={'key': {'id': 'S1'}}):
             with self.captureOnCommitCallbacks(execute=True):
-                services.send_reply(c.pk, self.sup, 'رد المشرف')
+                services.send_reply(c.pk, self.a1, 'بعد انتهاء القفل')
 
 
 class SendTests(Base):
@@ -370,10 +371,10 @@ class SendTests(Base):
         c.refresh_from_db()
         self.assertEqual((c.assigned_agent, c.status), (self.sup, S.OPEN))
 
-    def test_agent_cannot_reply_on_unassigned(self):
+    def test_viewer_cannot_reply_on_unassigned(self):
         c = self.conv(status=S.NEW)
         with self.assertRaises(ConversationError):
-            services.send_reply(c.pk, self.a1, 'أهلا')
+            services.send_reply(c.pk, self.cfo, 'أهلا')
 
     def test_webhook_echo_arriving_before_id_saved_is_merged(self):
         c = self.conv(status=S.OPEN, assigned_agent=self.a1)
@@ -449,7 +450,7 @@ class InboxViewTests(Base):
 
     def test_open_marks_read_only_for_who_can_act(self):
         SupplierConversation.objects.filter(pk=self.mine.pk).update(unread_count=3)
-        self.client.force_login(self.a2)       # ليست محادثته: لا تُصفَّر
+        self.client.force_login(self.cfo)      # يطّلع ولا يتصرف: لا تُصفَّر
         self.client.get(reverse('whatsapp_inbox:conversation', args=[self.mine.pk]))
         self.mine.refresh_from_db()
         self.assertEqual(self.mine.unread_count, 3)
@@ -474,14 +475,17 @@ class InboxViewTests(Base):
         self.assertNotIn('<script>alert(1)</script>', html)
         self.assertIn('&lt;script&gt;', html)
 
-    def test_http_claim_send_and_peer_blocked(self):
+    def test_http_claim_send_and_viewer_blocked(self):
         self.client.force_login(self.a1)
         self.client.post(reverse('whatsapp_inbox:claim', args=[self.new.pk]))
         self.new.refresh_from_db()
         self.assertEqual(self.new.assigned_agent, self.a1)
         self.client.force_login(self.a2)
         r = self.client.post(reverse('whatsapp_inbox:claim', args=[self.new.pk]), follow=True)
-        self.assertIn('موظف آخر', r.content.decode())
+        self.assertIn('موظف آخر', r.content.decode())              # سبقه زميله
+        self.client.force_login(self.cfo)
+        r = self.client.post(reverse('whatsapp_inbox:claim', args=[self.new.pk]), follow=True)
+        self.assertIn('ليس لديك صلاحية', r.content.decode())
         self.client.post(reverse('whatsapp_inbox:send', args=[self.new.pk]), {'text': 'تسلل'})
         self.assertEqual(M.objects.filter(conversation=self.new, direction='out').count(), 0)
 
@@ -516,8 +520,8 @@ class WebhookSetupTests(Base):
         self.client.force_login(self.sup)
         self.assertEqual(self.client.post(reverse('whatsapp:setup_webhook')).status_code, 400)
 
-    def test_setup_forbidden_for_agents(self):
-        self.client.force_login(self.a1)
+    def test_setup_forbidden_for_accountants(self):
+        self.client.force_login(self.acc)
         self.assertEqual(self.client.post(reverse('whatsapp:setup_webhook')).status_code, 302)
 
     def test_set_webhook_client_payload(self):

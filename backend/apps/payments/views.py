@@ -56,18 +56,6 @@ class PaymentRequestViewSet(viewsets.ModelViewSet):
         if not user.is_authenticated:
             return queryset
         
-        # التحقق من وجود UserProfile
-        if hasattr(user, 'profile'):
-            profile = user.profile
-            
-            # موظف الفرع يرى فقط طلبات فرعه
-            if profile.is_branch_employee and not profile.can_see_all_branches:
-                if profile.branch:
-                    queryset = queryset.filter(branch=profile.branch)
-                else:
-                    # إذا لم يكن مرتبط بفرع، لا يرى شيء
-                    queryset = queryset.none()
-        
         return queryset
 
     def get_serializer_class(self):
@@ -194,19 +182,8 @@ class DashboardView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
-    def get_user_branch(self, user):
-        """الحصول على فرع المستخدم إذا كان موظف فرع"""
-        if not user.is_authenticated:
-            return None
-        if hasattr(user, 'profile'):
-            profile = user.profile
-            if profile.is_branch_employee and not profile.can_see_all_branches:
-                return profile.branch
-        return None
-    
     def get(self, request):
         user = request.user
-        user_branch = self.get_user_branch(user)
         
         # الإحصائيات الأساسية
         branches_count = Branch.objects.filter(is_active=True).count()
@@ -215,8 +192,6 @@ class DashboardView(APIView):
         
         # فلترة الطلبات حسب صلاحيات المستخدم
         payments_qs = PaymentRequest.objects.all()
-        if user_branch:
-            payments_qs = payments_qs.filter(branch=user_branch)
         
         total_payments = payments_qs.aggregate(total=Sum('amount'))['total'] or 0
         
@@ -276,8 +251,6 @@ class DashboardView(APIView):
         
         # أفضل الموردين (مع فلترة حسب فرع المستخدم)
         top_suppliers_qs = PaymentRequestItem.objects.all()
-        if user_branch:
-            top_suppliers_qs = top_suppliers_qs.filter(payment_request__branch=user_branch)
         
         top_suppliers = list(
             top_suppliers_qs
@@ -353,17 +326,6 @@ class PaymentRequestItemViewSet(viewsets.ModelViewSet):
         # إذا كان المستخدم غير مسجل، يرى كل البيانات (للاختبار)
         if not user.is_authenticated:
             return queryset
-        
-        # التحقق من وجود UserProfile
-        if hasattr(user, 'profile'):
-            profile = user.profile
-            
-            # موظف الفرع يرى فقط بنود طلبات فرعه
-            if profile.is_branch_employee and not profile.can_see_all_branches:
-                if profile.branch:
-                    queryset = queryset.filter(payment_request__branch=profile.branch)
-                else:
-                    queryset = queryset.none()
         
         return queryset
 

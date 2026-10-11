@@ -110,8 +110,8 @@ class SupplierAccessTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, reverse('dashboard'))
 
-    def test_cs_agent_cannot_create_supplier(self):
-        u = user_with_role('cs1', Role.RoleType.CS_AGENT)
+    def test_cs_supervisor_cannot_create_supplier(self):
+        u = user_with_role('cs1', Role.RoleType.CS_SUPERVISOR)
         self.client.force_login(u)
         self.client.post(reverse('suppliers:create'), {'name': 'x', 'code': 'x1'})
         self.assertFalse(Supplier.objects.exists())
@@ -128,7 +128,7 @@ class SupplierAccessTests(TestCase):
         self.assertTrue(Supplier.objects.filter(code='S1').exists())
 
     def test_supplier_create_update_audited_and_duplicates_rejected(self):
-        u = user_with_role('mgr1', Role.RoleType.MANAGER)
+        u = user_with_role('mgr1', Role.RoleType.ACCOUNTANT)
         self.client.force_login(u)
         self.client.post(reverse('suppliers:create'), {'name': 'أ', 'code': 'A1', 'tax_number': '300000000000003'})
         s = Supplier.objects.get(code='A1')

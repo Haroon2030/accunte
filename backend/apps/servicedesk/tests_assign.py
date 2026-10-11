@@ -31,8 +31,9 @@ class AssignAnyoneTests(Base):
             services.transition(r.pk, S.IN_PROGRESS, self.acc1)
 
     def test_who_can_receive(self):
-        self.assertTrue(services.can_receive_assignment(self.acc1))
-        for u in (self.agent, self.sup, self.cfo, self.aud, self.po, make_user('root', RT.ADMIN)):
+        for u in (self.acc1, self.agent):                    # كلاهما مطابق
+            self.assertTrue(services.can_receive_assignment(u), u.username)
+        for u in (self.sup, self.cfo, self.po, make_user('root', RT.ADMIN)):
             self.assertFalse(services.can_receive_assignment(u), u.username)
         root = User.objects.create_superuser('boss', password='x-Pass-12345')
         self.assertFalse(services.can_receive_assignment(root))
@@ -43,13 +44,13 @@ class AssignAnyoneTests(Base):
         self.acc2.is_active = False
         self.acc2.save()
         got = set(services.assignable_users())
-        self.assertEqual(got, {self.acc1})
+        self.assertEqual(got, {self.acc1, self.agent})
         for u in got:
             self.assertTrue(services.can_receive_assignment(u))
 
     def test_non_receivers_rejected(self):
         r = self.make()
-        for u in (self.cfo, self.aud, self.po, self.agent, self.sup):
+        for u in (self.cfo, self.po, self.sup):
             with self.assertRaises(RequestError):
                 services.assign(r.pk, u, self.sup)
 

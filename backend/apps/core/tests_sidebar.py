@@ -39,13 +39,8 @@ WORK_ALL = {'inbox', 'requests', 'cases', 'proposals', 'suppliers'}
 EXPECTED = {
     RT.ADMIN: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'users', 'roles', 'audit', 'whatsapp_link'},
     RT.CFO: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'audit', 'whatsapp_link'},
-    RT.MANAGER: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'audit', 'whatsapp_link'},
-    RT.AUDITOR: EXECUTIVE | WORK_ALL | {'audit'},
     RT.CS_SUPERVISOR: {'inbox', 'requests', 'cases', 'distribution', 'proposals', 'suppliers', 'whatsapp_link'},
-    RT.CS_AGENT: {'inbox', 'requests', 'cases', 'suppliers'},
     RT.ACCOUNTANT: {'requests', 'cases', 'proposals', 'suppliers'},
-    RT.PAYMENT_OFFICER: {'proposals', 'suppliers'},
-    RT.BRANCH_EMPLOYEE: set(),
     RT.SUPPLIER: set(),
 }
 
@@ -66,7 +61,7 @@ class VisibilityByRoleTests(TestCase):
         self.assertEqual(keys_for(make_user('norole')), set())
 
     def test_users_and_roles_pages_are_admin_only(self):
-        for role in (RT.CFO, RT.MANAGER, RT.AUDITOR, RT.CS_SUPERVISOR):
+        for role in (RT.CFO, RT.CS_SUPERVISOR):
             self.assertFalse({'users', 'roles'} & keys_for(make_user(f'x_{role}', role)), role)
 
     def test_every_nav_url_resolves_and_keys_are_unique(self):
@@ -154,13 +149,9 @@ class SidebarRenderingTests(TestCase):
 class BadgeCountTests(TestCase):
     def setUp(self):
         self.cfo = make_user('cfo', RT.CFO)
-        self.mgr = make_user('mgr', RT.MANAGER)
         self.acc = make_user('acc', RT.ACCOUNTANT)
         self.acc2 = make_user('acc2', RT.ACCOUNTANT)
         self.sup = make_user('sup', RT.CS_SUPERVISOR)
-        self.agent = make_user('agent', RT.CS_AGENT)
-        self.po = make_user('po', RT.PAYMENT_OFFICER)
-        self.aud = make_user('aud', RT.AUDITOR)
         self.supplier = Supplier.objects.create(name='مورد', code='S1')
         self.branch = Branch.objects.create(name='ب', code='B')
         self.today = timezone.localdate()
@@ -175,7 +166,7 @@ class BadgeCountTests(TestCase):
 
     def request(self, **kw):
         t = ServiceType.objects.get(code='payment-status')
-        return ServiceRequest.objects.create(service_type=t, supplier=self.supplier, subject='x', created_by=self.agent,
+        return ServiceRequest.objects.create(service_type=t, supplier=self.supplier, subject='x', created_by=self.sup,
                                              due_at=kw.pop('due_at', timezone.now() + datetime.timedelta(hours=5)), **kw)
 
     def proposal(self, status, amount=1000, creator=None):
@@ -186,7 +177,7 @@ class BadgeCountTests(TestCase):
             requires_cfo=amount >= 50000)
 
     def test_no_badges_when_nothing_pending(self):
-        for u in (self.cfo, self.acc, self.sup, self.po):
+        for u in (self.cfo, self.acc, self.sup):
             self.assertEqual(self.counts(u), {}, u.username)
 
     def test_inbox_counts_unread_conversations_and_turns_red_when_late(self):
@@ -208,12 +199,11 @@ class BadgeCountTests(TestCase):
         self.request(assigned_to=self.acc, due_at=timezone.now() - datetime.timedelta(hours=1))
         self.assertEqual(self.counts(self.acc)['requests'], {'count': 2, 'tone': 'danger'})
 
-    def test_requests_for_cfo_and_auditor_count_only_overdue(self):
+    def test_requests_for_cfo_count_waiting_and_turn_red_when_overdue(self):
         self.request(assigned_to=self.acc)
         self.assertNotIn('requests', self.counts(self.cfo))
         self.request(due_at=timezone.now() - datetime.timedelta(hours=1))
         self.assertEqual(self.counts(self.cfo)['requests'], {'count': 1, 'tone': 'danger'})
-        self.assertEqual(self.counts(self.aud)['requests'], {'count': 1, 'tone': 'danger'})
 
     def test_cases_badge_by_role(self):
         self.case(accountant=self.acc)
@@ -224,7 +214,6 @@ class BadgeCountTests(TestCase):
         self.case(accountant=self.acc, due=self.today - datetime.timedelta(days=1))
         self.assertEqual(self.counts(self.acc)['cases'], {'count': 2, 'tone': 'danger'})
         self.assertEqual(self.counts(self.cfo)['cases'], {'count': 1, 'tone': 'danger'})
-        self.assertNotIn('cases', self.counts(self.agent))
 
     def test_distribution_counts_ready_cases(self):
         self.case(status='ready_for_distribution')
@@ -234,17 +223,15 @@ class BadgeCountTests(TestCase):
         self.assertNotIn('distribution', self.counts(self.acc))                # غير ظاهر لها
 
     def test_proposals_badge_by_role(self):
-        self.proposal('pending_review', 80000)                            # يخص المدير المالي
-        self.proposal('submitted', 5000)                                  # يخص المدير
-        self.proposal('approved')                                         # بانتظار الصرف
+        self.proposal('pending_review', 80000)                            # بانتظار قرار المدير المالي
+        self.proposal('submitted', 5000)
+        self.proposal('approved')                                         # معتمد بانتظار الصرف
         self.proposal('needs_info', creator=self.acc)
-        self.assertEqual(self.counts(self.cfo)['proposals']['count'], 1)
-        self.assertEqual(self.counts(self.mgr)['proposals']['count'], 1)
-        self.assertEqual(self.counts(self.po)['proposals']['count'], 1)
+        self.assertEqual(self.counts(self.cfo)['proposals']['count'], 3)
         self.assertEqual(self.counts(self.acc)['proposals']['count'], 1)       # استيضاح على مقترحه
-        self.assertNotIn('proposals', self.counts(self.aud))
         admin = make_user('adm', RT.ADMIN)
-        self.assertEqual(self.counts(admin)['proposals']['count'], 2)
+        self.assertEqual(self.counts(admin)['proposals']['count'], 3)
+        self.assertNotIn('proposals', self.counts(self.sup))
 
     def test_only_visible_items_are_computed(self):
         self.case(status='ready_for_distribution')

@@ -46,18 +46,6 @@ class BranchViewSet(viewsets.ModelViewSet):
         if user.is_staff or user.is_superuser:
             return queryset
         
-        # التحقق من وجود UserProfile
-        if hasattr(user, 'profile'):
-            profile = user.profile
-            
-            # موظف الفرع يرى فقط فرعه
-            if profile.is_branch_employee and not profile.can_see_all_branches:
-                if profile.branch:
-                    queryset = queryset.filter(id=profile.branch.id)
-                else:
-                    # إذا لم يكن مرتبط بفرع، لا يرى شيء
-                    queryset = queryset.none()
-        
         return queryset
 
     def get_serializer_class(self):

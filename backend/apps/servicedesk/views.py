@@ -225,12 +225,13 @@ def document_upload(request, pk):
             raise RequestError('اختر ملفًا')
         validate_upload(f)
         label = request.POST.get('label', '').strip()[:120]
+        shared = bool(request.POST.get('share')) and req.source == ServiceRequest.Source.PORTAL
         doc = ServiceRequestDocument(request=req, label=label, original_name=f.name[:255], size=f.size,
-                                     uploaded_by=request.user, sha256=file_sha256(f))
+                                     uploaded_by=request.user, sha256=file_sha256(f), shared_with_supplier=shared)
         doc.file.save(f.name, f, save=True)
         log_action(AuditLog.Action.CREATE, doc, entity_type='servicedesk.Document',
                    entity_repr=f'{req.reference}: {doc.original_name}',
-                   new={'label': label, 'name': doc.original_name, 'sha256': doc.sha256})
+                   new={'label': label, 'name': doc.original_name, 'sha256': doc.sha256, 'shared': shared})
         messages.success(request, 'تم رفع المستند')
     except (RequestError, TransitionError) as exc:
         messages.error(request, str(exc))
@@ -376,6 +377,7 @@ def type_edit(request, pk=None):
             obj.spawns_reconciliation = bool(p.get('spawns_reconciliation'))
             obj.whatsapp_menu = bool(p.get('whatsapp_menu'))
             obj.portal_menu = bool(p.get('portal_menu'))
+            obj.confidential = bool(p.get('confidential'))
             obj.is_active = bool(p.get('is_active'))
             obj.sort_order = int(p['sort_order']) if p.get('sort_order', '').isdigit() else 100
             obj.save()

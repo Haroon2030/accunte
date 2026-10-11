@@ -14,9 +14,9 @@
         </div>
     </a>
     {% for t in service_types %}
-    <a class="svc-card" href="{% url 'portal:new' t.code %}">
+    <a class="svc-card{% if t.confidential %} sensitive{% endif %}" href="{% url 'portal:new' t.code %}">
         <div class="flex items-center gap-3">
-            <span class="svc-icon"><i data-lucide="clipboard-list"></i></span>
+            <span class="svc-icon"><i data-lucide="{% if t.confidential %}alert-triangle{% else %}clipboard-list{% endif %}"></i></span>
             <div>
                 <div class="font-bold text-slate-800">{{ t.name }}</div>
                 <div class="text-sm text-slate-500">{{ t.description|default:"قدّم طلبك وسنتابعه معك" }}</div>

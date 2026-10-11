@@ -28,9 +28,8 @@ S = SupplierConversation.Status
 M = ConversationMessage
 RT = Role.RoleType
 
-SUPERVISOR_ROLES = (RT.ADMIN, RT.CS_SUPERVISOR, RT.MANAGER)
-AGENT_ROLES = (RT.CS_AGENT,)
-VIEW_ROLES = (RT.ADMIN, RT.CS_SUPERVISOR, RT.CS_AGENT, RT.MANAGER, RT.CFO, RT.AUDITOR)
+SUPERVISOR_ROLES = (RT.ADMIN, RT.CS_SUPERVISOR)
+VIEW_ROLES = (RT.ADMIN, RT.CS_SUPERVISOR, RT.CFO)
 TYPING_TTL = 60
 MAX_TEXT = 4000
 
@@ -115,7 +114,7 @@ def _notify(users, title, message, conv):
 
 
 def notify_desk_new_conversation(conv, text):
-    _notify(_desk_users(RT.CS_SUPERVISOR, RT.CS_AGENT), 'محادثة واتساب جديدة',
+    _notify(_desk_users(RT.CS_SUPERVISOR), 'محادثة واتساب جديدة',
             f'{conv.display_name or conv.contact_number}: {text}', conv)
 
 
@@ -192,7 +191,7 @@ def ingest_message(data):
         bot_handles = not from_me and bot.eligible(conv)     # المساعد يرد بنفسه فلا إشعار للموظفين الآن
         if not from_me and not bot_handles:
             if created or reopened:
-                _notify(_desk_users(RT.CS_SUPERVISOR, RT.CS_AGENT), 'محادثة واتساب جديدة',
+                _notify(_desk_users(RT.CS_SUPERVISOR), 'محادثة واتساب جديدة',
                         f'{conv.display_name or conv.contact_number}: {body[:60] or "[" + msg.get_kind_display() + "]"}', conv)
             elif conv.assigned_agent_id and conv.unread_count == 1:
                 _notify([conv.assigned_agent], 'رسالة جديدة من مورد',
@@ -248,10 +247,8 @@ def is_supervisor(user):
 
 
 def can_act(user, conv):
-    """هل يحق للمستخدم الرد/تغيير الحالة؟ الموظف على محادثته فقط، والمشرف على الكل."""
-    if is_supervisor(user):
-        return True
-    return has_role(user, *AGENT_ROLES) and conv.assigned_agent_id == user.pk
+    """هل يحق للمستخدم الرد/تغيير الحالة؟ مشرفو الدعم (ومدير النظام) على كل المحادثات."""
+    return is_supervisor(user)
 
 
 def _record_assignment(conv, agent, by):
@@ -263,7 +260,7 @@ def _record_assignment(conv, agent, by):
 @transaction.atomic
 def claim(conv_id, user):
     """استلام محادثة غير مسندة. يفشل بأمان إن سبقك موظف آخر (UPDATE شرطي ذري)."""
-    if not (has_role(user, *AGENT_ROLES) or is_supervisor(user)):
+    if not is_supervisor(user):
         raise ConversationError('ليس لديك صلاحية استلام المحادثات')
     rows = (SupplierConversation.objects.filter(pk=conv_id, assigned_agent__isnull=True)
             .exclude(status=S.CLOSED)
@@ -281,8 +278,8 @@ def claim(conv_id, user):
 def assign(conv_id, agent, by, expected_version=None):
     if not is_supervisor(by):
         raise ConversationError('الإسناد للمشرفين فقط')
-    if not has_role(agent, *AGENT_ROLES, *SUPERVISOR_ROLES) or not agent.is_active:
-        raise ConversationError('المستخدم المختار ليس موظف خدمة عملاء')
+    if not has_role(agent, *SUPERVISOR_ROLES) or not agent.is_active:
+        raise ConversationError('المستخدم المختار ليس من مشرفي الدعم')
     conv = SupplierConversation.objects.select_for_update().get(pk=conv_id)
     if expected_version is not None and conv.version != expected_version:
         raise ConversationError('تغيّرت المحادثة أثناء عملك، حدّث الصفحة وأعد المحاولة')
@@ -345,7 +342,7 @@ def set_status(conv_id, user, to, reason=''):
     log_action(AuditLog.Action.STATUS_CHANGE, conv, entity_type='whatsapp.Conversation', previous={'status': old},
                new={'status': to}, reason=reason, actor=user)
     if to == S.ESCALATED:
-        _notify(_desk_users(RT.CS_SUPERVISOR, RT.MANAGER), 'محادثة واتساب مصعَّدة',
+        _notify(_desk_users(RT.CS_SUPERVISOR, RT.CFO), 'محادثة واتساب مصعَّدة',
                 f'{conv.display_name or conv.contact_number}: {reason[:80]}', conv)
     return conv
 
@@ -460,7 +457,7 @@ def send_reply(conv_id, user, text):
         if not can_act(user, conv):
             raise ConversationError('استلم المحادثة أولًا للرد عليها')
         busy = other_typing(conv, user)
-        if busy and not is_supervisor(user):
+        if busy:                                    # قفل ناعم قصير المدى: يمنع الرد المزدوج من مشرفين
             raise ConversationError(f'{busy} يكتب ردًا على هذه المحادثة الآن')
         now = timezone.now()
         response = None

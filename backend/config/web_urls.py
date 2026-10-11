@@ -217,6 +217,7 @@ portal_patterns = [
     path('', portal_views.home, name='home'),
     path('requests/', portal_views.requests_list, name='list'),
     path('requests/<int:pk>/', portal_views.request_detail, name='detail'),
+    path('requests/<int:pk>/documents/<int:doc_pk>/', portal_views.document_download, name='document'),
     path('new/<slug:code>/', portal_views.request_new, name='new'),
 ]
 

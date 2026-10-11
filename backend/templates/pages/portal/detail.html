@@ -12,6 +12,12 @@
     <div class="text-sm text-slate-500">أُرسل {{ r.created_at|date:"Y-m-d H:i" }}{% if r.due_at %} · الموعد المتوقع {{ r.due_at|date:"Y-m-d H:i" }}{% endif %}</div>
     {% if r.resolution_note %}<div class="p-3 rounded-xl bg-green-50 border border-green-200 text-green-900"><span class="text-xs">نتيجة الطلب</span><div>{{ r.resolution_note }}</div></div>{% endif %}
 </div>
+{% if documents %}
+<h2 class="text-lg font-bold text-slate-800 mt-8 mb-3">الملفات المرفقة</h2>
+<ul class="space-y-2">
+    {% for d in documents %}<li><a class="text-primary-700 underline" href="{% url 'portal:document' r.pk d.pk %}">{{ d.original_name }}</a> <span class="text-xs text-slate-400">{{ d.size|filesizeformat }}</span></li>{% endfor %}
+</ul>
+{% endif %}
 <h2 class="text-lg font-bold text-slate-800 mt-8 mb-3">مراحل الطلب</h2>
 <ol class="space-y-2">
     {% for h in history %}<li class="flex items-center gap-3 text-sm"><span class="badge">{% if h.to_status == 'new' %}جديد{% elif h.to_status == 'in_progress' %}قيد المعالجة{% elif h.to_status == 'waiting_vendor' %}بانتظار ردك{% elif h.to_status == 'escalated' %}قيد المتابعة العليا{% elif h.to_status == 'resolved' %}تم الحل{% elif h.to_status == 'closed' %}مغلق{% else %}ملغى{% endif %}</span><span class="text-slate-500">{{ h.created_at|date:"Y-m-d H:i" }}</span></li>{% endfor %}

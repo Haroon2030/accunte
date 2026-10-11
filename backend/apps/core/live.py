@@ -36,15 +36,14 @@ def _requests(user):
     from apps.servicedesk.models import ServiceRequest as SR
     now = timezone.now()
     open_qs = services.visible_requests(user).filter(status__in=SR.OPEN)
-    if services.is_supervisor(user) or get_role_type(user) in (RT.ACCOUNTANT, RT.CS_AGENT):
+    if services.is_supervisor(user) or get_role_type(user) == RT.ACCOUNTANT:
         mine = open_qs.filter(assigned_to=user)
         waiting = open_qs.filter(assigned_to__isnull=True)
         total = mine.count() + waiting.count()
         late = open_qs.filter(due_at__lt=now).filter(assigned_to=user).exists() or \
             waiting.filter(due_at__lt=now).exists()
         return _badge(total, 'danger' if late else 'info')
-    late = open_qs.filter(due_at__lt=now).count()        # المدير المالي والمدقق: المتأخر فقط
-    return _badge(late, 'danger')
+    return None
 
 
 def _cases(user):
@@ -53,8 +52,6 @@ def _cases(user):
     if get_role_type(user) == RT.ACCOUNTANT:
         mine = Case.objects.filter(assigned_accountant=user, status__in=Case.OPEN_STATUSES)
         return _badge(mine.count(), 'danger' if mine.filter(due_date__lt=today).exists() else 'info')
-    if get_role_type(user) == RT.CS_AGENT:
-        return None
     late = Case.objects.filter(due_date__lt=today).exclude(status__in=Case.TERMINAL).count()
     return _badge(late, 'danger')
 
@@ -69,14 +66,9 @@ def _proposals(user):
     S = P.Status
     role = get_role_type(user)
     pending = P.objects.filter(status__in=(S.SUBMITTED, S.PENDING_REVIEW))
-    if role == RT.CFO:
-        return _badge(pending.filter(requires_cfo=True).count(), 'warn')
-    if role == RT.MANAGER:
-        return _badge(pending.filter(requires_cfo=False).count(), 'warn')
-    if role == RT.ADMIN:
-        return _badge(pending.count(), 'warn')
-    if role == RT.PAYMENT_OFFICER:
-        return _badge(P.objects.filter(status__in=(S.APPROVED, S.DISPATCHED)).count(), 'warn')
+    if role in (RT.CFO, RT.ADMIN):          # بانتظار قراره + معتمد بانتظار الصرف والتأكيد
+        waiting = P.objects.filter(status__in=(S.APPROVED, S.DISPATCHED))
+        return _badge(pending.count() + waiting.count(), 'warn')
     if role in (RT.ACCOUNTANT, RT.CS_SUPERVISOR):          # مقترحاتي المطلوب استيضاحها
         return _badge(P.objects.filter(created_by=user, status=S.NEEDS_INFO).count(), 'warn')
     return None

@@ -181,7 +181,7 @@ class IngestFetchTests(MediaBase):
 @override_settings(**CFG)
 class DownloadViewTests(MediaBase):
     def setUp(self):
-        self.agent = make_user('agent', Role.RoleType.CS_AGENT)
+        self.agent = make_user('agent', Role.RoleType.CS_SUPERVISOR)
         self.acc = make_user('acc', Role.RoleType.ACCOUNTANT)
         self.conv = SupplierConversation.objects.create(contact_number=NUMBER, status='open', assigned_agent=self.agent)
 
@@ -217,7 +217,7 @@ class DownloadViewTests(MediaBase):
         self.assertEqual(self.client.get(self.url(m)).status_code, 302)          # غير مسجّل
         self.client.force_login(self.acc)
         self.assertEqual(self.client.get(self.url(m)).status_code, 302)          # المحاسب خارج خدمة العملاء
-        for role in (Role.RoleType.CS_SUPERVISOR, Role.RoleType.CFO, Role.RoleType.AUDITOR):
+        for role in (Role.RoleType.CS_SUPERVISOR, Role.RoleType.CFO):
             self.client.force_login(make_user(f'u_{role}', role))
             self.assertEqual(self.client.get(self.url(m)).status_code, 200, role)
 

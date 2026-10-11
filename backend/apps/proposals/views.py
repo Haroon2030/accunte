@@ -39,10 +39,8 @@ view_required = role_required(*VIEW_ROLES)
 def visible_proposals(user):
     qs = PaymentProposal.objects.select_related('supplier', 'branch', 'reconciliation_case', 'created_by')
     role = get_role_type(user)
-    if role in (RT.ADMIN, RT.CFO, RT.MANAGER, RT.AUDITOR):
+    if role in (RT.ADMIN, RT.CFO):
         return qs
-    if role == RT.PAYMENT_OFFICER:
-        return qs.filter(status__in=[S.APPROVED, S.DISPATCHED, S.CONFIRMED_PAID])
     return qs.filter(created_by=user)
 
 
