@@ -330,8 +330,12 @@ def type_list(request):
         'page_title': 'أنواع الخدمات', 'types': ServiceType.objects.all()})
 
 
+# أدوار الموظفين فقط: حساب المورد (بوابة) لا يُسند ولا يُستلم ولا يعالج
+STAFF_ROLE_CHOICES = [(v, label) for v, label in Role.RoleType.choices if v != Role.RoleType.SUPPLIER]
+
+
 def _roles_from_post(post, name):
-    valid = set(Role.RoleType.values)
+    valid = {v for v, _ in STAFF_ROLE_CHOICES}
     return [r for r in post.getlist(name) if r in valid]
 
 
@@ -355,7 +359,7 @@ def type_edit(request, pk=None):
             sla = p.get('sla_hours', '24')
             if not sla.isdigit() or not 1 <= int(sla) <= 24 * 90:
                 raise RequestError('مهلة الإنجاز يجب أن تكون بين 1 و2160 ساعة')
-            valid_roles = set(Role.RoleType.values)
+            valid_roles = {v for v, _ in STAFF_ROLE_CHOICES}
             if p.get('destination_role') not in valid_roles or p.get('escalation_role') not in valid_roles:
                 raise RequestError('اختر الجهة المستلمة وجهة التصعيد')
             if ServiceType.objects.filter(code=code).exclude(pk=stype.pk if stype else None).exists():
@@ -371,6 +375,7 @@ def type_edit(request, pk=None):
             obj.handle_roles = _roles_from_post(p, 'handle_roles')
             obj.spawns_reconciliation = bool(p.get('spawns_reconciliation'))
             obj.whatsapp_menu = bool(p.get('whatsapp_menu'))
+            obj.portal_menu = bool(p.get('portal_menu'))
             obj.is_active = bool(p.get('is_active'))
             obj.sort_order = int(p['sort_order']) if p.get('sort_order', '').isdigit() else 100
             obj.save()
@@ -387,7 +392,7 @@ def type_edit(request, pk=None):
             return redirect('servicedesk:types')
     return render(request, 'pages/servicedesk/type_form.html', {
         'page_title': 'تعديل نوع خدمة' if stype else 'نوع خدمة جديد', 't': stype, 'errors': errors,
-        'roles': Role.RoleType.choices, 'field_types': [('text', 'نص'), ('textarea', 'نص طويل'), ('number', 'رقم'),
+        'roles': STAFF_ROLE_CHOICES, 'field_types': [('text', 'نص'), ('textarea', 'نص طويل'), ('number', 'رقم'),
                                                         ('date', 'تاريخ'), ('select', 'قائمة')],
         'schema_json': json.dumps(stype.field_schema if stype else [], ensure_ascii=False).replace('<', '\\u003c'),
         'create_roles': stype.effective_create_roles() if stype else [],

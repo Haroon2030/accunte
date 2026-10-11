@@ -104,7 +104,7 @@ class CreateTests(Base):
         self.assertEqual(r.data, {'invoice_number': 'INV-1'})
         self.assertEqual(r.history.count(), 1)
         self.assertTrue(AuditLog.objects.filter(entity_type='servicedesk.ServiceRequest', action='create', actor=self.agent).exists())
-        self.assertEqual(set(Notification.objects.values_list('recipient__username', flat=True)), {'acc1', 'acc2'})
+        self.assertEqual(set(Notification.objects.values_list('recipient__username', flat=True)), {'sup'})   # المشرف يوزّع
 
     def test_missing_required_field_and_empty_subject(self):
         with self.assertRaises(RequestError):
@@ -154,7 +154,9 @@ class VisibilityTests(Base):
         pay = self.make(self.t_pay)
         meet = self.make(self.t_meet, fields={'f_preferred_date': '2026-03-01', 'f_topic': 'مراجعة'})
         ids = lambda u: set(services.visible_requests(u).values_list('pk', flat=True))
-        self.assertEqual(ids(self.acc1), {pay.pk})            # يرى ما يخص دوره فقط
+        self.assertEqual(ids(self.acc1), set())               # المطابق لا يرى إلا ما أُسند إليه
+        services.assign(pay.pk, self.acc1, self.sup)
+        self.assertEqual(ids(self.acc1), {pay.pk})
         self.assertEqual(ids(self.agent), {pay.pk, meet.pk})  # منشئهما
         self.assertEqual(ids(self.cfo), {pay.pk, meet.pk})
         self.assertEqual(ids(self.aud), {pay.pk, meet.pk})
@@ -163,7 +165,7 @@ class VisibilityTests(Base):
 
     def test_assigned_request_hidden_from_peer_handler(self):
         r = self.make()
-        services.claim(r.pk, self.acc1)
+        services.assign(r.pk, self.acc1, self.sup)
         self.assertEqual(set(services.visible_requests(self.acc2).values_list('pk', flat=True)), set())
         self.client.force_login(self.acc2)
         self.assertEqual(self.client.get(reverse('servicedesk:detail', args=[r.pk])).status_code, 404)
@@ -175,36 +177,52 @@ class VisibilityTests(Base):
 
     def test_list_tabs(self):
         mine = self.make()
-        services.claim(mine.pk, self.acc1)
-        other = self.make()
+        services.assign(mine.pk, self.acc1, self.sup)
+        self.make()                                       # غير مسند: لا يراه المطابق
         late = self.make()
+        services.assign(late.pk, self.acc1, self.sup)
         ServiceRequest.objects.filter(pk=late.pk).update(due_at=timezone.now() - datetime.timedelta(hours=1))
         self.client.force_login(self.acc1)
         url = reverse('servicedesk:list')
         names = lambda tab: {x.pk for x in self.client.get(url, {'tab': tab}).context['page_obj']}
-        self.assertEqual(names('mine'), {mine.pk})
-        self.assertEqual(names('unassigned'), {other.pk, late.pk})
+        self.assertEqual(names('mine'), {mine.pk, late.pk})
+        self.assertEqual(names('unassigned'), set())
         self.assertEqual(names('overdue'), {late.pk})
 
 
 class ClaimAndWorkflowTests(Base):
     def test_only_one_handler_wins_and_non_handlers_blocked(self):
-        r = self.make()
-        services.claim(r.pk, self.acc1)
+        general = ServiceType.objects.get(code='general-support')           # مستلمها موظف خدمة العملاء
+        agent2 = make_user('agent2', RT.CS_AGENT)
+        r = self.make(general)
+        services.claim(r.pk, self.agent)
         with self.assertRaises(RequestError) as cm:
-            services.claim(r.pk, self.acc2)
+            services.claim(r.pk, agent2)
         self.assertIn('موظف آخر', str(cm.exception))
         with self.assertRaises(RequestError):
-            services.claim(self.make().pk, self.po)
+            services.claim(self.make(general).pk, self.po)
+
+    def test_accountant_cannot_self_claim_or_work_unassigned(self):
+        r = self.make()
+        with self.assertRaises(RequestError) as cm:
+            services.claim(r.pk, self.acc1)
+        self.assertIn('من المشرف', str(cm.exception))
+        with self.assertRaises(RequestError):
+            services.transition(r.pk, S.IN_PROGRESS, self.acc1)
+        self.assertEqual(services.allowed_transitions(self.acc1, r), [])
+        services.assign(r.pk, self.acc1, self.sup)
+        r.refresh_from_db()
+        self.assertTrue(services.allowed_transitions(self.acc1, r))
 
     def test_start_auto_claims(self):
-        r = self.make()
-        services.transition(r.pk, S.IN_PROGRESS, self.acc1)
+        r = self.make(user=self.sup)
+        services.transition(r.pk, S.IN_PROGRESS, self.sup)
         r.refresh_from_db()
-        self.assertEqual((r.status, r.assigned_to), (S.IN_PROGRESS, self.acc1))
+        self.assertEqual((r.status, r.assigned_to), (S.IN_PROGRESS, self.sup))
 
     def test_resolve_requires_note_and_required_documents(self):
         r = self.make(self.t_recon, fields={'f_period_start': '2026-01-01', 'f_period_end': '2026-03-31'})
+        services.assign(r.pk, self.acc1, self.sup)
         services.transition(r.pk, S.IN_PROGRESS, self.acc1)
         with self.assertRaises(RequestError):
             services.transition(r.pk, S.RESOLVED, self.acc1, resolution_note='')
@@ -221,6 +239,7 @@ class ClaimAndWorkflowTests(Base):
 
     def test_close_reopen_cancel_rules(self):
         r = self.make()
+        services.assign(r.pk, self.acc1, self.sup)
         services.transition(r.pk, S.IN_PROGRESS, self.acc1)
         services.transition(r.pk, S.RESOLVED, self.acc1, resolution_note='تم')
         with self.assertRaises(RequestError):
@@ -241,6 +260,7 @@ class ClaimAndWorkflowTests(Base):
 
     def test_manual_escalation_needs_reason_and_notifies_escalation_role(self):
         r = self.make()
+        services.assign(r.pk, self.acc1, self.sup)
         services.transition(r.pk, S.IN_PROGRESS, self.acc1)
         with self.assertRaises(RequestError):
             services.transition(r.pk, S.ESCALATED, self.acc1, '')
@@ -251,6 +271,7 @@ class ClaimAndWorkflowTests(Base):
 
     def test_status_changes_audited_with_actor(self):
         r = self.make()
+        services.assign(r.pk, self.acc1, self.sup)
         services.transition(r.pk, S.IN_PROGRESS, self.acc1)
         log = AuditLog.objects.get(entity_type='servicedesk.ServiceRequest', action='status_change')
         self.assertEqual((log.actor, log.previous_state['status'], log.new_state['status']), (self.acc1, 'new', 'in_progress'))
@@ -287,6 +308,7 @@ class EscalationTests(Base):
     def test_not_escalated_when_on_time_resolved_or_closed(self):
         self.make()
         done = self.overdue()
+        services.assign(done.pk, self.acc1, self.sup)
         services.transition(done.pk, S.IN_PROGRESS, self.acc1)
         services.transition(done.pk, S.RESOLVED, self.acc1, resolution_note='ok')
         self.assertEqual(services.escalate_overdue(), 0)
@@ -294,6 +316,7 @@ class EscalationTests(Base):
     def test_returning_to_progress_resets_clock(self):
         r = self.overdue()
         services.escalate_overdue()
+        services.assign(r.pk, self.acc1, self.sup)
         services.transition(r.pk, S.IN_PROGRESS, self.acc1)
         r.refresh_from_db()
         self.assertGreater(r.due_at, timezone.now())
@@ -321,7 +344,9 @@ class DocumentsAndAppointmentsTests(Base):
         doc = r.documents.get()
         self.assertEqual(len(doc.sha256), 64)
         self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 200)
-        self.client.force_login(self.acc1)       # يستلم بعد الإسناد فقط... وهو مرئي لأنه من اختصاصه
+        self.client.force_login(self.acc1)       # المطابق لا يرى الملف إلا بعد الإسناد إليه
+        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 404)
+        services.assign(r.pk, self.acc1, self.sup)
         self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 200)
         self.client.force_login(self.po)
         self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 302)
@@ -443,6 +468,7 @@ class IntegrationTests(Base):
         a = self.make()
         b = self.make()
         ServiceRequest.objects.filter(pk=b.pk).update(due_at=timezone.now() - datetime.timedelta(hours=1))
+        services.assign(a.pk, self.acc1, self.sup)
         services.transition(a.pk, S.IN_PROGRESS, self.acc1)
         services.transition(a.pk, S.RESOLVED, self.acc1, resolution_note='ok')
         out = kpis.service_request_kpis('all')

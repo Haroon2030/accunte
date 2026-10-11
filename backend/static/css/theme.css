@@ -65,3 +65,14 @@ main table thead th { background: var(--brand-soft); color: var(--brand-dark); }
 @media (max-width: 1023px) {
     body > div > div > header h1 { font-size: 1.25rem; }
 }
+
+/* ── رمز البطاقة الإحصائية: مربع ملوّن بأيقونة، بنفس الحجم والمحاذاة في كل البطاقات ── */
+.kpi-ico { width: 2.5rem; height: 2.5rem; flex: none; border-radius: 0.75rem; display: grid; place-items: center; }
+.kpi-ico svg { width: 1.3rem; height: 1.3rem; stroke-width: 1.9; }
+.kpi-ico--blue { background: #dbe8f8; color: #3a6699; }
+.kpi-ico--indigo { background: #e3e4fb; color: #4338ca; }
+.kpi-ico--green { background: #d9f3e3; color: #15803d; }
+.kpi-ico--red { background: #fde0e0; color: #b91c1c; }
+.kpi-ico--amber { background: #fdf0c6; color: #a16207; }
+.kpi-ico--orange { background: #fde5d0; color: #c2410c; }
+.kpi-ico--slate { background: #e8edf3; color: #475569; }

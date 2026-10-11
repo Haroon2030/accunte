@@ -1,5 +1,6 @@
 """
 المساعد الآلي لواتساب: يعرض على المورد قائمة الخدمات ويُنشئ طلب الخدمة من اختياره، أو يحوّله لفريق الدعم.
+إن وُجد مفتاح Groq يفهم الرسائل الحرة أيضًا (apps/whatsapp/ai.py) فيُنشئ الطلب مباشرة دون المرور بالقائمة.
 
 الدورة (لكل محادثة، ما دامت غير مسندة لموظف ومرتبطة بمورد):
     ''  ──(أي رسالة)──▶ menu     يُعرض الترحيب وقائمة مرقّمة
@@ -16,7 +17,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from . import services
+from . import ai, services
 from .models import BOT_COLLECT as COLLECT
 from .models import BOT_HUMAN as HUMAN
 from .models import BOT_IDLE as IDLE
@@ -29,6 +30,7 @@ S = SupplierConversation.Status
 
 MAX_MENU = 9
 MAX_ATTEMPTS = 3
+FREE_TEXT_MIN = 8
 _DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234567890123456789')
 
 
@@ -106,6 +108,8 @@ def _handle(conv_id, msg_id):
             types = menu_types()
             if not types:
                 return _handoff(conv, now, 'تم استلام رسالتك، وسيرد عليك أحد موظفي الدعم قريبًا.')
+            if _is_free_text(text) and _ai_route(conv, msg, text, types, now):
+                return
             _park(conv, MENU, bot_attempts=0, bot_service_code='')
             conv.save()
             return _reply(conv, menu_text(conv, types))
@@ -121,6 +125,8 @@ def _handle(conv_id, msg_id):
                 conv.save()
                 return _reply(conv, f'اخترت: {chosen.name}\nاكتب تفاصيل طلبك في رسالة واحدة.\n'
                                     '(أرسل # للرجوع إلى القائمة، أو 0 للتحدث مع الدعم)')
+            if _is_free_text(text) and _ai_route(conv, msg, text, types, now):
+                return
             conv.bot_attempts += 1
             if conv.bot_attempts >= MAX_ATTEMPTS:
                 return _handoff(conv, now, 'تعذّر فهم اختيارك، فحوّلناك إلى فريق الدعم وسيرد عليك أحد الموظفين.')
@@ -138,20 +144,38 @@ def _handle(conv_id, msg_id):
             return _create_request(conv, msg, now)
 
 
-def _create_request(conv, msg, now):
+def _is_free_text(text):
+    """رسالة وصفية (لا رقم خيار ولا رمز) تستحق أن يفهمها الذكاء الاصطناعي."""
+    return len(text) >= FREE_TEXT_MIN and not text.isdigit()
+
+
+def _ai_route(conv, msg, text, types, now):
+    """يوجّه الرسالة الحرة: طلب خدمة مباشر، أو تحويل للدعم. False = لم يحسم فيكمل المساعد بالقائمة."""
+    result = ai.classify(text, types)
+    if result is None or result['action'] == 'unclear':
+        return False
+    if result['action'] == 'human':
+        _handoff(conv, now, 'تم تحويلك إلى فريق الدعم، وسيرد عليك أحد الموظفين قريبًا.')
+        return True
+    _create_request(conv, msg, now, stype=result['type'], summary=result['summary'], by_ai=True)
+    return True
+
+
+def _create_request(conv, msg, now, stype=None, summary='', by_ai=False):
     from apps.servicedesk.models import ServiceType
     from apps.servicedesk.services import RequestError, create_from_whatsapp
-    stype = ServiceType.objects.filter(code=conv.bot_service_code, is_active=True).first()
+    stype = stype or ServiceType.objects.filter(code=conv.bot_service_code, is_active=True).first()
     if stype is None:
         return _handoff(conv, now, 'تعذّر إنشاء الطلب، وحوّلناك إلى فريق الدعم.')
     try:
-        req = create_from_whatsapp(conv, stype, msg.body)
+        req = create_from_whatsapp(conv, stype, msg.body, subject=summary)
     except RequestError:
         return _handoff(conv, now, 'تعذّر إنشاء الطلب، وحوّلناك إلى فريق الدعم.')
     conv.bot_state, conv.bot_service_code, conv.bot_attempts = IDLE, '', 0
     conv.status, conv.closed_at = S.CLOSED, timezone.now()
     conv.unread_count, conv.awaiting_reply_since = 0, None
     conv.save()
+    note = '\n(صنّفنا طلبك تلقائيًا، وإن لم يكن التصنيف دقيقًا سيصحّحه الفريق.)' if by_ai else ''
     _reply(conv, f'تم استلام طلبك ✅\nالرقم المرجعي: {req.reference}\n'
-                 f'الخدمة: {stype.name}\nسنتواصل معك خلال {stype.sla_hours} ساعة.\n'
+                 f'الخدمة: {stype.name}\nسنتواصل معك خلال {stype.sla_hours} ساعة.{note}\n'
                  'للتواصل في أي وقت أرسل رسالة جديدة.')

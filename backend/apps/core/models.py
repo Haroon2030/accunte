@@ -52,6 +52,7 @@ class Role(models.Model):
         CS_AGENT = 'cs_agent', 'موظف خدمة العملاء'
         ACCOUNTANT = 'accountant', 'محاسب'
         PAYMENT_OFFICER = 'payment_officer', 'مسؤول المدفوعات'
+        SUPPLIER = 'supplier', 'مورد (بوابة الموردين)'
     
     name = models.CharField("اسم الدور", max_length=100, unique=True)
     role_type = models.CharField(
@@ -111,6 +112,15 @@ class UserProfile(models.Model):
         related_name="users",
         null=True,
         blank=True
+    )
+    supplier = models.ForeignKey(
+        'suppliers.Supplier',
+        on_delete=models.SET_NULL,
+        verbose_name="المورد",
+        related_name="portal_users",
+        null=True,
+        blank=True,
+        help_text="لمستخدمي بوابة الموردين فقط: المورد الذي يمثّله هذا الحساب"
     )
     branch = models.ForeignKey(
         'branches.Branch',

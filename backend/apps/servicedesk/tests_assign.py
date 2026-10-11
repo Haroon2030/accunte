@@ -8,7 +8,11 @@ from apps.core.models import Notification
 from . import services
 from .models import ServiceRequest
 from .services import RequestError
+from django.contrib.auth import get_user_model
+
 from .tests import Base, RT, S, make_user
+
+User = get_user_model()
 
 
 class AssignAnyoneTests(Base):
@@ -27,25 +31,25 @@ class AssignAnyoneTests(Base):
             services.transition(r.pk, S.IN_PROGRESS, self.acc1)
 
     def test_who_can_receive(self):
-        for u in (self.acc1, self.agent, self.sup):
-            self.assertTrue(services.can_receive_assignment(u), u.username)
-        for u in (self.cfo, self.aud, self.po):
+        self.assertTrue(services.can_receive_assignment(self.acc1))
+        for u in (self.agent, self.sup, self.cfo, self.aud, self.po, make_user('root', RT.ADMIN)):
             self.assertFalse(services.can_receive_assignment(u), u.username)
+        root = User.objects.create_superuser('boss', password='x-Pass-12345')
+        self.assertFalse(services.can_receive_assignment(root))
         self.acc2.is_active = False
         self.assertFalse(services.can_receive_assignment(self.acc2))
 
     def test_assignable_users_matches_can_receive(self):
         self.acc2.is_active = False
         self.acc2.save()
-        root = make_user('root', RT.ADMIN)
         got = set(services.assignable_users())
-        self.assertEqual(got, {self.sup, self.agent, self.acc1, root})
+        self.assertEqual(got, {self.acc1})
         for u in got:
             self.assertTrue(services.can_receive_assignment(u))
 
     def test_non_receivers_rejected(self):
         r = self.make()
-        for u in (self.cfo, self.aud, self.po):
+        for u in (self.cfo, self.aud, self.po, self.agent, self.sup):
             with self.assertRaises(RequestError):
                 services.assign(r.pk, u, self.sup)
 
@@ -58,7 +62,12 @@ class AssignAnyoneTests(Base):
         r = self.make()
         Notification.objects.all().delete()
         services.assign(r.pk, self.acc2, self.sup)
-        self.assertEqual(list(Notification.objects.values_list('recipient__username', flat=True)), ['acc2'])
+        note = Notification.objects.get()
+        self.assertEqual(note.recipient, self.acc2)
+        self.assertEqual(note.title, 'مهمة جديدة: يرجى المطابقة')
+        self.assertIn(self.supplier.name, note.message)
+        self.assertIn(r.reference, note.message)
+        self.assertIn('يرجى مطابقة', note.message)
 
 
 class CreateWithAssigneeTests(Base):
@@ -72,7 +81,7 @@ class CreateWithAssigneeTests(Base):
         Notification.objects.all().delete()
         r = self.make(user=self.sup)
         self.assertIsNone(r.assigned_to)
-        self.assertEqual(set(Notification.objects.values_list('recipient__username', flat=True)), {'acc1', 'acc2'})
+        self.assertEqual(set(Notification.objects.values_list('recipient__username', flat=True)), {'sup'})
 
     def test_non_supervisor_cannot_assign_on_create(self):
         with self.assertRaises(RequestError):

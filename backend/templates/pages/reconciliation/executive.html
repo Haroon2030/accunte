@@ -32,41 +32,81 @@
     <!-- المؤشرات الرئيسية: كل بطاقة تفتح الحالات المكوِّنة لها -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <a href="{% url 'reconciliation:list' %}?kpi=all&{{ scope_qs }}" class="kpi-card bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
-            <div class="text-xs text-slate-500">الحالات المستلمة</div>
-            <div class="text-3xl font-bold text-slate-800 mt-1">{{ counts.all }}</div>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-500">الحالات المستلمة</div>
+                    <div class="text-3xl font-bold text-slate-800 mt-1">{{ counts.all }}</div>
+                </div>
+                <span class="kpi-ico kpi-ico--blue"><i data-lucide="layers"></i></span>
+            </div>
         </a>
         <a href="{% url 'reconciliation:list' %}?kpi=new&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
-            <div class="text-xs text-slate-500">جديدة / قبل الإسناد</div>
-            <div class="text-3xl font-bold text-indigo-700 mt-1">{{ counts.new }}</div>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-500">جديدة / قبل الإسناد</div>
+                    <div class="text-3xl font-bold text-indigo-700 mt-1">{{ counts.new }}</div>
+                </div>
+                <span class="kpi-ico kpi-ico--indigo"><i data-lucide="sparkles"></i></span>
+            </div>
         </a>
         <a href="{% url 'reconciliation:list' %}?kpi=in_progress&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
-            <div class="text-xs text-slate-500">قيد التنفيذ</div>
-            <div class="text-3xl font-bold text-blue-700 mt-1">{{ counts.in_progress }}</div>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-500">قيد التنفيذ</div>
+                    <div class="text-3xl font-bold text-blue-700 mt-1">{{ counts.in_progress }}</div>
+                </div>
+                <span class="kpi-ico kpi-ico--blue"><i data-lucide="loader"></i></span>
+            </div>
         </a>
         <a href="{% url 'reconciliation:list' %}?kpi=completed&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
-            <div class="text-xs text-slate-500">مكتملة</div>
-            <div class="text-3xl font-bold text-green-700 mt-1">{{ counts.completed }}</div>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-500">مكتملة</div>
+                    <div class="text-3xl font-bold text-green-700 mt-1">{{ counts.completed }}</div>
+                </div>
+                <span class="kpi-ico kpi-ico--green"><i data-lucide="check-circle"></i></span>
+            </div>
         </a>
         <a href="{% url 'reconciliation:list' %}?kpi=overdue&{{ scope_qs }}" class="border rounded-xl p-4 hover:shadow-md transition {% if counts.overdue %}bg-red-50 border-red-200{% else %}bg-white border-slate-200{% endif %}">
-            <div class="text-xs {% if counts.overdue %}text-red-700{% else %}text-slate-500{% endif %}">متأخرة</div>
-            <div class="text-3xl font-bold {% if counts.overdue %}text-red-700{% else %}text-slate-800{% endif %} mt-1">{{ counts.overdue }}</div>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="text-xs {% if counts.overdue %}text-red-700{% else %}text-slate-500{% endif %}">متأخرة</div>
+                    <div class="text-3xl font-bold {% if counts.overdue %}text-red-700{% else %}text-slate-800{% endif %} mt-1">{{ counts.overdue }}</div>
+                </div>
+                <span class="kpi-ico kpi-ico--red"><i data-lucide="alarm-clock"></i></span>
+            </div>
         </a>
         <a href="{% url 'reconciliation:list' %}?kpi=waiting_vendor&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
-            <div class="text-xs text-slate-500">بانتظار رد المورد</div>
-            <div class="text-3xl font-bold text-yellow-700 mt-1">{{ counts.waiting_vendor }}</div>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-500">بانتظار رد المورد</div>
+                    <div class="text-3xl font-bold text-yellow-700 mt-1">{{ counts.waiting_vendor }}</div>
+                </div>
+                <span class="kpi-ico kpi-ico--amber"><i data-lucide="hourglass"></i></span>
+            </div>
         </a>
         <a href="{% url 'reconciliation:list' %}?kpi=stale&{{ scope_qs }}" class="border rounded-xl p-4 hover:shadow-md transition {% if counts.stale %}bg-orange-50 border-orange-200{% else %}bg-white border-slate-200{% endif %}">
-            <div class="text-xs {% if counts.stale %}text-orange-700{% else %}text-slate-500{% endif %}">راكدة (أكثر من {{ stale_days }} أيام بلا نشاط)</div>
-            <div class="text-3xl font-bold {% if counts.stale %}text-orange-700{% else %}text-slate-800{% endif %} mt-1">{{ counts.stale }}</div>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="text-xs {% if counts.stale %}text-orange-700{% else %}text-slate-500{% endif %}">راكدة (أكثر من {{ stale_days }} أيام بلا نشاط)</div>
+                    <div class="text-3xl font-bold {% if counts.stale %}text-orange-700{% else %}text-slate-800{% endif %} mt-1">{{ counts.stale }}</div>
+                </div>
+                <span class="kpi-ico kpi-ico--orange"><i data-lucide="snowflake"></i></span>
+            </div>
         </a>
         <div class="bg-white border border-slate-200 rounded-xl p-4">
-            <div class="text-xs text-slate-500">متوسط زمن الحل</div>
-            {% if avg_resolution %}
-            <div class="text-3xl font-bold text-slate-800 mt-1">{{ avg_resolution.days }} <span class="text-sm font-medium text-slate-500">يوم</span></div>
-            <div class="text-xs text-slate-400 mt-0.5">من {{ resolved_n }} حالة منتهية</div>
-            {% else %}
-            <div class="text-lg text-slate-400 mt-2">لا بيانات بعد</div>
-            {% endif %}
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                <div class="text-xs text-slate-500">متوسط زمن الحل</div>
+                {% if avg_resolution %}
+                <div class="text-3xl font-bold text-slate-800 mt-1">{{ avg_resolution.days }} <span class="text-sm font-medium text-slate-500">يوم</span></div>
+                <div class="text-xs text-slate-400 mt-0.5">من {{ resolved_n }} حالة منتهية</div>
+                {% else %}
+                <div class="text-lg text-slate-400 mt-2">لا بيانات بعد</div>
+                {% endif %}
+                </div>
+                <span class="kpi-ico kpi-ico--slate"><i data-lucide="timer"></i></span>
+            </div>
         </div>
     </div>
 

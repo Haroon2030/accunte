@@ -12,6 +12,7 @@ from apps.proposals import views as proposal_views
 from apps.whatsapp import views as whatsapp_views
 from apps.core import live as core_live
 from apps.whatsapp import inbox_views
+from apps.servicedesk import portal as portal_views
 from apps.servicedesk import views as sd_views
 
 # Authentication URLs
@@ -212,6 +213,13 @@ servicedesk_patterns = [
     path('<int:pk>/appointments/<int:appt_pk>/status/', sd_views.appointment_status, name='appointment_status'),
 ]
 
+portal_patterns = [
+    path('', portal_views.home, name='home'),
+    path('requests/', portal_views.requests_list, name='list'),
+    path('requests/<int:pk>/', portal_views.request_detail, name='detail'),
+    path('new/<slug:code>/', portal_views.request_new, name='new'),
+]
+
 # Main URL patterns
 urlpatterns = [
     path('live/badges/', core_live.badges_view, name='live_badges'),
@@ -242,4 +250,5 @@ urlpatterns = [
     path('whatsapp/', include((whatsapp_patterns, 'whatsapp'))),
     path('inbox/', include((inbox_patterns, 'whatsapp_inbox'))),
     path('service-requests/', include((servicedesk_patterns, 'servicedesk'))),
+    path('portal/', include((portal_patterns, 'portal'))),
 ]

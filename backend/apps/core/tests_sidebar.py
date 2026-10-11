@@ -46,6 +46,7 @@ EXPECTED = {
     RT.ACCOUNTANT: {'requests', 'cases', 'proposals', 'suppliers'},
     RT.PAYMENT_OFFICER: {'proposals', 'suppliers'},
     RT.BRANCH_EMPLOYEE: set(),
+    RT.SUPPLIER: set(),
 }
 
 
@@ -75,14 +76,15 @@ class VisibilityByRoleTests(TestCase):
             for item in items:
                 self.assertTrue(reverse(item.url_name).startswith('/'), item.key)
 
-    def test_accountant_cases_item_is_called_my_tasks(self):
+    def test_accountant_requests_item_is_called_my_tasks(self):
         req = RequestFactory().get('/')
         req.user = make_user('acc', RT.ACCOUNTANT)
         labels = {i['key']: i['label'] for i in sidebar.leaves(sidebar.build(req))}
-        self.assertEqual(labels['cases'], 'مهامي')
+        self.assertEqual(labels['requests'], 'مهامي')
+        self.assertEqual(labels['cases'], 'حالات المطابقة')
         req.user = make_user('cfo', RT.CFO)
         labels = {i['key']: i['label'] for i in sidebar.leaves(sidebar.build(req))}
-        self.assertEqual(labels['cases'], 'حالات المطابقة')
+        self.assertEqual((labels['requests'], labels['cases']), ('طلبات الخدمة', 'حالات المطابقة'))
 
 
 class ActiveItemTests(TestCase):
@@ -197,14 +199,14 @@ class BadgeCountTests(TestCase):
                                             awaiting_reply_since=timezone.now() - datetime.timedelta(hours=2))
         self.assertEqual(self.counts(self.sup)['inbox'], {'count': 2, 'tone': 'danger'})
 
-    def test_requests_mine_plus_unassigned_and_overdue_tone(self):
+    def test_requests_for_accountant_are_only_his_assigned_tasks(self):
         self.request(assigned_to=self.acc)
-        self.request()                                                 # غير مسند ويخص المحاسبين
+        self.request()                                                 # غير مسند: لا يراه المطابق
         self.request(assigned_to=self.acc2)                            # لزميله: لا يُحسب
         self.request(assigned_to=self.acc, status='closed')            # منتهٍ
-        self.assertEqual(self.counts(self.acc)['requests'], {'count': 2, 'tone': 'info'})
+        self.assertEqual(self.counts(self.acc)['requests'], {'count': 1, 'tone': 'info'})
         self.request(assigned_to=self.acc, due_at=timezone.now() - datetime.timedelta(hours=1))
-        self.assertEqual(self.counts(self.acc)['requests'], {'count': 3, 'tone': 'danger'})
+        self.assertEqual(self.counts(self.acc)['requests'], {'count': 2, 'tone': 'danger'})
 
     def test_requests_for_cfo_and_auditor_count_only_overdue(self):
         self.request(assigned_to=self.acc)

@@ -25,9 +25,9 @@ OVERSIGHT_ROLES = SUPERVISOR_ROLES + (RT.AUDITOR,)
 VIEW_ROLES = OVERSIGHT_ROLES + (RT.CS_AGENT, RT.ACCOUNTANT)
 MANAGE_TYPES_ROLES = (RT.ADMIN, RT.CFO, RT.MANAGER)
 
-# من يمكن إسناد الطلب إليه: أي محاسب أو موظف خدمة عملاء أو مدير، بغض النظر عن نوع الطلب.
+# يوزّع الطلبات المشرفون (SUPERVISOR_ROLES) ويستقبلها المطابقون (المحاسبون) فقط، بغض النظر عن نوع الطلب.
 # (لا ربط دائم بين المورد والمحاسب: المشرف يوزّع كل طلب وقت وصوله.)
-ASSIGNABLE_ROLES = (RT.ACCOUNTANT, RT.CS_AGENT, RT.CS_SUPERVISOR, RT.MANAGER, RT.ADMIN)
+ASSIGNABLE_ROLES = (RT.ACCOUNTANT,)
 
 FIELD_TYPES = ('text', 'textarea', 'number', 'date', 'select')
 KEY_RE = re.compile(r'^[a-z][a-z0-9_]{0,39}$')
@@ -118,15 +118,15 @@ def is_supervisor(user):
 
 
 def can_receive_assignment(user):
-    """هل يصلح هذا المستخدم لإسناد طلب إليه؟ (فعّال، ودوره من ASSIGNABLE_ROLES أو مدير النظام)."""
-    return user.is_active and (user.is_superuser or get_role_type(user) in ASSIGNABLE_ROLES)
+    """هل يصلح هذا المستخدم لإسناد طلب إليه؟ (فعّال وبدور مطابق/محاسب)."""
+    return user.is_active and not user.is_superuser and get_role_type(user) in ASSIGNABLE_ROLES
 
 
 def assignable_users():
     """كل من يصلح لاستقبال الإسناد، مرتبًا بالاسم. يطابق can_receive_assignment."""
     return list(get_user_model().objects.filter(
-        Q(profile__role__role_type__in=ASSIGNABLE_ROLES, profile__role__is_active=True) | Q(is_superuser=True),
-        is_active=True).distinct().order_by('username'))
+        profile__role__role_type__in=ASSIGNABLE_ROLES, profile__role__is_active=True, is_active=True,
+        is_superuser=False).order_by('username'))
 
 
 def visible_requests(user):
@@ -134,6 +134,8 @@ def visible_requests(user):
     if has_role(user, *OVERSIGHT_ROLES):
         return qs
     role = get_role_type(user)
+    if role in ASSIGNABLE_ROLES:                       # المطابق يرى مهامه فقط، لا طابورًا عامًا
+        return qs.filter(Q(created_by=user) | Q(assigned_to=user))
     handled = [t.pk for t in ServiceType.objects.all() if role in t.effective_handle_roles()]
     return qs.filter(Q(created_by=user) | Q(assigned_to=user)
                      | Q(assigned_to__isnull=True, service_type_id__in=handled, status__in=ServiceRequest.OPEN))
@@ -147,6 +149,13 @@ def can_edit_documents(user, req):
 # ── الإنشاء ───────────────────────────────────────────────────────────────────
 def _users_with_role(*roles):
     return list(get_user_model().objects.filter(is_active=True, profile__role__role_type__in=roles))
+
+
+def _intake_users(stype):
+    """من يُشعَر بطلب جديد غير مسند: الجهة المستلمة، إلا إن كانت دور مطابقين فيصل المشرفين ليوزّعوه."""
+    if stype.destination_role in ASSIGNABLE_ROLES:
+        return _users_with_role(RT.CS_SUPERVISOR)
+    return _users_with_role(stype.destination_role)
 
 
 def _notify(users, title, message, req):
@@ -191,13 +200,12 @@ def create_request(user, stype, supplier, subject, details='', priority='normal'
     if assign_to is not None:
         _set_assignee(req, assign_to, user, 'إسناد عند الإنشاء')      # يُشعَر المسنَد إليه وحده بدل كل الجهة
     else:
-        _notify(_users_with_role(stype.destination_role), 'طلب خدمة جديد',
-                f'{req.reference} · {stype.name} · {supplier.name}', req)
+        _notify(_intake_users(stype), 'طلب خدمة جديد', f'{req.reference} · {stype.name} · {supplier.name}', req)
     return req
 
 
 @transaction.atomic
-def create_from_whatsapp(conversation, stype, details):
+def create_from_whatsapp(conversation, stype, details, subject=''):
     """طلب ينشئه المساعد الآلي بعد أن يختار المورد الخدمة من قائمة واتساب.
 
     لا يتحقق من الحقول الإلزامية للنوع (لا يمكن جمعها في دردشة): نص المورد يُحفظ في «التفاصيل»
@@ -208,15 +216,39 @@ def create_from_whatsapp(conversation, stype, details):
         raise RequestError('المحادثة غير مرتبطة بمورد')
     now = timezone.now()
     req = ServiceRequest.objects.create(
-        service_type=stype, supplier=supplier, conversation=conversation, subject=f'{stype.name} (عبر واتساب)'[:200],
+        service_type=stype, supplier=supplier, conversation=conversation, subject=(subject or f'{stype.name} (عبر واتساب)')[:200],
         details=(details or '').strip()[:4000], priority=ServiceRequest.Priority.NORMAL, source=ServiceRequest.Source.WHATSAPP,
         due_at=now + datetime.timedelta(hours=stype.sla_hours))
     RequestStatusHistory.objects.create(request=req, to_status=S.NEW, reason='إنشاء آلي من واتساب')
     log_action(AuditLog.Action.CREATE, req, entity_type='servicedesk.ServiceRequest',
                new={'type': stype.code, 'supplier': supplier.pk, 'source': 'whatsapp', 'conversation': conversation.pk},
                reason='طلب آلي من قائمة واتساب')
-    _notify(_users_with_role(stype.destination_role), 'طلب خدمة جديد من واتساب',
+    _notify(_intake_users(stype), 'طلب خدمة جديد من واتساب',
             f'{req.reference} · {stype.name} · {supplier.name}', req)
+    return req
+
+
+@transaction.atomic
+def create_from_portal(user, stype, subject, details='', getter=None):
+    """طلب يقدّمه المورد بنفسه من بوابة الموردين: المورد هو صاحب الحساب، والحقول تُتحقَّق كما في الطلب العادي."""
+    supplier = getattr(getattr(user, 'profile', None), 'supplier', None)
+    if supplier is None:
+        raise RequestError('حسابك غير مرتبط بمورد. تواصل مع الإدارة')
+    if not (stype.is_active and stype.portal_menu):
+        raise RequestError('هذه الخدمة غير متاحة في البوابة')
+    subject = (subject or '').strip() or stype.name
+    data, errors = validate_fields(stype.field_schema, getter or (lambda k: ''))
+    if errors:
+        raise RequestError(' · '.join(errors))
+    now = timezone.now()
+    req = ServiceRequest.objects.create(
+        service_type=stype, supplier=supplier, subject=subject[:200], details=(details or '').strip()[:4000], data=data,
+        priority=ServiceRequest.Priority.NORMAL, created_by=user, source=ServiceRequest.Source.PORTAL,
+        due_at=now + datetime.timedelta(hours=stype.sla_hours))
+    RequestStatusHistory.objects.create(request=req, to_status=S.NEW, changed_by=user, reason='طلب من بوابة الموردين')
+    log_action(AuditLog.Action.CREATE, req, entity_type='servicedesk.ServiceRequest',
+               new={'type': stype.code, 'supplier': supplier.pk, 'source': 'portal'}, actor=user)
+    _notify(_intake_users(stype), 'طلب خدمة جديد من بوابة الموردين', f'{req.reference} · {stype.name} · {supplier.name}', req)
     return req
 
 
@@ -224,6 +256,8 @@ def create_from_whatsapp(conversation, stype, details):
 @transaction.atomic
 def claim(req_id, user):
     req = ServiceRequest.objects.select_related('service_type').get(pk=req_id)
+    if get_role_type(user) in ASSIGNABLE_ROLES:
+        raise RequestError('تُسند الطلبات إليك من المشرف ولا تُستلم ذاتيًا')
     if not can_handle(user, req.service_type):
         raise RequestError('هذا الطلب ليس من اختصاصك')
     rows = (ServiceRequest.objects.filter(pk=req_id, assigned_to__isnull=True, status__in=ServiceRequest.OPEN)
@@ -255,7 +289,8 @@ def _set_assignee(req, agent, by, reason):
     req.save(update_fields=['assigned_to', 'updated_at'])
     log_action(AuditLog.Action.UPDATE, req, entity_type='servicedesk.ServiceRequest', previous={'assigned_to': old},
                new={'assigned_to': agent.pk}, reason=reason, actor=by)
-    _notify([agent], 'أُسند إليك طلب خدمة', f'{req.reference} · {req.supplier.name}', req)
+    _notify([agent], 'مهمة جديدة: يرجى المطابقة',
+            f'يرجى مطابقة «{req.service_type.name}» مع الكشف للمورد {req.supplier.name} ({req.reference})', req)
 
 
 # ── آلة الحالات ───────────────────────────────────────────────────────────────
@@ -270,12 +305,19 @@ TRANSITIONS = {
 REASON_REQUIRED = {S.CANCELLED, S.ESCALATED}
 
 
+def _can_work_unassigned(user, req):
+    """الطلب غير المسند يعالجه المختصون والمشرفون؛ أما المطابق فلا يعمل إلا على ما أُسند إليه."""
+    if get_role_type(user) in ASSIGNABLE_ROLES:
+        return False
+    return can_handle(user, req.service_type) or is_supervisor(user)
+
+
 def _allowed(kind, user, req):
     if kind == 'handler':
-        return req.assigned_to_id == user.pk or can_handle(user, req.service_type) or is_supervisor(user)
+        return req.assigned_to_id == user.pk or _can_work_unassigned(user, req)
     if kind == 'assignee':
         if req.assigned_to_id is None:          # طلب غير مسند (مثلًا صُعِّد تلقائيًا): يعالجه المختصون
-            return can_handle(user, req.service_type) or is_supervisor(user)
+            return _can_work_unassigned(user, req)
         return req.assigned_to_id == user.pk or is_supervisor(user)
     if kind == 'owner':
         return req.created_by_id == user.pk or is_supervisor(user)

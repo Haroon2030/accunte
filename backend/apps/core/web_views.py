@@ -265,6 +265,7 @@ HOME_BY_ROLE = {
     Role.RoleType.CS_SUPERVISOR: 'whatsapp_inbox:inbox',
     Role.RoleType.CS_AGENT: 'whatsapp_inbox:inbox',
     Role.RoleType.PAYMENT_OFFICER: 'proposals:list',
+    Role.RoleType.SUPPLIER: 'portal:home',
 }
 DEFAULT_HOME = 'payments:list'
 
@@ -1539,6 +1540,17 @@ class UserListView(AdminRequiredMixin, LoginRequiredMixin, ListView):
         return User.objects.all().order_by('-date_joined')
 
 
+def _portal_supplier(role_id, code):
+    """(المورد، رسالة خطأ) لحساب بوابة الموردين: الدور «مورد» يتطلب رمز مورد صحيحًا، وغيره لا يُربط بمورد."""
+    role = Role.objects.filter(pk=role_id).first() if role_id else None
+    if role is None or role.role_type != Role.RoleType.SUPPLIER:
+        return None, None
+    supplier = Supplier.objects.filter(code=(code or '').strip()).first()
+    if supplier is None:
+        return None, 'حساب المورد يتطلب رمز مورد صحيحًا'
+    return supplier, None
+
+
 @login_required
 @admin_required
 def user_create(request):
@@ -1553,9 +1565,12 @@ def user_create(request):
         is_active = request.POST.get('is_active') == 'on'
         role_id = request.POST.get('role')
         branch_id = request.POST.get('branch')
-        
+        supplier, supplier_error = _portal_supplier(role_id, request.POST.get('supplier_code'))
+
         if User.objects.filter(username=username).exists():
             messages.error(request, 'اسم المستخدم موجود مسبقاً')
+        elif supplier_error:
+            messages.error(request, supplier_error)
         else:
             user = User.objects.create_user(
                 username=username,
@@ -1574,6 +1589,7 @@ def user_create(request):
                 profile.role_id = role_id
             if branch_id:
                 profile.branch_id = branch_id
+            profile.supplier = supplier
             profile.save()
             
             messages.success(request, 'تم إنشاء المستخدم بنجاح')
@@ -1599,7 +1615,13 @@ def user_update(request, pk):
         user.last_name = request.POST.get('last_name', '')
         user.is_staff = request.POST.get('is_staff') == 'on'
         user.is_active = request.POST.get('is_active') == 'on'
-        
+
+        role_id = request.POST.get('role')
+        supplier, supplier_error = _portal_supplier(role_id, request.POST.get('supplier_code'))
+        if supplier_error:
+            messages.error(request, supplier_error)
+            return redirect('users:update', pk=user.pk)
+
         password = request.POST.get('password')
         if password:
             user.set_password(password)
@@ -1608,7 +1630,7 @@ def user_update(request, pk):
         
         # تحديث UserProfile
         profile, created = UserProfile.objects.get_or_create(user=user)
-        role_id = request.POST.get('role')
+        profile.supplier = supplier
         branch_id = request.POST.get('branch')
         
         if role_id:

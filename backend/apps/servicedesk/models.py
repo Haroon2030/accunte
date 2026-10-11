@@ -29,6 +29,7 @@ class ServiceType(models.Model):
     handle_roles = models.JSONField('الأدوار التي تعالج الطلب', default=list, blank=True)
     spawns_reconciliation = models.BooleanField('يُنشئ حالة مطابقة', default=False)
     whatsapp_menu = models.BooleanField('يظهر في قائمة واتساب الآلية', default=True)
+    portal_menu = models.BooleanField('يظهر في بوابة الموردين', default=True)
     is_active = models.BooleanField('فعّال', default=True)
     sort_order = models.PositiveIntegerField('الترتيب', default=100)
 
@@ -71,6 +72,7 @@ class ServiceRequest(models.Model):
     class Source(models.TextChoices):
         STAFF = 'staff', 'موظف'
         WHATSAPP = 'whatsapp', 'واتساب (آلي)'
+        PORTAL = 'portal', 'بوابة الموردين'
 
     TERMINAL = (Status.CLOSED, Status.CANCELLED)
     OPEN = (Status.NEW, Status.IN_PROGRESS, Status.WAITING_VENDOR, Status.ESCALATED)

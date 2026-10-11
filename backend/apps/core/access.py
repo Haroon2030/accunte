@@ -30,6 +30,11 @@ def get_role_type(user):
     return role.role_type if role and role.is_active else None
 
 
+def is_portal_supplier(user):
+    """حساب مورد (بوابة الموردين): يصل إلى /portal/ فقط."""
+    return get_role_type(user) == RT.SUPPLIER and not user.is_superuser
+
+
 def has_role(user, *role_types):
     role = get_role_type(user)
     if role is None:

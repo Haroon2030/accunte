@@ -1,0 +1,31 @@
+{% extends "pages/portal/base.html" %}
+{% block content %}
+<h1 class="text-2xl font-extrabold text-slate-800 mb-1">أهلًا {{ supplier.name }}</h1>
+<p class="text-slate-500 mb-6">اختر الخدمة التي تحتاجها وسيصل طلبك مباشرة إلى الفريق المختص.</p>
+
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <a class="svc-card wa{% if not wa_link %} is-disabled{% endif %}" {% if wa_link %}href="{{ wa_link }}" target="_blank" rel="noopener"{% else %}aria-disabled="true"{% endif %}>
+        <div class="flex items-center gap-3">
+            <span class="svc-icon"><i data-lucide="message-circle"></i></span>
+            <div>
+                <div class="font-bold text-slate-800">التحدث مع الدعم عبر واتساب</div>
+                <div class="text-sm text-slate-500">{% if wa_link %}مساعد آلي يرد فورًا، ويحوّلك لفريق الدعم عند الحاجة{% else %}غير متاح حاليًا، استخدم الخدمات الأخرى{% endif %}</div>
+            </div>
+        </div>
+    </a>
+    {% for t in service_types %}
+    <a class="svc-card" href="{% url 'portal:new' t.code %}">
+        <div class="flex items-center gap-3">
+            <span class="svc-icon"><i data-lucide="clipboard-list"></i></span>
+            <div>
+                <div class="font-bold text-slate-800">{{ t.name }}</div>
+                <div class="text-sm text-slate-500">{{ t.description|default:"قدّم طلبك وسنتابعه معك" }}</div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+<h2 class="text-lg font-bold text-slate-800 mt-10 mb-3">آخر طلباتك</h2>
+{% include "pages/portal/_requests.html" with requests=recent %}
+{% endblock %}

@@ -8,6 +8,7 @@ from django.template.loader import get_template
 from django.test import TestCase
 
 from apps.core.models import Role, UserProfile
+from apps.suppliers.models import Supplier
 from apps.core.web_views import DEFAULT_HOME, HOME_BY_ROLE
 
 User = get_user_model()
@@ -23,6 +24,7 @@ EXPECTED_PATH = {
     RT.CS_AGENT: '/inbox/',
     RT.PAYMENT_OFFICER: '/proposals/',
     RT.BRANCH_EMPLOYEE: '/payments/',
+    RT.SUPPLIER: '/portal/',
 }
 
 
@@ -38,6 +40,9 @@ class HomeRedirectTests(TestCase):
     def test_every_role_lands_on_a_page_that_accepts_it_with_one_hop(self):
         for role, path in EXPECTED_PATH.items():
             user = make_user(f'u_{role}', role)
+            if role == RT.SUPPLIER:
+                user.profile.supplier = Supplier.objects.create(name='مورد', code='HS1')
+                user.profile.save()
             self.client.force_login(user)
             resp = self.client.get('/', follow=True)
             self.assertEqual(len(resp.redirect_chain), 1, f'{role}: {resp.redirect_chain}')   # لا حلقة ولا قفزات

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}بوابة الموردين{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/static/css/tailwind.min.css" rel="stylesheet">
+    <link href="/static/css/theme.css?v=20261013" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', system-ui, sans-serif; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .6rem 1.1rem; font-size: .9rem; border: 1px solid transparent; cursor: pointer; text-decoration: none; transition: transform .15s, background-color .15s; }
+        .btn-primary { color: #fff; background: linear-gradient(180deg, #5586bd, #4678ae); border-color: #3a6699; }
+        .btn-secondary { color: #334155; background: #fff; border-color: #dbe4ef; }
+        .svc-card { display: block; text-decoration: none; padding: 1.1rem 1.25rem; background: #fff; border: 1px solid #dbe4ef; border-inline-end: 4px solid #4678ae; border-radius: 1rem; box-shadow: var(--lift); transition: transform .18s, box-shadow .18s; }
+        .svc-card:hover { transform: translateY(-2px); box-shadow: var(--lift-hover); }
+        .svc-icon { width: 2.75rem; height: 2.75rem; border-radius: .8rem; display: grid; place-items: center; background: #e6eef8; color: #3a6699; flex: none; }
+        .svc-card.wa { border-inline-end-color: #16a34a; }
+        .svc-card.wa .svc-icon { background: #dcfce7; color: #15803d; }
+        .svc-card.is-disabled { opacity: .6; pointer-events: none; }
+        .badge { display: inline-block; padding: .15rem .6rem; border-radius: 999px; font-size: .75rem; font-weight: 700; background: #e6eef8; color: #3a6699; }
+    </style>
+    <script src="/static/js/lucide.min.js"></script>
+</head>
+<body class="min-h-screen">
+    <header class="bg-white border-b border-slate-200">
+        <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+            <a href="{% url 'portal:home' %}" class="flex items-center gap-3 no-underline">
+                <span class="svc-icon" style="background: linear-gradient(135deg,#5a8bc2,#3a6699); color:#fff"><i data-lucide="landmark"></i></span>
+                <span><span class="block font-extrabold text-slate-800">بوابة الموردين</span>
+                <span class="block text-xs text-slate-500">{{ supplier.name }}</span></span>
+            </a>
+            <nav class="flex items-center gap-2">
+                <a href="{% url 'portal:list' %}" class="btn btn-secondary rounded-xl">طلباتي</a>
+                <a href="{% url 'auth:logout' %}" class="btn btn-primary rounded-xl">تسجيل الخروج</a>
+            </nav>
+        </div>
+    </header>
+    <main class="max-w-5xl mx-auto px-4 py-8">
+        {% for m in messages %}<div class="mb-4 px-4 py-3 rounded-xl border {% if m.tags == 'error' %}bg-red-50 border-red-200 text-red-800{% else %}bg-green-50 border-green-200 text-green-800{% endif %}">{{ m }}</div>{% endfor %}
+        {% block content %}{% endblock %}
+    </main>
+    <script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>

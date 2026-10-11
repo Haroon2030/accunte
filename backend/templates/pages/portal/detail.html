@@ -1,0 +1,20 @@
+{% extends "pages/portal/base.html" %}
+{% block title %}{{ r.reference }} - بوابة الموردين{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between gap-3 mb-5">
+    <h1 class="text-2xl font-extrabold text-slate-800">{{ r.service_type.name }} <span class="text-sm text-slate-400">{{ r.reference }}</span></h1>
+    <span class="badge">{{ r.get_status_display }}</span>
+</div>
+<div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3" style="box-shadow: var(--lift); border-inline-end: 4px solid #4678ae">
+    <div><span class="text-xs text-slate-500">العنوان</span><div class="font-semibold">{{ r.subject }}</div></div>
+    {% if r.details %}<div><span class="text-xs text-slate-500">التفاصيل</span><div class="whitespace-pre-line">{{ r.details }}</div></div>{% endif %}
+    {% for label, value in fields %}<div><span class="text-xs text-slate-500">{{ label }}</span><div>{{ value }}</div></div>{% endfor %}
+    <div class="text-sm text-slate-500">أُرسل {{ r.created_at|date:"Y-m-d H:i" }}{% if r.due_at %} · الموعد المتوقع {{ r.due_at|date:"Y-m-d H:i" }}{% endif %}</div>
+    {% if r.resolution_note %}<div class="p-3 rounded-xl bg-green-50 border border-green-200 text-green-900"><span class="text-xs">نتيجة الطلب</span><div>{{ r.resolution_note }}</div></div>{% endif %}
+</div>
+<h2 class="text-lg font-bold text-slate-800 mt-8 mb-3">مراحل الطلب</h2>
+<ol class="space-y-2">
+    {% for h in history %}<li class="flex items-center gap-3 text-sm"><span class="badge">{% if h.to_status == 'new' %}جديد{% elif h.to_status == 'in_progress' %}قيد المعالجة{% elif h.to_status == 'waiting_vendor' %}بانتظار ردك{% elif h.to_status == 'escalated' %}قيد المتابعة العليا{% elif h.to_status == 'resolved' %}تم الحل{% elif h.to_status == 'closed' %}مغلق{% else %}ملغى{% endif %}</span><span class="text-slate-500">{{ h.created_at|date:"Y-m-d H:i" }}</span></li>{% endfor %}
+</ol>
+<a href="{% url 'portal:list' %}" class="btn btn-secondary rounded-xl mt-6">طلباتي</a>
+{% endblock %}

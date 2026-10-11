@@ -72,6 +72,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'apps.core.portal_guard.SupplierPortalGuard',
     'apps.audit.middleware.AuditContextMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -251,7 +252,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 from decouple import config as _env  # noqa: E402
 
 WHATSAPP_ENABLED = _env('WHATSAPP_ENABLED', default=False, cast=bool)
+# رقم واتساب الدعم الذي يظهر للموردين في البوابة (دولي بلا + مثل 966501234567)
+WHATSAPP_SUPPORT_NUMBER = _env('WHATSAPP_SUPPORT_NUMBER', default='')
 WHATSAPP_BOT_ENABLED = _env('WHATSAPP_BOT_ENABLED', default=True, cast=bool)
+GROQ_API_KEY = _env('GROQ_API_KEY', default='')
+GROQ_MODEL = _env('GROQ_MODEL', default='openai/gpt-oss-120b')
+GROQ_TIMEOUT = _env('GROQ_TIMEOUT', default=8, cast=int)
 WHATSAPP_ASYNC_DISPATCH = _env('WHATSAPP_ASYNC_DISPATCH', default=True, cast=bool)
 EVOLUTION_API_URL = _env('EVOLUTION_API_URL', default='').rstrip('/')
 EVOLUTION_API_KEY = _env('EVOLUTION_API_KEY', default='')

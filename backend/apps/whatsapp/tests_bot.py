@@ -15,7 +15,7 @@ from .models import SupplierConversation
 from .tests_inbox import NUMBER, S, Base, upsert
 
 
-@override_settings(WHATSAPP_BOT_ENABLED=True)
+@override_settings(WHATSAPP_BOT_ENABLED=True, GROQ_API_KEY='')
 class BotBase(Base):
     def setUp(self):
         super().setUp()
