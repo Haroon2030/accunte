@@ -5,7 +5,6 @@ from django.urls import path, include
 from django.views.generic import RedirectView
 from apps.core import web_views
 from apps.suppliers import web_views as supplier_views
-from apps.audit import web_views as audit_views
 from apps.reconciliation import views as recon_views
 from apps.reconciliation import dashboard_views
 from apps.reconciliation import statement_views
@@ -126,21 +125,12 @@ notification_patterns = [
     path('mark-read/', web_views.notifications_mark_read, name='mark_read'),
 ]
 
-# Audit URLs
-audit_patterns = [
-    path('', audit_views.audit_list, name='list'),
-]
-
 # Reconciliation URLs
 reconciliation_patterns = [
-    path('', recon_views.case_list, name='list'),
     path('create/', recon_views.case_create, name='create'),
-    path('export-excel/', recon_views.case_export_excel, name='export_excel'),
-    path('print/', recon_views.case_print, name='print'),
     path('executive/', dashboard_views.executive_dashboard, name='executive'),
     path('executive/export-excel/', dashboard_views.executive_export_excel, name='executive_excel'),
     path('executive/print/', dashboard_views.executive_print, name='executive_print'),
-    path('distribution/', recon_views.distribution, name='distribution'),
     path('<int:pk>/', recon_views.case_detail, name='detail'),
     path('<int:pk>/track/', recon_views.case_track, name='track'),
     path('<int:pk>/transition/', recon_views.case_transition, name='transition'),
@@ -176,43 +166,19 @@ whatsapp_patterns = [
     path('webhook/<str:secret>/', inbox_views.webhook, name='webhook'),
 ]
 
-# WhatsApp inbox URLs
-inbox_patterns = [
-    path('', inbox_views.inbox, name='inbox'),
-    path('live/', inbox_views.inbox_live, name='live'),
-    path('<int:pk>/', inbox_views.conversation, name='conversation'),
-    path('<int:pk>/live/', inbox_views.conversation_live, name='conversation_live'),
-    path('<int:pk>/send-ajax/', inbox_views.send_ajax, name='send_ajax'),
-    path('<int:pk>/claim/', inbox_views.claim, name='claim'),
-    path('<int:pk>/release/', inbox_views.release, name='release'),
-    path('<int:pk>/assign/', inbox_views.assign, name='assign'),
-    path('<int:pk>/status/', inbox_views.set_status, name='set_status'),
-    path('<int:pk>/send/', inbox_views.send, name='send'),
-    path('<int:pk>/typing/', inbox_views.typing, name='typing'),
-    path('<int:pk>/messages/<int:msg_pk>/resend/', inbox_views.resend, name='resend'),
-    path('<int:pk>/messages/<int:msg_pk>/media/', inbox_views.media_download, name='media'),
-    path('<int:pk>/link-supplier/', inbox_views.link_supplier, name='link_supplier'),
-    path('<int:pk>/create-supplier/', inbox_views.create_supplier, name='create_supplier'),
-    path('<int:pk>/link-case/', inbox_views.link_case, name='link_case'),
-]
 
 # Service desk URLs
 servicedesk_patterns = [
     path('', sd_views.request_list, name='list'),
-    path('create/', sd_views.request_create, name='create'),
+    path('my-tasks/', sd_views.my_tasks, name='my_tasks'),
+    path('<int:pk>/', sd_views.request_detail, name='detail'),
+    path('<int:pk>/receive/', sd_views.request_receive, name='receive'),
+    path('<int:pk>/send/', sd_views.request_send, name='send'),
+    path('<int:pk>/start/', sd_views.request_start, name='start'),
+    path('<int:pk>/complete/', sd_views.request_complete, name='complete'),
     path('types/', sd_views.type_list, name='types'),
     path('types/new/', sd_views.type_edit, name='type_new'),
     path('types/<int:pk>/', sd_views.type_edit, name='type_edit'),
-    path('appointments/', sd_views.appointment_list, name='appointments'),
-    path('<int:pk>/', sd_views.request_detail, name='detail'),
-    path('<int:pk>/claim/', sd_views.request_claim, name='claim'),
-    path('<int:pk>/assign/', sd_views.request_assign, name='assign'),
-    path('<int:pk>/transition/', sd_views.request_transition, name='transition'),
-    path('<int:pk>/documents/upload/', sd_views.document_upload, name='document_upload'),
-    path('<int:pk>/documents/<int:doc_pk>/download/', sd_views.document_download, name='document_download'),
-    path('<int:pk>/documents/<int:doc_pk>/delete/', sd_views.document_delete, name='document_delete'),
-    path('<int:pk>/appointments/add/', sd_views.appointment_add, name='appointment_add'),
-    path('<int:pk>/appointments/<int:appt_pk>/status/', sd_views.appointment_status, name='appointment_status'),
 ]
 
 portal_patterns = [
@@ -250,12 +216,10 @@ urlpatterns = [
     path('users/', include((user_patterns, 'users'))),
     path('roles/', include((role_patterns, 'roles'))),
     path('notifications/', include((notification_patterns, 'notifications'))),
-    path('audit/', include((audit_patterns, 'audit'))),
     path('reconciliation/', include((reconciliation_patterns, 'reconciliation'))),
     path('statement-matcher/', statement_views.statement_matcher, name='statement_matcher'),
     path('proposals/', include((proposal_patterns, 'proposals'))),
     path('whatsapp/', include((whatsapp_patterns, 'whatsapp'))),
-    path('inbox/', include((inbox_patterns, 'whatsapp_inbox'))),
     path('service-requests/', include((servicedesk_patterns, 'servicedesk'))),
     path('portal/', include((portal_patterns, 'portal'))),
 ]

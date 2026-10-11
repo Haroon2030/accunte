@@ -1,6 +1,0 @@
-{% for m in msgs %}
-{% include "pages/whatsapp/_message.html" %}
-{% empty %}
-<p class="text-center text-slate-400 text-sm py-10" data-empty>لا توجد رسائل</p>
-{% endfor %}
-{% if typing_name %}<p class="text-xs text-orange-600" data-typing>{{ typing_name }} يكتب ردًا الآن...</p>{% endif %}

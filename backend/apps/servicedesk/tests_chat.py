@@ -118,15 +118,6 @@ class BotInPortalChatTests(ChatBase):
         self.assertEqual((last['text'], last['who'], last['mine']), ('أهلًا بك، كيف نساعدك؟', 'فريق الدعم', False))
         self.wa.assert_not_called()                             # لا واتساب لدردشة البوابة
 
-    def test_staff_sees_the_chat_in_the_inbox_with_its_label(self):
-        self.say('مرحبا')
-        self.say('0')
-        self.client.force_login(self.sup)
-        html = self.client.get(reverse('whatsapp_inbox:inbox')).content.decode()
-        self.assertIn('دردشة بوابة الموردين', html)
-        self.assertIn('شركة الأفق', html)
-        page = self.client.get(reverse('whatsapp_inbox:conversation', args=[self.conv().pk])).content.decode()
-        self.assertIn('دردشة بوابة الموردين', page)
 
     def test_free_text_uses_the_ai_router(self):
         pay = ServiceType.objects.get(code='payment-status')

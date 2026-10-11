@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - نظام مطابقة الموردين{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <div class="seg-tabs">
+        {% for key, label in tabs %}
+        <a href="?tab={{ key }}" class="px-4 py-2 text-sm font-semibold border-b-2 {% if tab == key %}border-primary-600 text-primary-700{% else %}border-transparent text-slate-500{% endif %}">{{ label }}</a>
+        {% endfor %}
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="data-table-wrap overflow-x-auto">
+            <table class="data-table w-full text-sm">
+                <thead><tr>
+                    <th>الرقم</th><th>المورد</th><th>الخدمة</th><th>الموضوع</th><th>المرحلة</th><th>المسؤول</th><th>الموعد</th><th></th>
+                </tr></thead>
+                <tbody>
+                {% for r in page_obj %}
+                    <tr>
+                        <td class="font-mono text-xs font-semibold">{{ r.reference }}</td>
+                        <td>{{ r.supplier.name }}</td>
+                        <td>{{ r.service_type.name }}</td>
+                        <td class="max-w-[260px] truncate" title="{{ r.subject }}">{{ r.subject }}</td>
+                        <td><span class="stage-pill stage-{{ r.stage }}">{{ r.stage_label }}</span></td>
+                        <td class="text-slate-500">{% if r.assigned_to %}{{ r.assigned_to.get_full_name|default:r.assigned_to.username }}{% else %}<span class="text-slate-400">لم يُستلم</span>{% endif %}</td>
+                        <td class="text-xs whitespace-nowrap {% if r.is_overdue %}text-red-700 font-bold{% endif %}">{{ r.due_at|date:"Y-m-d H:i"|default:"—" }}</td>
+                        <td><a href="{% url 'servicedesk:detail' r.pk %}" class="btn btn-soft btn-sm">فتح</a></td>
+                    </tr>
+                {% empty %}
+                    <tr class="data-table-empty"><td colspan="8"><p class="py-10 text-center text-slate-400 text-sm">لا توجد طلبات</p></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-600">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+        <div class="flex gap-2">
+            {% if page_obj.has_previous %}<a class="btn btn-secondary btn-sm" href="?tab={{ tab }}&page={{ page_obj.previous_page_number }}">السابق</a>{% endif %}
+            {% if page_obj.has_next %}<a class="btn btn-secondary btn-sm" href="?tab={{ tab }}&page={{ page_obj.next_page_number }}">التالي</a>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+<style>
+    .stage-pill { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 0.15rem 0.7rem; border-radius: 999px; background: #e8edf3; color: #3d535e; }
+    .stage-1 { background: #fdf0c6; color: #8a5a00; }
+    .stage-2 { background: #e5e7f8; color: #3f46a8; }
+    .stage-3 { background: #dbe8ff; color: #1f5fd6; }
+    .stage-5 { background: #dbf2e4; color: #15803d; }
+    .stage-0 { background: #fde3e1; color: #b42318; }
+</style>
+{% endblock %}

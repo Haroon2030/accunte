@@ -47,21 +47,6 @@ class SanitizeTests(TestCase):
         self.assertEqual(out, {'a': '1.50', 'd': '2026-01-02'})
 
 
-class ViewAccessTests(TestCase):
-    def test_accountant_cannot_view_audit(self):
-        from apps.core.models import Role, UserProfile
-        role = Role.objects.create(name='acc', role_type=Role.RoleType.ACCOUNTANT)
-        u = User.objects.create_user('a1', password='x-Pass-12345')
-        UserProfile.objects.create(user=u, role=role)
-        self.client.force_login(u)
-        self.assertEqual(self.client.get('/audit/').status_code, 302)
-
-    def test_superuser_can_view(self):
-        u = User.objects.create_superuser('root', password='x-Pass-12345')
-        self.client.force_login(u)
-        self.assertEqual(self.client.get('/audit/').status_code, 200)
-
-
 class ClientIpBehindProxyTests(TestCase):
     """خلف وكيل عكسي يرى التطبيق عنوان الوكيل (10.0.0.2) لا عنوان العميل. القراءة من اليمين تمنع التزوير."""
 

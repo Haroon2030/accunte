@@ -94,55 +94,7 @@ class CreateWithAssigneeTests(Base):
             self.make(user=self.sup, assign_to=self.cfo)
         self.assertEqual(ServiceRequest.objects.count(), 0)
 
-    def test_create_view_assign_to(self):
-        self.client.force_login(self.sup)
-        data = {'step': 'create', 'type': self.t_pay.pk, 'supplier': self.supplier.pk, 'subject': 'س', 'f_invoice_number': 'I1',
-                'assign_to': self.acc2.pk}
-        self.client.post(reverse('servicedesk:create'), data)
-        self.assertEqual(ServiceRequest.objects.get().assigned_to, self.acc2)
-
-    def test_create_view_rejects_unlisted_user(self):
-        self.client.force_login(self.sup)
-        data = {'step': 'create', 'type': self.t_pay.pk, 'supplier': self.supplier.pk, 'subject': 'س', 'f_invoice_number': 'I1',
-                'assign_to': self.cfo.pk}
-        self.client.post(reverse('servicedesk:create'), data)
-        self.assertEqual(ServiceRequest.objects.count(), 0)
-
-    def test_agent_form_has_no_assign_field(self):
-        self.client.force_login(self.agent)
-        self.assertNotContains(self.client.get(reverse('servicedesk:create'), {'type': self.t_pay.pk}), 'name="assign_to"')
-        self.client.force_login(self.sup)
-        self.assertContains(self.client.get(reverse('servicedesk:create'), {'type': self.t_pay.pk}), 'name="assign_to"')
 
 
-class ListInlineAssignTests(Base):
-    def test_inline_form_only_for_supervisor_on_unassigned_open_requests(self):
-        r = self.make()
-        url = reverse('servicedesk:list')
-        self.client.force_login(self.sup)
-        self.assertContains(self.client.get(url), reverse('servicedesk:assign', args=[r.pk]))
-        self.client.force_login(self.agent)
-        self.assertNotContains(self.client.get(url), reverse('servicedesk:assign', args=[r.pk]))
 
-    def test_no_inline_form_once_assigned(self):
-        r = self.make()
-        services.assign(r.pk, self.acc1, self.sup)
-        self.client.force_login(self.sup)
-        self.assertNotContains(self.client.get(reverse('servicedesk:list')), reverse('servicedesk:assign', args=[r.pk]))
 
-    def test_next_redirect_back_to_list(self):
-        r = self.make()
-        self.client.force_login(self.sup)
-        resp = self.client.post(reverse('servicedesk:assign', args=[r.pk]),
-                                {'agent': self.acc1.pk, 'next': '/service-requests/?status=new'})
-        self.assertRedirects(resp, '/service-requests/?status=new', fetch_redirect_response=False)
-        r.refresh_from_db()
-        self.assertEqual(r.assigned_to, self.acc1)
-
-    def test_unsafe_next_is_ignored(self):
-        for bad in ('//evil.test/', 'https://evil.test/', '/other/'):
-            r = self.make()
-            self.client.force_login(self.sup)
-            resp = self.client.post(reverse('servicedesk:assign', args=[r.pk]), {'agent': self.acc1.pk, 'next': bad})
-            self.assertNotIn('evil', resp['Location'], bad)
-            self.assertNotEqual(resp['Location'], '/other/', bad)

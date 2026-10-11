@@ -102,12 +102,61 @@ def requests_list(request):
         'supplier': request.user.profile.supplier, 'requests': _my_requests(request)[:100]})
 
 
+def request_tracker(req, history):
+    """مراحل الطلب للمورد: رفع الطلب ← استلامه ← المعالجة ← اكتماله (أو إلغاؤه).
+
+    كل مرحلة: {label, state: done|current|upcoming|cancelled, at, note}. المرحلة «الحالية» هي ما ينتظره المورد الآن.
+    """
+    S = ServiceRequest.Status
+    hist = list(history)
+
+    def first_at(*statuses):
+        for h in hist:
+            if h.to_status in statuses:
+                return h.created_at
+        return None
+
+    working = (S.IN_PROGRESS, S.WAITING_VENDOR, S.ESCALATED)
+    finished = (S.RESOLVED, S.CLOSED)
+    st = req.status
+    received_at = None if st == S.NEW else (first_at(*working, *finished) or req.created_at)
+    done_at = req.resolved_at or first_at(*finished)
+
+    if st == S.CANCELLED:
+        cancelled_at = first_at(S.CANCELLED)
+        return [
+            {'label': 'تم رفع الطلب', 'state': 'done', 'at': req.created_at, 'note': ''},
+            {'label': 'تم استلام طلبك', 'state': 'done' if received_at else 'upcoming', 'at': received_at, 'note': ''},
+            {'label': 'أُلغي الطلب', 'state': 'cancelled', 'at': cancelled_at, 'note': ''},
+        ]
+    if st in finished:
+        stage = 4
+    elif st in working:
+        stage = 3
+    else:
+        stage = 2
+    notes = {S.WAITING_VENDOR: 'بانتظار ردّك على استفسار الفريق', S.ESCALATED: 'أُحيل إلى المتابعة العليا'}
+
+    def state(n):
+        if st in finished:
+            return 'done'
+        return 'done' if n < stage else ('current' if n == stage else 'upcoming')
+
+    return [
+        {'label': 'تم رفع الطلب', 'state': 'done', 'at': req.created_at, 'note': ''},
+        {'label': 'تم استلام طلبك', 'state': state(2), 'at': received_at, 'note': 'بانتظار استلام الفريق' if stage == 2 else ''},
+        {'label': 'جاري المعالجة', 'state': state(3), 'at': first_at(*working), 'note': notes.get(st, '')},
+        {'label': 'اكتمل الطلب', 'state': state(4), 'at': done_at, 'note': ''},
+    ]
+
+
 @supplier_required
 def request_detail(request, pk):
     req = get_object_or_404(_my_requests(request), pk=pk)          # طلبات هذا المورد فقط
     return render(request, 'pages/portal/detail.html', {
         'supplier': request.user.profile.supplier, 'r': req, 'fields': services.labelled_data(req),
         'history': req.history.all(), 'documents': req.documents.filter(shared_with_supplier=True),
+        'tracker': request_tracker(req, req.history.order_by('created_at', 'id')),
     })
 
 

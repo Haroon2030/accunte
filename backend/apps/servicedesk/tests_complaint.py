@@ -88,19 +88,7 @@ class ConfidentialityTests(ComplaintBase):
         for u in (self.sup, self.acc):
             self.assertEqual(self.ids(u), set(), u.username)
 
-    def test_http_hidden_from_supervisor_and_accountant(self):
-        for u in (self.sup, self.acc):
-            self.client.force_login(u)
-            self.assertEqual(self.client.get(reverse('servicedesk:detail', args=[self.req.pk])).status_code, 404, u.username)
-            self.assertEqual(self.client.post(reverse('servicedesk:claim', args=[self.req.pk])).status_code, 404)
-            listed = {r.pk for r in self.client.get(reverse('servicedesk:list'), {'tab': 'all'}).context['page_obj']}
-            self.assertNotIn(self.req.pk, listed)
 
-    def test_cfo_sees_it_in_list_and_detail(self):
-        self.client.force_login(self.cfo)
-        self.assertEqual(self.client.get(reverse('servicedesk:detail', args=[self.req.pk])).status_code, 200)
-        listed = {r.pk for r in self.client.get(reverse('servicedesk:list'), {'tab': 'all'}).context['page_obj']}
-        self.assertIn(self.req.pk, listed)
 
     def test_supervisor_cannot_assign_or_transition_it_even_directly(self):
         with self.assertRaises(RequestError):

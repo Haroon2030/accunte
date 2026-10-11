@@ -62,10 +62,6 @@ class StatementPageTests(TestCase):
                                ('sm-engine.js', 'sm-report.js'), ('sm-table.js', 'sm-readers.js'), ('sm-readers.js', 'sm-app.js')):
             self.assertLess(order.index(earlier), order.index(later), (earlier, later))
 
-    def test_sidebar_lists_the_section_for_reconcilers(self):
-        self.client.force_login(make_user('acc', RT.ACCOUNTANT))
-        html = self.client.get(reverse('reconciliation:list')).content.decode()
-        self.assertIn('data-nav="statement"', html)
 
 
 class EngineJsTests(TestCase):

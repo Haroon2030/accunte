@@ -1,0 +1,54 @@
+<div hidden data-meta data-new="{{ counts.new }}" data-working="{{ counts.working }}" data-late="{{ counts.late }}"></div>
+
+<div class="mt-stats">
+    <div class="mt-stat is-new"><span>وصلت إليك</span><b>{{ counts.new }}</b></div>
+    <div class="mt-stat is-work"><span>جاري المعالجة</span><b>{{ counts.working }}</b></div>
+    <div class="mt-stat {% if counts.late %}is-late{% endif %}"><span>متأخرة</span><b>{{ counts.late }}</b></div>
+    <div class="mt-stat is-done"><span>أُنجزت هذا الأسبوع</span><b>{{ counts.done }}</b></div>
+</div>
+
+<div class="mt-cols">
+    <!-- مهام وصلت إليك ولم تبدأها -->
+    <section class="mt-col">
+        <h3><i data-lucide="inbox"></i> وصلت إليك <em>{{ counts.new }}</em></h3>
+        {% for r in new %}
+        <article class="mt-card {% if r.due_state == 'late' %}is-late{% endif %}">
+            <header><span class="mt-ref">{{ r.reference }}</span>{% if r.due_text %}<span class="mt-due is-{{ r.due_state }}">{{ r.due_text }}</span>{% endif %}</header>
+            <h4>{{ r.service_type.name }}</h4>
+            <p class="mt-supplier">{{ r.supplier.name }}</p>
+            {% if r.subject %}<p class="mt-subject">{{ r.subject }}</p>{% endif %}
+            <footer>
+                <form method="post" action="{% url 'servicedesk:start' r.pk %}">{% csrf_token %}<button class="btn btn-primary btn-sm"><i data-lucide="loader"></i> بدء المعالجة</button></form>
+                <a href="{% url 'servicedesk:detail' r.pk %}" class="btn btn-secondary btn-sm">فتح</a>
+            </footer>
+        </article>
+        {% empty %}<p class="mt-empty">لا مهام جديدة. سيصلك تنبيه عند إسناد طلب إليك.</p>{% endfor %}
+    </section>
+
+    <!-- جاري المعالجة -->
+    <section class="mt-col">
+        <h3><i data-lucide="loader"></i> جاري المعالجة <em>{{ counts.working }}</em></h3>
+        {% for r in working %}
+        <article class="mt-card {% if r.due_state == 'late' %}is-late{% endif %}">
+            <header><span class="mt-ref">{{ r.reference }}</span>{% if r.due_text %}<span class="mt-due is-{{ r.due_state }}">{{ r.due_text }}</span>{% endif %}</header>
+            <h4>{{ r.service_type.name }}</h4>
+            <p class="mt-supplier">{{ r.supplier.name }}{% if r.status == 'waiting_vendor' %} <span class="mt-tag">بانتظار المورد</span>{% elif r.status == 'escalated' %} <span class="mt-tag is-red">مصعَّد</span>{% endif %}</p>
+            {% if r.subject %}<p class="mt-subject">{{ r.subject }}</p>{% endif %}
+            <footer><a href="{% url 'servicedesk:detail' r.pk %}" class="btn btn-success btn-sm"><i data-lucide="badge-check"></i> فتح وإكمال</a></footer>
+        </article>
+        {% empty %}<p class="mt-empty">لا مهام قيد المعالجة.</p>{% endfor %}
+    </section>
+
+    <!-- أُنجزت مؤخراً -->
+    <section class="mt-col">
+        <h3><i data-lucide="check-circle-2"></i> أُنجزت مؤخراً <em>{{ counts.done }}</em></h3>
+        {% for r in done %}
+        <article class="mt-card is-done">
+            <header><span class="mt-ref">{{ r.reference }}</span><span class="mt-due is-ok">{{ r.resolved_at|date:"m/d H:i" }}</span></header>
+            <h4>{{ r.service_type.name }}</h4>
+            <p class="mt-supplier">{{ r.supplier.name }}</p>
+            <footer><a href="{% url 'servicedesk:detail' r.pk %}" class="btn btn-secondary btn-sm">عرض</a></footer>
+        </article>
+        {% empty %}<p class="mt-empty">لم تُنجز مهاماً هذا الأسبوع بعد.</p>{% endfor %}
+    </section>
+</div>

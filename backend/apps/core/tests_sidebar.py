@@ -34,13 +34,13 @@ def keys_for(user):
 
 
 EXECUTIVE = {'executive'}
-WORK_ALL = {'inbox', 'requests', 'cases', 'proposals', 'suppliers', 'statement'}
+WORK_ALL = {'requests', 'my_tasks', 'proposals', 'suppliers', 'statement'}
 
 EXPECTED = {
-    RT.ADMIN: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'users', 'roles', 'audit', 'whatsapp_link'},
-    RT.CFO: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'audit', 'whatsapp_link', 'users', 'roles'},
-    RT.CS_SUPERVISOR: {'inbox', 'requests', 'cases', 'distribution', 'proposals', 'suppliers', 'whatsapp_link', 'statement'},
-    RT.ACCOUNTANT: {'requests', 'cases', 'proposals', 'suppliers', 'statement'},
+    RT.ADMIN: EXECUTIVE | WORK_ALL | {'service_types', 'branches', 'users', 'roles', 'whatsapp_link'},
+    RT.CFO: EXECUTIVE | WORK_ALL | {'service_types', 'branches', 'whatsapp_link', 'users', 'roles'},
+    RT.CS_SUPERVISOR: {'requests', 'proposals', 'suppliers', 'whatsapp_link', 'statement'},
+    RT.ACCOUNTANT: {'my_tasks', 'proposals', 'suppliers', 'statement'},
     RT.SUPPLIER: set(),
 }
 
@@ -71,16 +71,6 @@ class VisibilityByRoleTests(TestCase):
             for item in items:
                 self.assertTrue(reverse(item.url_name).startswith('/'), item.key)
 
-    def test_accountant_requests_item_is_called_my_tasks(self):
-        req = RequestFactory().get('/')
-        req.user = make_user('acc', RT.ACCOUNTANT)
-        labels = {i['key']: i['label'] for i in sidebar.leaves(sidebar.build(req))}
-        self.assertEqual(labels['requests'], 'مهامي')
-        self.assertEqual(labels['cases'], 'ملفات المطابقة')
-        req.user = make_user('cfo', RT.CFO)
-        labels = {i['key']: i['label'] for i in sidebar.leaves(sidebar.build(req))}
-        self.assertEqual((labels['requests'], labels['cases']), ('طلبات الموردين', 'ملفات المطابقة'))
-
 
 class ActiveItemTests(TestCase):
     """كل مسار يُفعّل عنصرًا واحدًا فقط (لا التباس بين البادئات المتداخلة)."""
@@ -95,19 +85,12 @@ class ActiveItemTests(TestCase):
         cases = {
             '/reconciliation/executive/': ['executive'],
             '/reconciliation/executive/print/': ['executive'],
-            '/reconciliation/': ['cases'],
-            '/reconciliation/12/': ['cases'],
-            '/reconciliation/distribution/': ['distribution'],
             '/statement-matcher/': ['statement'],
-            '/service-requests/': ['requests'],
-            '/service-requests/5/': ['requests'],
             '/service-requests/types/': ['service_types'],
             '/service-requests/types/2/': ['service_types'],
-            '/inbox/3/': ['inbox'],
             '/proposals/create/': ['proposals'],
             '/suppliers/import/': ['suppliers'],
             '/whatsapp/': ['whatsapp_link'],
-            '/audit/': ['audit'],
             '/users/': ['users'],
             '/payments/': [],
         }
@@ -122,7 +105,6 @@ class SidebarRenderingTests(TestCase):
         html = self.client.get(reverse('reconciliation:executive')).content.decode()
         self.assertIn('class="sb-link is-active"', html)
         self.assertIn('aria-current="page"', html)
-        self.assertIn('data-badge="inbox"', html)
         self.assertIn('/static/js/live-nav.js', html)
         self.assertNotIn('لوحة التحكم', html)
         self.assertEqual(html.count('title="لوحة المدير المالي"'), 1)
@@ -133,18 +115,8 @@ class SidebarRenderingTests(TestCase):
 
     def test_user_card_shows_role_and_initial(self):
         self.client.force_login(make_user('acc', RT.ACCOUNTANT))
-        html = self.client.get(reverse('reconciliation:list')).content.decode()
+        html = self.client.get(reverse('statement_matcher')).content.decode()
         self.assertIn('class="sb-avatar">A<', html)
-
-    def test_initial_badge_matches_live_endpoint(self):
-        SupplierConversation.objects.create(contact_number='966500000001', status='new', unread_count=3,
-                                            last_message_at=timezone.now())
-        cfo = make_user('cfo', RT.CFO)
-        self.client.force_login(cfo)
-        html = self.client.get(reverse('reconciliation:executive')).content.decode()
-        self.assertIn('data-badge="inbox">1<', html)
-        data = self.client.get(reverse('live_badges')).json()
-        self.assertEqual(data['badges']['inbox']['count'], 1)
 
 
 class BadgeCountTests(TestCase):
@@ -181,47 +153,6 @@ class BadgeCountTests(TestCase):
         for u in (self.cfo, self.acc, self.sup):
             self.assertEqual(self.counts(u), {}, u.username)
 
-    def test_inbox_counts_unread_conversations_and_turns_red_when_late(self):
-        SLAConfiguration.objects.update_or_create(name='default', defaults={'first_response_minutes': 30})
-        SupplierConversation.objects.create(contact_number='966500000001', unread_count=2, status='new')
-        SupplierConversation.objects.create(contact_number='966500000002', unread_count=0, status='open')       # مقروءة
-        SupplierConversation.objects.create(contact_number='966500000003', unread_count=1, status='closed')     # مغلقة
-        self.assertEqual(self.counts(self.sup)['inbox'], {'count': 1, 'tone': 'info'})
-        SupplierConversation.objects.create(contact_number='966500000004', unread_count=1, status='open',
-                                            awaiting_reply_since=timezone.now() - datetime.timedelta(hours=2))
-        self.assertEqual(self.counts(self.sup)['inbox'], {'count': 2, 'tone': 'danger'})
-
-    def test_requests_for_accountant_are_only_his_assigned_tasks(self):
-        self.request(assigned_to=self.acc)
-        self.request()                                                 # غير مسند: لا يراه المطابق
-        self.request(assigned_to=self.acc2)                            # لزميله: لا يُحسب
-        self.request(assigned_to=self.acc, status='closed')            # منتهٍ
-        self.assertEqual(self.counts(self.acc)['requests'], {'count': 1, 'tone': 'info'})
-        self.request(assigned_to=self.acc, due_at=timezone.now() - datetime.timedelta(hours=1))
-        self.assertEqual(self.counts(self.acc)['requests'], {'count': 2, 'tone': 'danger'})
-
-    def test_requests_for_cfo_count_waiting_and_turn_red_when_overdue(self):
-        self.request(assigned_to=self.acc)
-        self.assertNotIn('requests', self.counts(self.cfo))
-        self.request(due_at=timezone.now() - datetime.timedelta(hours=1))
-        self.assertEqual(self.counts(self.cfo)['requests'], {'count': 1, 'tone': 'danger'})
-
-    def test_cases_badge_by_role(self):
-        self.case(accountant=self.acc)
-        self.case(accountant=self.acc2)
-        self.case(status='completed', accountant=self.acc)
-        self.assertEqual(self.counts(self.acc)['cases'], {'count': 1, 'tone': 'info'})
-        self.assertNotIn('cases', self.counts(self.cfo))                  # لا متأخر
-        self.case(accountant=self.acc, due=self.today - datetime.timedelta(days=1))
-        self.assertEqual(self.counts(self.acc)['cases'], {'count': 2, 'tone': 'danger'})
-        self.assertEqual(self.counts(self.cfo)['cases'], {'count': 1, 'tone': 'danger'})
-
-    def test_distribution_counts_ready_cases(self):
-        self.case(status='ready_for_distribution')
-        self.case(status='ready_for_distribution')
-        self.case()
-        self.assertEqual(self.counts(self.sup)['distribution'], {'count': 2, 'tone': 'warn'})
-        self.assertNotIn('distribution', self.counts(self.acc))                # غير ظاهر لها
 
     def test_proposals_badge_by_role(self):
         self.proposal('pending_review', 80000)                            # بانتظار قرار المدير المالي
@@ -234,11 +165,6 @@ class BadgeCountTests(TestCase):
         self.assertEqual(self.counts(admin)['proposals']['count'], 3)
         self.assertNotIn('proposals', self.counts(self.sup))
 
-    def test_only_visible_items_are_computed(self):
-        self.case(status='ready_for_distribution')
-        self.assertEqual(live.badge_counts(self.acc, ['distribution']), {'distribution': {'count': 1, 'tone': 'warn'}})
-        self.assertEqual(live.badge_counts(self.acc, ['users', 'audit']), {})
-
 
 class LiveBadgesEndpointTests(TestCase):
     def test_requires_login_and_is_never_cached(self):
@@ -247,23 +173,6 @@ class LiveBadgesEndpointTests(TestCase):
         r = self.client.get(reverse('live_badges'))
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r['Cache-Control'], 'no-store')
-        self.assertEqual(set(r.json()), {'badges', 'inbox_latest'})
+        self.assertEqual(set(r.json()), {'badges'})
 
-    def test_latest_inbound_only_for_inbox_roles(self):
-        conv = SupplierConversation.objects.create(contact_number='966500000001', display_name='الأفق', status='new')
-        ConversationMessage.objects.create(conversation=conv, direction='in', wa_message_id='M1', body='مرحبا بكم')
-        ConversationMessage.objects.create(conversation=conv, direction='out', wa_message_id='M2', body='أهلا')
-        self.client.force_login(make_user('sup', RT.CS_SUPERVISOR))
-        latest = self.client.get(reverse('live_badges')).json()['inbox_latest']
-        self.assertEqual((latest['name'], latest['preview'], latest['url']), ('الأفق', 'مرحبا بكم', f'/inbox/{conv.pk}/'))
-        self.assertEqual(latest['id'], ConversationMessage.objects.get(wa_message_id='M1').pk)   # الصادرة لا تُعدّ
-        self.client.force_login(make_user('acc', RT.ACCOUNTANT))
-        self.assertIsNone(self.client.get(reverse('live_badges')).json()['inbox_latest'])
 
-    def test_media_message_preview_uses_kind(self):
-        conv = SupplierConversation.objects.create(contact_number='966500000001', status='new')
-        ConversationMessage.objects.create(conversation=conv, direction='in', wa_message_id='D1', kind='document', body='')
-        self.client.force_login(make_user('sup', RT.CS_SUPERVISOR))
-        latest = self.client.get(reverse('live_badges')).json()['inbox_latest']
-        self.assertEqual(latest['preview'], '[مستند]')
-        self.assertEqual(latest['name'], '+966500000001')

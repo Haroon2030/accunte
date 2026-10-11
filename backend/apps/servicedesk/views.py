@@ -17,7 +17,7 @@ from django.views.decorators.http import require_POST
 from apps.audit.models import AuditLog
 from apps.reconciliation.storage import serve_file
 from apps.audit.services import log_action
-from apps.core.access import has_role, role_required
+from apps.core.access import get_role_type, has_role, role_required
 from apps.core.models import Role
 from apps.reconciliation.services import file_sha256, validate_upload
 from apps.reconciliation.workflow import TransitionError
@@ -33,294 +33,21 @@ types_required = role_required(*MANAGE_TYPES_ROLES)
 S = ServiceRequest.Status
 
 
-def _get(request, pk):
-    return get_object_or_404(services.visible_requests(request.user), pk=pk)
-
-
-def _back(pk, tab=''):
-    return redirect(f'/service-requests/{pk}/' + (f'?tab={tab}' if tab else ''))
-
-
 # ── القائمة ───────────────────────────────────────────────────────────────────
 TABS = [('open', 'المفتوحة'), ('mine', 'طلباتي'), ('unassigned', 'غير مسندة'), ('overdue', 'المتأخرة'),
         ('escalated', 'المصعَّدة'), ('done', 'المنتهية'), ('all', 'الكل')]
 
 
-def filtered(request):
-    qs = services.visible_requests(request.user)
-    g = request.GET
-    tab = g.get('tab', 'open')
-    if tab not in dict(TABS):
-        tab = 'open'
-    now = timezone.now()
-    if tab == 'open':
-        qs = qs.filter(status__in=ServiceRequest.OPEN)
-    elif tab == 'mine':
-        qs = qs.filter(assigned_to=request.user).exclude(status__in=ServiceRequest.TERMINAL)
-    elif tab == 'unassigned':
-        qs = qs.filter(assigned_to__isnull=True, status__in=ServiceRequest.OPEN)
-    elif tab == 'overdue':
-        qs = qs.filter(due_at__lt=now, status__in=ServiceRequest.OPEN)
-    elif tab == 'escalated':
-        qs = qs.filter(status=S.ESCALATED)
-    elif tab == 'done':
-        qs = qs.filter(status__in=(S.RESOLVED, S.CLOSED, S.CANCELLED))
-    f = {k: g.get(k, '').strip() for k in ('q', 'type', 'priority', 'supplier')}
-    if f['q']:
-        from django.db.models import Q
-        qs = qs.filter(Q(reference__icontains=f['q']) | Q(subject__icontains=f['q'])
-                       | Q(supplier__name__icontains=f['q']) | Q(supplier__code__icontains=f['q']))
-    if f['type'].isdigit():
-        qs = qs.filter(service_type_id=f['type'])
-    if f['priority'] in ServiceRequest.Priority.values:
-        qs = qs.filter(priority=f['priority'])
-    if f['supplier'].isdigit():
-        qs = qs.filter(supplier_id=f['supplier'])
-    return qs, tab, f
-
-
-@login_required
-@view_required
-def request_list(request):
-    qs, tab, f = filtered(request)
-    page = Paginator(qs.order_by('due_at', '-created_at'), 20).get_page(request.GET.get('page'))
-    return render(request, 'pages/servicedesk/list.html', {
-        'page_title': 'طلبات الخدمة', 'page_obj': page, 'tab': tab, 'tabs': TABS, 'f': f,
-        'types': ServiceType.objects.filter(is_active=True),
-        'priorities': ServiceRequest.Priority.choices,
-        'can_create': any(services.can_create(request.user, t) for t in ServiceType.objects.filter(is_active=True)),
-        'can_manage_types': has_role(request.user, *MANAGE_TYPES_ROLES),
-        'assignable': services.assignable_users() if services.is_supervisor(request.user) else [],
-        'qs_extra': '&'.join(f'{k}={v}' for k, v in {**f, 'tab': tab}.items() if v),
-    })
-
-
 # ── الإنشاء ───────────────────────────────────────────────────────────────────
-@login_required
-@view_required
-def request_create(request):
-    types = [t for t in ServiceType.objects.filter(is_active=True) if services.can_create(request.user, t)]
-    errors = []
-    assignable = services.assignable_users() if services.is_supervisor(request.user) else []
-    p = request.POST if request.method == 'POST' else request.GET
-    stype = next((t for t in types if str(t.pk) == (p.get('type') or '')), None)
-    conversation = None
-    if p.get('conversation', '').isdigit():
-        conversation = SupplierConversation.objects.select_related('supplier').filter(pk=p['conversation']).first()
-    supplier = Supplier.objects.filter(pk=p['supplier']).first() if p.get('supplier', '').isdigit() else None
-    if supplier is None and conversation is not None:
-        supplier = conversation.supplier
-
-    if request.method == 'POST' and p.get('step') == 'create':
-        try:
-            if stype is None:
-                raise RequestError('اختر نوع الطلب')
-            if supplier is None:
-                raise RequestError('اختر المورد')
-            assign_to = None
-            if p.get('assign_to', '').isdigit():
-                assign_to = next((u for u in assignable if u.pk == int(p['assign_to'])), None)
-                if assign_to is None:
-                    raise RequestError('اختر موظفًا من القائمة')
-            req = services.create_request(
-                request.user, stype, supplier, p.get('subject', ''), p.get('details', ''),
-                p.get('priority', 'normal'), getter=p.get, conversation=conversation, assign_to=assign_to)
-        except RequestError as exc:
-            errors.append(str(exc))
-        else:
-            messages.success(request, f'تم إنشاء الطلب {req.reference}')
-            return redirect('servicedesk:detail', pk=req.pk)
-    return render(request, 'pages/servicedesk/form.html', {
-        'page_title': 'طلب خدمة جديد', 'types': types, 'stype': stype, 'errors': errors, 'post': p,
-        'supplier': supplier, 'conversation': conversation, 'priorities': ServiceRequest.Priority.choices,
-        'assignable': assignable, 'schema': stype.field_schema if stype else [],
-    })
 
 
 # ── التفاصيل والإجراءات ──────────────────────────────────────────────────────
-@login_required
-@view_required
-def request_detail(request, pk):
-    req = _get(request, pk)
-    docs = list(req.documents.select_related('uploaded_by'))
-    have = {d.label for d in docs}
-    return render(request, 'pages/servicedesk/detail.html', {
-        'page_title': req.reference, 'r': req, 'data': services.labelled_data(req), 'docs': docs,
-        'required_docs': [(lbl, lbl in have) for lbl in (req.service_type.required_documents or [])],
-        'transitions': [(v, S(v).label) for v in services.allowed_transitions(request.user, req)],
-        'history': req.history.select_related('changed_by'),
-        'appointments': req.appointments.select_related('assigned_to'),
-        'can_claim': req.assigned_to_id is None and req.status in ServiceRequest.OPEN
-                     and services.can_handle(request.user, req.service_type),
-        'is_supervisor': services.is_supervisor(request.user),
-        'can_docs': services.can_edit_documents(request.user, req),
-        'agents': services.assignable_users() if services.is_supervisor(request.user) else [],
-        'tab': request.GET.get('tab', 'info'),
-        'appt_statuses': Appointment.Status.choices,
-    })
-
-
-def _run(request, pk, fn, ok, tab=''):
-    try:
-        fn()
-        if ok:
-            messages.success(request, ok)
-    except RequestError as exc:
-        messages.error(request, str(exc))
-    return _back(pk, tab)
-
-
-@login_required
-@view_required
-@require_POST
-def request_claim(request, pk):
-    req = _get(request, pk)
-    return _run(request, pk, lambda: services.claim(req.pk, request.user), 'تم استلام الطلب')
-
-
-@login_required
-@view_required
-@require_POST
-def request_assign(request, pk):
-    from django.contrib.auth import get_user_model
-    req = _get(request, pk)
-    agent = get_user_model().objects.filter(pk=request.POST.get('agent') or 0).first()
-
-    def run():
-        if agent is None:
-            raise RequestError('اختر الموظف')
-        services.assign(req.pk, agent, request.user)
-    nxt = request.POST.get('next', '')
-    if nxt.startswith('/service-requests/') and not nxt.startswith('//'):       # عودة آمنة إلى القائمة فقط
-        try:
-            run()
-            messages.success(request, 'تم إسناد الطلب')
-        except RequestError as exc:
-            messages.error(request, str(exc))
-        return redirect(nxt)
-    return _run(request, pk, run, 'تم إسناد الطلب')
-
-
-@login_required
-@view_required
-@require_POST
-def request_transition(request, pk):
-    req = _get(request, pk)
-    return _run(request, pk, lambda: services.transition(
-        req.pk, request.POST.get('to', ''), request.user, request.POST.get('reason', ''),
-        request.POST.get('resolution_note', '')), 'تم تحديث حالة الطلب')
 
 
 # ── المستندات ────────────────────────────────────────────────────────────────
-@login_required
-@view_required
-@require_POST
-def document_upload(request, pk):
-    req = _get(request, pk)
-    try:
-        if not services.can_edit_documents(request.user, req):
-            raise RequestError('لا يمكنك رفع مستندات لهذا الطلب')
-        f = request.FILES.get('file')
-        if not f:
-            raise RequestError('اختر ملفًا')
-        validate_upload(f)
-        label = request.POST.get('label', '').strip()[:120]
-        shared = bool(request.POST.get('share')) and req.source == ServiceRequest.Source.PORTAL
-        doc = ServiceRequestDocument(request=req, label=label, original_name=f.name[:255], size=f.size,
-                                     uploaded_by=request.user, sha256=file_sha256(f), shared_with_supplier=shared)
-        doc.file.save(f.name, f, save=True)
-        log_action(AuditLog.Action.CREATE, doc, entity_type='servicedesk.Document',
-                   entity_repr=f'{req.reference}: {doc.original_name}',
-                   new={'label': label, 'name': doc.original_name, 'sha256': doc.sha256, 'shared': shared})
-        messages.success(request, 'تم رفع المستند')
-    except (RequestError, TransitionError) as exc:
-        messages.error(request, str(exc))
-    return _back(pk, 'documents')
-
-
-@login_required
-@view_required
-def document_download(request, pk, doc_pk):
-    req = _get(request, pk)
-    doc = get_object_or_404(ServiceRequestDocument, pk=doc_pk, request=req)
-    response = serve_file(doc.file, doc.original_name)      # R2 أو القرص، بعد فحص الصلاحية أعلاه
-    log_action(AuditLog.Action.EXPORT, doc, entity_type='servicedesk.Document', entity_repr=f'تنزيل {doc.original_name}')
-    return response
-
-
-@login_required
-@view_required
-@require_POST
-def document_delete(request, pk, doc_pk):
-    req = _get(request, pk)
-    doc = get_object_or_404(ServiceRequestDocument, pk=doc_pk, request=req)
-    if not services.can_edit_documents(request.user, req):
-        messages.error(request, 'لا يمكنك حذف مستندات هذا الطلب')
-    else:
-        log_action(AuditLog.Action.DELETE, doc, entity_type='servicedesk.Document', previous={'name': doc.original_name})
-        doc.file.delete(save=False)
-        doc.delete()
-    return _back(pk, 'documents')
 
 
 # ── المواعيد ─────────────────────────────────────────────────────────────────
-@login_required
-@view_required
-@require_POST
-def appointment_add(request, pk):
-    req = _get(request, pk)
-    try:
-        if not services.can_edit_documents(request.user, req):
-            raise RequestError('لا يمكنك إضافة مواعيد لهذا الطلب')
-        when = parse_datetime(request.POST.get('scheduled_at', ''))
-        if when is None:
-            raise RequestError('موعد غير صالح')
-        if timezone.is_naive(when):
-            when = timezone.make_aware(when)
-        title = request.POST.get('title', '').strip() or req.subject
-        minutes = request.POST.get('duration_minutes', '30')
-        appt = Appointment.objects.create(
-            supplier=req.supplier, request=req, title=title[:200], scheduled_at=when,
-            duration_minutes=int(minutes) if minutes.isdigit() and 5 <= int(minutes) <= 480 else 30,
-            location=request.POST.get('location', '').strip()[:200], notes=request.POST.get('notes', '').strip(),
-            assigned_to=req.assigned_to or request.user, created_by=request.user)
-        log_action(AuditLog.Action.CREATE, appt, entity_type='servicedesk.Appointment',
-                   new={'request': req.pk, 'scheduled_at': when, 'title': appt.title})
-        messages.success(request, 'تمت جدولة الموعد')
-    except RequestError as exc:
-        messages.error(request, str(exc))
-    return _back(pk, 'appointments')
-
-
-@login_required
-@view_required
-@require_POST
-def appointment_status(request, pk, appt_pk):
-    req = _get(request, pk)
-    appt = get_object_or_404(Appointment, pk=appt_pk, request=req)
-    to = request.POST.get('to')
-    if to not in Appointment.Status.values or not services.can_edit_documents(request.user, req):
-        messages.error(request, 'إجراء غير مسموح')
-    else:
-        old = appt.status
-        appt.status = to
-        appt.save(update_fields=['status'])
-        log_action(AuditLog.Action.STATUS_CHANGE, appt, entity_type='servicedesk.Appointment',
-                   previous={'status': old}, new={'status': to})
-    return _back(pk, 'appointments')
-
-
-@login_required
-@view_required
-def appointment_list(request):
-    qs = Appointment.objects.select_related('supplier', 'request', 'assigned_to')
-    if not has_role(request.user, *services.OVERSIGHT_ROLES):
-        qs = qs.filter(assigned_to=request.user)
-    show_all = request.GET.get('all')
-    if not show_all:
-        qs = qs.filter(scheduled_at__gte=timezone.now() - datetime.timedelta(hours=2), status='scheduled')
-    return render(request, 'pages/servicedesk/appointments.html', {
-        'page_title': 'المواعيد', 'appointments': qs.order_by('scheduled_at')[:200], 'show_all': show_all})
 
 
 # ── إدارة الأنواع ────────────────────────────────────────────────────────────
@@ -401,3 +128,216 @@ def type_edit(request, pk=None):
         'handle_roles': (stype.handle_roles or []) if stype else [],
         'docs_text': '\n'.join(stype.required_documents or []) if stype else '',
     })
+
+
+# ── شاشة استلام الطلبات: استلام ← إرسال للمطابق ← جاري المعالجة ← اكتمال المعالجة ──────────────────
+INTAKE_STAGES = ('استلام الطلب', 'إرسال للمطابق', 'جاري المعالجة', 'اكتمال المعالجة')
+INTAKE_TABS = [('open', 'المفتوحة'), ('new', 'بانتظار الاستلام'), ('mine', 'عندي'), ('done', 'المنتهية'), ('all', 'الكل')]
+
+
+def intake_stage(req):
+    """المرحلة الحالية 1..4، أو 5 إن اكتمل الطلب، أو 0 إن أُلغي. تُشتق من الحالة والمسؤول فلا حقول جديدة."""
+    if req.status == S.CANCELLED:
+        return 0
+    if req.status in (S.RESOLVED, S.CLOSED):
+        return 5
+    if req.status in (S.IN_PROGRESS, S.WAITING_VENDOR, S.ESCALATED):
+        return 3
+    if req.assigned_to_id is None:
+        return 1
+    return 3 if services.can_receive_assignment(req.assigned_to) else 2
+
+
+def _person(user, fallback=''):
+    return (user.get_full_name() or user.username) if user else fallback
+
+
+def _step_actors(req):
+    """منفّذ كل خطوة ووقتها: {رقم الخطوة: (النص, الوقت)}. من سجل التدقيق وسجل الحالات الموجودين أصلًا."""
+    from django.contrib.auth import get_user_model
+    from apps.audit.models import AuditLog
+    logs = list(AuditLog.objects.filter(entity_type='servicedesk.ServiceRequest', entity_id=str(req.pk),
+                                        action=AuditLog.Action.UPDATE).select_related('actor').order_by('created_at', 'id'))
+
+    def actor(log):
+        return _person(log.actor, log.actor_username or 'النظام')
+
+    out = {}
+    recv = next((x for x in logs if x.reason == 'استلام الطلب'), None)
+    if recv:
+        out[1] = (actor(recv), recv.created_at)
+    sent = next((x for x in reversed(logs) if x.reason == 'إسناد الطلب'), None)
+    if sent:
+        target_pk = (sent.new_state or {}).get('assigned_to')
+        target = get_user_model().objects.filter(pk=target_pk).first() if target_pk else None
+        out[2] = (f'{actor(sent)} ← {_person(target, "")}'.rstrip(' ←'), sent.created_at)
+    hist = list(req.history.select_related('changed_by').order_by('created_at', 'id'))
+    started = next((h for h in hist if h.to_status == S.IN_PROGRESS), None)
+    if started:
+        out[3] = (_person(started.changed_by, 'النظام'), started.created_at)
+    elif req.assigned_to_id and services.can_receive_assignment(req.assigned_to):
+        out[3] = (f'بانتظار {_person(req.assigned_to)}', None)
+    finished = next((h for h in reversed(hist) if h.to_status == S.RESOLVED), None)
+    if finished:
+        out[4] = (_person(finished.changed_by, 'النظام'), finished.created_at)
+    return out
+
+
+def intake_steps(req):
+    cur = intake_stage(req)
+    actors = _step_actors(req)
+    steps = []
+    for i, label in enumerate(INTAKE_STAGES, start=1):
+        if cur == 0:
+            state = 'upcoming'
+        elif cur == 5 or i < cur:
+            state = 'done'
+        elif i == cur:
+            state = 'current'
+        else:
+            state = 'upcoming'
+        who, at = actors.get(i, ('', None)) if state != 'upcoming' else ('', None)
+        steps.append({'n': i, 'label': label, 'state': state, 'who': who, 'at': at})
+    return steps
+
+
+def _history_rows(req):
+    labels = dict(S.choices)
+    rows = []
+    for h in req.history.select_related('changed_by').order_by('created_at', 'id'):
+        who = (h.changed_by.get_full_name() or h.changed_by.username) if h.changed_by else 'النظام'
+        rows.append({'from': labels.get(h.from_status, ''), 'to': labels.get(h.to_status, h.to_status),
+                     'who': who, 'at': h.created_at, 'reason': h.reason})
+    return rows
+
+
+def _intake_get(request, pk):
+    return get_object_or_404(services.visible_requests(request.user), pk=pk)
+
+
+def _intake_back(pk):
+    return redirect('servicedesk:detail', pk=pk)
+
+
+@login_required
+@view_required
+def request_list(request):
+    tab = request.GET.get('tab', 'open')
+    if tab not in dict(INTAKE_TABS):
+        tab = 'open'
+    qs = services.visible_requests(request.user)
+    if tab == 'open':
+        qs = qs.filter(status__in=ServiceRequest.OPEN)
+    elif tab == 'new':
+        qs = qs.filter(status=S.NEW, assigned_to__isnull=True)
+    elif tab == 'mine':
+        qs = qs.filter(assigned_to=request.user, status__in=ServiceRequest.OPEN)
+    elif tab == 'done':
+        qs = qs.filter(status__in=(S.RESOLVED, S.CLOSED, S.CANCELLED))
+    page = Paginator(qs.order_by('-created_at', '-id'), 30).get_page(request.GET.get('page'))
+    for r in page:
+        r.stage = intake_stage(r)
+        r.stage_label = 'مكتمل' if r.stage == 5 else ('ملغى' if r.stage == 0 else INTAKE_STAGES[r.stage - 1])
+    return render(request, 'pages/servicedesk/intake_list.html', {
+        'page_title': 'استلام الطلبات', 'page_obj': page, 'tab': tab, 'tabs': INTAKE_TABS,
+    })
+
+
+@login_required
+@view_required
+def request_detail(request, pk):
+    req = _intake_get(request, pk)
+    stage = intake_stage(req)
+    user = request.user
+    supervisor = services.is_supervisor(user)
+    allowed = services.allowed_transitions(user, req)
+    return render(request, 'pages/servicedesk/intake_detail.html', {
+        'page_title': req.reference, 'r': req, 'steps': intake_steps(req), 'stage': stage,
+        'fields': services.labelled_data(req), 'history': _history_rows(req),
+        'can_receive': stage == 1 and supervisor and not req.is_terminal,
+        'can_send': stage in (1, 2, 3) and supervisor and req.status == S.NEW,
+        'can_start': stage == 3 and req.status == S.NEW and S.IN_PROGRESS in allowed,
+        'can_complete': req.status in (S.IN_PROGRESS, S.WAITING_VENDOR, S.ESCALATED) and S.RESOLVED in allowed,
+        'accountants': services.assignable_users() if supervisor else [],
+        'documents': req.documents.all(),
+        'back_url': 'servicedesk:my_tasks' if get_role_type(user) == Role.RoleType.ACCOUNTANT else 'servicedesk:list',
+    })
+
+
+def _intake_run(request, pk, fn, ok):
+    req = _intake_get(request, pk)
+    try:
+        fn(req)
+        messages.success(request, ok)
+    except RequestError as exc:
+        messages.error(request, str(exc))
+    return _intake_back(req.pk)
+
+
+@login_required
+@view_required
+@require_POST
+def request_receive(request, pk):
+    return _intake_run(request, pk, lambda r: services.claim(r.pk, request.user), 'تم استلام الطلب')
+
+
+@login_required
+@view_required
+@require_POST
+def request_send(request, pk):
+    def run(req):
+        agent = next((u for u in services.assignable_users() if str(u.pk) == request.POST.get('accountant')), None)
+        if agent is None:
+            raise RequestError('اختر المطابق الذي يُرسل إليه الطلب')
+        services.assign(req.pk, agent, request.user)
+    return _intake_run(request, pk, run, 'تم إرسال الطلب إلى المطابق')
+
+
+@login_required
+@view_required
+@require_POST
+def request_start(request, pk):
+    return _intake_run(request, pk, lambda r: services.transition(r.pk, S.IN_PROGRESS, request.user), 'بدأت معالجة الطلب')
+
+
+@login_required
+@view_required
+@require_POST
+def request_complete(request, pk):
+    return _intake_run(request, pk, lambda r: services.transition(
+        r.pk, S.RESOLVED, request.user, resolution_note=request.POST.get('resolution_note', '')), 'اكتملت معالجة الطلب')
+
+
+# ── شاشة مهام المطابق: ما أُسند إليه، مقسَّمًا بحسب المرحلة ─────────────────────────────────────────
+def _due_info(req, now):
+    """نص الموعد وحالته: late | soon | ok | none."""
+    from apps.reconciliation.tracking import fmt_duration
+    if not req.due_at or req.status not in ServiceRequest.OPEN:
+        return '', 'none'
+    delta = req.due_at - now
+    if delta.total_seconds() < 0:
+        return f'متأخر {fmt_duration(-delta)}', 'late'
+    return f'بعد {fmt_duration(delta)}', 'soon' if delta <= datetime.timedelta(hours=6) else 'ok'
+
+
+@login_required
+@view_required
+def my_tasks(request):
+    now = timezone.now()
+    mine = services.visible_requests(request.user).filter(assigned_to=request.user)
+    new = list(mine.filter(status=S.NEW).order_by('due_at', '-created_at'))
+    working = list(mine.filter(status__in=(S.IN_PROGRESS, S.WAITING_VENDOR, S.ESCALATED)).order_by('due_at', '-created_at'))
+    done = list(mine.filter(status__in=(S.RESOLVED, S.CLOSED), resolved_at__gte=now - datetime.timedelta(days=7))
+                .order_by('-resolved_at')[:10])
+    for group in (new, working, done):
+        for r in group:
+            r.due_text, r.due_state = _due_info(r, now)
+    counts = {
+        'new': len(new), 'working': len(working), 'done': len(done),
+        'late': sum(1 for r in new + working if r.due_state == 'late'),
+    }
+    ctx = {'page_title': 'مهامي', 'new': new, 'working': working, 'done': done, 'counts': counts}
+    template = 'pages/servicedesk/_tasks_board.html' if request.GET.get('partial') else 'pages/servicedesk/my_tasks.html'
+    resp = render(request, template, ctx)
+    resp['Cache-Control'] = 'no-store'
+    return resp

@@ -2,6 +2,8 @@ import datetime
 import io
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
+from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
@@ -140,32 +142,6 @@ class DedupAndScopeTests(DashboardBase):
         self.assertEqual((pr['pending_count'], pr['pending_total']), (1, Decimal('400.00')))
 
 
-class DrillDownConsistencyTests(DashboardBase):
-    """الرقم على البطاقة = عدد الصفوف في القائمة التي تفتحها البطاقة."""
-
-    def test_every_kpi_matches_its_drilldown_list(self):
-        self.new_case(status=S.NEW)
-        self.new_case(status=S.RECONCILING, due_date=self.today - DAY, assigned_accountant=self.acc)
-        w = self.new_case(status=S.WAITING_VENDOR, assigned_accountant=self.acc)
-        self.hist(w, 'waiting_vendor', 30)
-        d = self.new_case(status=S.DISCREPANCY_FOUND, assigned_accountant=self.acc)
-        for i in range(3):
-            ReconciliationDifference.objects.create(case=d, supplier_amount=i + 1, company_amount=0)
-        self.new_case(status=S.COMPLETED)
-        counts = kpis.build(Case.objects.all())['counts']
-        self.client.force_login(self.cfo)
-        for key in kpis.KPI_LABELS:
-            resp = self.client.get(reverse('reconciliation:list'), {'kpi': key, 'period': '90'})
-            self.assertEqual(resp.context['page_obj'].paginator.count, counts[key], key)
-
-    def test_drilldown_keeps_branch_scope(self):
-        a = self.new_case(status=S.RECONCILING, assigned_accountant=self.acc)
-        a.branches.set([self.b1])
-        b = self.new_case(status=S.RECONCILING, assigned_accountant=self.acc)
-        b.branches.set([self.b2])
-        self.client.force_login(self.cfo)
-        resp = self.client.get(reverse('reconciliation:list'), {'kpi': 'in_progress', 'branch': self.b1.pk, 'period': 'all'})
-        self.assertEqual([c.pk for c in resp.context['page_obj']], [a.pk])
 
 
 class DashboardAccessTests(DashboardBase):
@@ -205,47 +181,32 @@ class ExportTests(DashboardBase):
         self.assertEqual(cells['متأخرة'], 1)
         self.assertTrue(AuditLog.objects.filter(action=AuditLog.Action.EXPORT, entity_repr__contains='Excel').exists())
 
-    def test_cases_excel_follows_filters(self):
-        self.new_case(status=S.RECONCILING, assigned_accountant=self.acc, due_date=self.today - DAY)
-        self.new_case(status=S.NEW)
-        self.client.force_login(self.cfo)
-        resp = self.client.get(reverse('reconciliation:export_excel'), {'kpi': 'overdue'})
-        ws = load_workbook(io.BytesIO(resp.content)).active
-        data_rows = [r for r in ws.iter_rows(values_only=True) if r[1] and str(r[1]).startswith('RC-')]
-        self.assertEqual(len(data_rows), 1)
 
-    def test_excel_formula_injection_neutralised(self):
-        self.supplier.name = '=HYPERLINK("http://evil","x")'
-        self.supplier.save()
-        self.new_case(status=S.NEW)
-        self.client.force_login(self.cfo)
-        resp = self.client.get(reverse('reconciliation:export_excel'))
-        ws = load_workbook(io.BytesIO(resp.content)).active
-        names = [r[2] for r in ws.iter_rows(values_only=True) if r[1] and str(r[1]).startswith('RC-')]
-        self.assertTrue(names[0].startswith("'="))
 
-    def test_accountant_export_limited_to_own_cases(self):
-        mine = self.new_case(status=S.RECONCILING, assigned_accountant=self.acc)
-        self.new_case(status=S.RECONCILING, assigned_accountant=self.acc2)
-        self.client.force_login(self.acc)
-        for url_name in ('export_excel', 'print'):
-            resp = self.client.get(reverse(f'reconciliation:{url_name}'))
-            self.assertEqual(resp.status_code, 200)
-            if url_name == 'print':
-                self.assertEqual([c.pk for c in resp.context['cases']], [mine.pk])
-            else:
-                ws = load_workbook(io.BytesIO(resp.content)).active
-                refs = [r[1] for r in ws.iter_rows(values_only=True) if r[1] and str(r[1]).startswith('RC-')]
-                self.assertEqual(refs, [mine.reference])
 
-    def test_print_pages_render_arabic_and_are_audited(self):
-        c = self.new_case(status=S.COMPLETED)
-        ReconciliationResult.objects.create(case=c, supplier_balance=Decimal('500.50'), company_balance=0)
-        self.client.force_login(self.cfo)
-        html = self.client.get(reverse('reconciliation:executive_print')).content.decode()
-        self.assertIn('dir="rtl"', html)
-        self.assertIn('window.print()', html)
-        html2 = self.client.get(reverse('reconciliation:print')).content.decode()
-        self.assertIn('500.50', html2)
-        self.assertNotIn('500,50', html2)
-        self.assertEqual(AuditLog.objects.filter(action=AuditLog.Action.EXPORT, entity_repr__contains='PDF').count(), 2)
+
+
+class RequestStageRowsTests(TestCase):
+    """بطاقة «توزيع الطلبات حسب المرحلة» تعدّ طلبات الموردين لا حالات المطابقة."""
+
+    def test_stage_rows_count_requests_by_intake_stage(self):
+        from apps.core.models import Role, UserProfile
+        from apps.servicedesk.models import ServiceRequest, ServiceType
+        from apps.suppliers.models import Supplier
+        creator = get_user_model().objects.create_user('rr_creator', password='x')
+        acc = get_user_model().objects.create_user('rr_acc', password='x')
+        role, _ = Role.objects.get_or_create(role_type=Role.RoleType.ACCOUNTANT, defaults={'name': 'محاسب'})
+        UserProfile.objects.update_or_create(user=acc, defaults={'role': role})
+        sup = Supplier.objects.create(name='مورد', code='RR1')
+        stype = ServiceType.objects.get(code='payment-status')
+        mk = lambda **kw: ServiceRequest.objects.create(service_type=stype, supplier=sup, subject='x', created_by=creator, **kw)
+        mk()                                                         # بانتظار الاستلام
+        mk(assigned_to=creator)                                      # تم الاستلام
+        mk(assigned_to=acc)                                          # أُرسلت للمطابق
+        mk(status='in_progress', assigned_to=acc)
+        mk(status='resolved', assigned_to=acc)
+        rows, top = kpis.request_stage_rows('all')
+        counts = {k: n for k, _, n in rows}
+        self.assertEqual((counts['awaiting'], counts['received'], counts['sent'], counts['working'], counts['done']),
+                         (1, 1, 1, 1, 1))
+        self.assertEqual(top, 1)

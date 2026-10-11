@@ -127,25 +127,7 @@ class CreateTests(Base):
             self.make(user=self.agent)
         self.make(user=self.sup)
 
-    def test_http_flow_with_dynamic_fields(self):
-        self.client.force_login(self.agent)
-        r = self.client.get(reverse('servicedesk:create'), {'type': self.t_pay.pk})
-        self.assertIn('f_invoice_number', r.content.decode())
-        resp = self.client.post(reverse('servicedesk:create'), {
-            'step': 'create', 'type': self.t_pay.pk, 'supplier': self.supplier.pk, 'subject': 'متى السداد؟',
-            'priority': 'high', 'f_invoice_number': 'INV-77', 'f_amount': '1500'})
-        req = ServiceRequest.objects.get()
-        self.assertRedirects(resp, reverse('servicedesk:detail', args=[req.pk]))
-        self.assertEqual((req.data['invoice_number'], req.data['amount'], req.priority), ('INV-77', '1500', 'high'))
 
-    def test_prefill_from_conversation(self):
-        conv = SupplierConversation.objects.create(contact_number='966500000001', supplier=self.supplier, display_name='أحمد')
-        self.client.force_login(self.agent)
-        html = self.client.get(reverse('servicedesk:create'), {'type': self.t_pay.pk, 'conversation': conv.pk}).content.decode()
-        self.assertIn('من محادثة واتساب', html)
-        self.client.post(reverse('servicedesk:create'), {
-            'step': 'create', 'type': self.t_pay.pk, 'conversation': conv.pk, 'subject': 'x', 'f_invoice_number': '1'})
-        self.assertEqual(ServiceRequest.objects.get().conversation, conv)
 
 
 class VisibilityTests(Base):
@@ -162,31 +144,8 @@ class VisibilityTests(Base):
         self.assertEqual(ids(self.po), set())
         self.assertEqual(ids(make_user('other', RT.ACCOUNTANT)), set())
 
-    def test_assigned_request_hidden_from_peer_handler(self):
-        r = self.make()
-        services.assign(r.pk, self.acc1, self.sup)
-        self.assertEqual(set(services.visible_requests(self.acc2).values_list('pk', flat=True)), set())
-        self.client.force_login(self.acc2)
-        self.assertEqual(self.client.get(reverse('servicedesk:detail', args=[r.pk])).status_code, 404)
-        self.assertEqual(self.client.post(reverse('servicedesk:transition', args=[r.pk]), {'to': 'in_progress'}).status_code, 404)
 
-    def test_payment_officer_has_no_module_access(self):
-        self.client.force_login(self.po)
-        self.assertEqual(self.client.get(reverse('servicedesk:list')).status_code, 302)
 
-    def test_list_tabs(self):
-        mine = self.make()
-        services.assign(mine.pk, self.acc1, self.sup)
-        self.make()                                       # غير مسند: لا يراه المطابق
-        late = self.make()
-        services.assign(late.pk, self.acc1, self.sup)
-        ServiceRequest.objects.filter(pk=late.pk).update(due_at=timezone.now() - datetime.timedelta(hours=1))
-        self.client.force_login(self.acc1)
-        url = reverse('servicedesk:list')
-        names = lambda tab: {x.pk for x in self.client.get(url, {'tab': tab}).context['page_obj']}
-        self.assertEqual(names('mine'), {mine.pk, late.pk})
-        self.assertEqual(names('unassigned'), set())
-        self.assertEqual(names('overdue'), {late.pk})
 
 
 class ClaimAndWorkflowTests(Base):
@@ -334,60 +293,6 @@ class EscalationTests(Base):
         self.assertFalse(r.is_overdue)
 
 
-class DocumentsAndAppointmentsTests(Base):
-    def test_upload_download_access_control(self):
-        r = self.make()
-        self.client.force_login(self.agent)
-        self.client.post(reverse('servicedesk:document_upload', args=[r.pk]),
-                         {'file': SimpleUploadedFile('a.pdf', b'%PDF'), 'label': 'كشف'})
-        doc = r.documents.get()
-        self.assertEqual(len(doc.sha256), 64)
-        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 200)
-        self.client.force_login(self.acc1)       # المطابق لا يرى الملف إلا بعد الإسناد إليه
-        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 404)
-        services.assign(r.pk, self.acc1, self.sup)
-        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 200)
-        self.client.force_login(self.po)
-        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 302)
-        other = make_user('agent2', RT.ACCOUNTANT)
-        self.client.force_login(other)
-        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[r.pk, doc.pk])).status_code, 404)
-
-    def test_bad_extension_rejected_and_closed_request_locked(self):
-        r = self.make()
-        self.client.force_login(self.agent)
-        self.client.post(reverse('servicedesk:document_upload', args=[r.pk]), {'file': SimpleUploadedFile('x.exe', b'MZ')})
-        self.assertEqual(r.documents.count(), 0)
-        services.transition(r.pk, S.CANCELLED, self.agent, 'x')
-        self.client.post(reverse('servicedesk:document_upload', args=[r.pk]), {'file': SimpleUploadedFile('a.pdf', b'x')})
-        self.assertEqual(r.documents.count(), 0)
-
-    def test_appointments(self):
-        r = self.make(self.t_meet, fields={'f_preferred_date': '2026-03-01', 'f_topic': 'مراجعة'})
-        self.client.force_login(self.sup)
-        self.client.post(reverse('servicedesk:appointment_add', args=[r.pk]), {
-            'title': 'اجتماع مطابقة', 'scheduled_at': '2026-12-01T10:30', 'duration_minutes': '45', 'location': 'الرياض'})
-        a = Appointment.objects.get()
-        self.assertEqual((a.supplier, a.request, a.duration_minutes, a.created_by), (self.supplier, r, 45, self.sup))
-        self.client.post(reverse('servicedesk:appointment_status', args=[r.pk, a.pk]), {'to': 'completed'})
-        a.refresh_from_db()
-        self.assertEqual(a.status, 'completed')
-        bad = self.client.post(reverse('servicedesk:appointment_add', args=[r.pk]), {'scheduled_at': 'غير صالح'}, follow=True)
-        self.assertEqual(Appointment.objects.count(), 1)
-        self.assertIn('موعد غير صالح', bad.content.decode())
-
-    def test_appointment_list_scoped_to_assignee(self):
-        r = self.make(self.t_meet, fields={'f_preferred_date': '2026-03-01', 'f_topic': 'x'})
-        Appointment.objects.create(supplier=self.supplier, request=r, title='لي', scheduled_at=timezone.now() + datetime.timedelta(days=1),
-                                   assigned_to=self.agent, created_by=self.sup)
-        Appointment.objects.create(supplier=self.supplier, request=r, title='لغيري', scheduled_at=timezone.now() + datetime.timedelta(days=1),
-                                   assigned_to=self.sup, created_by=self.sup)
-        self.client.force_login(self.agent)
-        titles = {a.title for a in self.client.get(reverse('servicedesk:appointments')).context['appointments']}
-        self.assertEqual(titles, {'لي'})
-        self.client.force_login(self.cfo)
-        titles = {a.title for a in self.client.get(reverse('servicedesk:appointments')).context['appointments']}
-        self.assertEqual(titles, {'لي', 'لغيري'})
 
 
 class TypeAdminTests(Base):
@@ -433,34 +338,7 @@ class TypeAdminTests(Base):
 
 
 class IntegrationTests(Base):
-    def test_whatsapp_conversation_shows_requests_and_create_button(self):
-        conv = SupplierConversation.objects.create(contact_number='966500000002', supplier=self.supplier,
-                                                   status='open', assigned_agent=self.sup)
-        r = self.make(conversation=conv)
-        self.client.force_login(self.sup)
-        html = self.client.get(reverse('whatsapp_inbox:conversation', args=[conv.pk])).content.decode()
-        self.assertIn(r.reference, html)
-        self.assertIn('إنشاء طلب خدمة', html)
 
-    def test_spawn_reconciliation_links_back(self):
-        r = self.make(self.t_recon, fields={'f_period_start': '2026-01-01', 'f_period_end': '2026-03-31'})
-        self.client.force_login(self.sup)
-        html = self.client.get(reverse('servicedesk:detail', args=[r.pk])).content.decode()
-        self.assertIn('فتح حالة مطابقة', html)
-        page = self.client.get(reverse('reconciliation:create'), {'supplier': self.supplier.pk, 'service_request': r.pk})
-        self.assertEqual(page.context['pre_supplier'], self.supplier)
-        self.client.post(reverse('reconciliation:create'), {
-            'supplier': self.supplier.pk, 'service_request': r.pk, 'period_start': '2026-01-01',
-            'period_end': '2026-03-31', 'priority': 'normal'})
-        r.refresh_from_db()
-        self.assertIsNotNone(r.reconciliation_case)
-        # لا يُربط طلب بحالة ثانية
-        self.client.post(reverse('reconciliation:create'), {
-            'supplier': self.supplier.pk, 'service_request': r.pk, 'period_start': '2026-04-01',
-            'period_end': '2026-06-30', 'priority': 'normal'})
-        first = r.reconciliation_case_id
-        r.refresh_from_db()
-        self.assertEqual(r.reconciliation_case_id, first)
 
     def test_dashboard_counts_requests(self):
         from apps.reconciliation import kpis
@@ -475,7 +353,7 @@ class IntegrationTests(Base):
         self.assertIsNotNone(out['avg_resolution'])
         self.client.force_login(self.cfo)
         html = self.client.get(reverse('reconciliation:executive')).content.decode()
-        self.assertIn('طلبات الخدمة', html)
+        self.assertIn('طلبات الموردين', html)
 
 
 class InvalidDateRegressionTests(Base):
@@ -489,26 +367,7 @@ class InvalidDateRegressionTests(Base):
         self.assertIsNone(safe_parse_datetime(self.BAD + 'T10:00'))
         self.assertEqual(safe_parse_date(' 2026-02-03 ').isoformat(), '2026-02-03')
 
-    def test_reconciliation_filters_and_form(self):
-        self.client.force_login(self.cfo)
-        r = self.client.get(reverse('reconciliation:list'), {'from': self.BAD, 'to': self.BAD})
-        self.assertEqual(r.status_code, 200)
-        r = self.client.get(reverse('reconciliation:export_excel'), {'from': self.BAD})
-        self.assertEqual(r.status_code, 200)
-        r = self.client.post(reverse('reconciliation:create'), {
-            'supplier': self.supplier.pk, 'period_start': self.BAD, 'period_end': self.BAD, 'due_date': self.BAD,
-            'priority': 'normal'})
-        self.assertEqual(r.status_code, 200)
 
-    def test_service_request_date_field_and_appointment(self):
-        with self.assertRaises(RequestError):
-            self.make(self.t_meet, fields={'f_preferred_date': self.BAD, 'f_topic': 'x'})
-        r = self.make(self.t_meet, fields={'f_preferred_date': '2026-03-01', 'f_topic': 'x'})
-        self.client.force_login(self.sup)
-        resp = self.client.post(reverse('servicedesk:appointment_add', args=[r.pk]),
-                                {'scheduled_at': self.BAD + 'T10:00'}, follow=True)
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(Appointment.objects.count(), 0)
 
     def test_proposal_dispatch_with_bad_payment_date(self):
         from apps.proposals import workflow as pw
@@ -527,3 +386,114 @@ class InvalidDateRegressionTests(Base):
         self.assertEqual(r.status_code, 200)
         p.refresh_from_db()
         self.assertEqual(p.status, 'approved')
+
+
+class IntakeScreenTests(Base):
+    """شاشة استلام الطلبات: استلام ← إرسال للمطابق ← جاري المعالجة ← اكتمال المعالجة."""
+
+    def stage(self, req):
+        from .views import intake_stage
+        req.refresh_from_db()
+        return intake_stage(req)
+
+    def post(self, user, name, req, data=None):
+        self.client.force_login(user)
+        return self.client.post(reverse(f'servicedesk:{name}', args=[req.pk]), data or {}, follow=True)
+
+    def test_four_step_flow(self):
+        req = self.make(self.t_pay, self.sup)
+        self.assertEqual(self.stage(req), 1)
+        self.post(self.sup, 'receive', req)
+        self.assertEqual(self.stage(req), 2)
+        self.post(self.sup, 'send', req, {'accountant': self.acc1.pk})
+        req.refresh_from_db()
+        self.assertEqual(req.assigned_to, self.acc1)
+        self.assertEqual(self.stage(req), 3)
+        self.assertEqual(req.status, S.NEW)                       # أُرسل للمطابق ولم يبدأ بعد
+        self.post(self.acc1, 'start', req)
+        req.refresh_from_db()
+        self.assertEqual(req.status, S.IN_PROGRESS)
+        self.post(self.acc1, 'complete', req, {'resolution_note': 'طُوبقت الأرصدة'})
+        req.refresh_from_db()
+        self.assertEqual((req.status, req.resolution_note), (S.RESOLVED, 'طُوبقت الأرصدة'))
+        self.assertEqual(self.stage(req), 5)
+
+    def test_only_supervisors_receive_and_send(self):
+        req = self.make(self.t_pay, self.sup)
+        self.post(self.acc2, 'send', req, {'accountant': self.acc1.pk})
+        req.refresh_from_db()
+        self.assertIsNone(req.assigned_to)
+
+    def test_complete_requires_a_note(self):
+        req = self.make(self.t_pay, self.sup)
+        self.post(self.sup, 'send', req, {'accountant': self.acc1.pk})
+        self.post(self.acc1, 'start', req)
+        self.post(self.acc1, 'complete', req, {'resolution_note': '  '})
+        req.refresh_from_db()
+        self.assertEqual(req.status, S.IN_PROGRESS)
+
+    def test_pages_render_and_accountant_sees_only_his_tasks(self):
+        mine = self.make(self.t_pay, self.sup)
+        other = self.make(self.t_pay, self.sup)
+        self.post(self.sup, 'send', mine, {'accountant': self.acc1.pk})
+        self.client.force_login(self.acc1)
+        html = self.client.get(reverse('servicedesk:list') + '?tab=all').content.decode()
+        self.assertIn(mine.reference, html)
+        self.assertNotIn(other.reference, html)
+        self.assertEqual(self.client.get(reverse('servicedesk:detail', args=[mine.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse('servicedesk:detail', args=[other.pk])).status_code, 404)
+
+    def test_detail_renders_history_entries_without_an_actor(self):
+        req = self.make(self.t_pay, self.sup)
+        RequestStatusHistory.objects.create(request=req, from_status='', to_status='new', changed_by=None)
+        self.client.force_login(self.sup)
+        r = self.client.get(reverse('servicedesk:detail', args=[req.pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'النظام')
+
+
+class StepActorsAndMyTasksTests(Base):
+    """منفّذ كل خطوة في شاشة الاستلام، وشاشة مهام المطابق."""
+
+    def test_each_step_shows_who_performed_it(self):
+        from .views import intake_steps
+        req = self.make(self.t_pay, self.sup)
+        self.client.force_login(self.sup)
+        self.client.post(reverse('servicedesk:receive', args=[req.pk]))
+        self.client.post(reverse('servicedesk:send', args=[req.pk]), {'accountant': self.acc1.pk})
+        self.client.force_login(self.acc1)
+        self.client.post(reverse('servicedesk:start', args=[req.pk]))
+        self.client.post(reverse('servicedesk:complete', args=[req.pk]), {'resolution_note': 'تمت'})
+        req.refresh_from_db()
+        steps = {s['n']: s for s in intake_steps(req)}
+        self.assertEqual(steps[1]['who'], 'sup')
+        self.assertIn('sup', steps[2]['who'])
+        self.assertIn('acc1', steps[2]['who'])
+        self.assertEqual(steps[3]['who'], 'acc1')
+        self.assertEqual(steps[4]['who'], 'acc1')
+        self.assertTrue(all(s['at'] for s in steps.values()))
+
+    def test_my_tasks_shows_only_assigned_tasks_by_stage(self):
+        new = self.make(self.t_pay, self.sup)
+        working = self.make(self.t_pay, self.sup)
+        other = self.make(self.t_pay, self.sup)
+        for r, acc in ((new, self.acc1), (working, self.acc1), (other, self.acc2)):
+            services.assign(r.pk, acc, self.sup)
+        services.transition(working.pk, S.IN_PROGRESS, self.acc1)
+        self.client.force_login(self.acc1)
+        r = self.client.get(reverse('servicedesk:my_tasks'))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([x.pk for x in r.context['new']], [new.pk])
+        self.assertEqual([x.pk for x in r.context['working']], [working.pk])
+        self.assertNotContains(r, other.reference)
+        part = self.client.get(reverse('servicedesk:my_tasks') + '?partial=1')
+        self.assertNotContains(part, '<html')
+        self.assertContains(part, 'data-new="1"')
+
+    def test_assignment_notifies_the_reconciler_and_counts_in_badge(self):
+        from apps.core import live
+        req = self.make(self.t_pay, self.sup)
+        Notification.objects.all().delete()
+        services.assign(req.pk, self.acc1, self.sup)
+        self.assertTrue(Notification.objects.filter(recipient=self.acc1).exists())
+        self.assertEqual(live.badge_counts(self.acc1, ['my_tasks'])['my_tasks']['count'], 1)

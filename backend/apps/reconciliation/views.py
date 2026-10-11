@@ -57,55 +57,6 @@ def _back(case, tab=''):
     return redirect(f'/reconciliation/{case.pk}/' + (f'?tab={tab}' if tab else ''))
 
 
-# ── القائمة ──────────────────────────────────────────────────────────────────
-FILTER_KEYS = ('q', 'status', 'priority', 'accountant', 'from', 'to', 'overdue', 'kpi', 'period', 'branch')
-
-
-def _filtered_cases(request):
-    """يطبّق كل مرشحات القائمة (ومنها مؤشر التفاصيل). مشتركة بين العرض والتصدير والطباعة."""
-    qs = services.visible_cases(request.user)
-    g = request.GET
-    f = {k: g.get(k, '').strip() for k in FILTER_KEYS}
-    if f['period'] or f['branch']:
-        qs = kpis.apply_scope(qs, f['period'] or 'all', f['branch'] if f['branch'].isdigit() else None)
-    if f['kpi'] in kpis.KPI_LABELS:
-        qs = kpis.kpi_queryset(f['kpi'], qs)
-    if f['q']:
-        qs = qs.filter(Q(reference__icontains=f['q']) | Q(supplier__name__icontains=f['q'])
-                       | Q(supplier__code__icontains=f['q']))
-    if f['status']:
-        qs = qs.filter(status=f['status'])
-    if f['priority']:
-        qs = qs.filter(priority=f['priority'])
-    if f['accountant'].isdigit():
-        qs = qs.filter(assigned_accountant_id=f['accountant'])
-    if parse_date(f['from']):
-        qs = qs.filter(due_date__gte=f['from'])
-    if parse_date(f['to']):
-        qs = qs.filter(due_date__lte=f['to'])
-    if f['overdue']:
-        qs = qs.filter(due_date__lt=timezone.localdate()).exclude(status__in=Case.TERMINAL)
-    return qs.order_by('-created_at', '-pk'), f
-
-
-@login_required
-@view_required
-def case_list(request):
-    qs, f = _filtered_cases(request)
-    page = Paginator(qs, 20).get_page(request.GET.get('page'))
-    is_accountant = get_role_type(request.user) == 'accountant'
-    return render(request, 'pages/reconciliation/list.html', {
-        'page_title': 'مهامي' if is_accountant else 'ملفات المطابقة',
-        'page_obj': page, 'f': f, 'statuses': Case.Status.choices, 'priorities': Case.Priority.choices,
-        'accountants': [] if is_accountant else services.accountants(),
-        'can_create': has_role(request.user, *CREATOR_ROLES),
-        'can_distribute': has_role(request.user, *SUPERVISOR_ROLES),
-        'qs_extra': '&'.join(f'{k}={v}' for k, v in f.items() if v),
-        'kpi_label': kpis.KPI_LABELS.get(f['kpi']),
-    })
-
-
-EXPORT_LIMIT = 5000
 
 
 def _xl(value):
@@ -113,53 +64,6 @@ def _xl(value):
     if isinstance(value, str) and value[:1] in ('=', '+', '-', '@', '\t', '\r'):
         return "'" + value
     return value
-
-
-@login_required
-@view_required
-def case_export_excel(request):
-    from apps.core.excel_export import ModernExcelBuilder
-    qs, f = _filtered_cases(request)
-    cases = list(qs.select_related('supplier', 'assigned_accountant', 'result')[:EXPORT_LIMIT])
-    today = timezone.localdate()
-    rows = []
-    for i, c in enumerate(cases, 1):
-        res = getattr(c, 'result', None)
-        rows.append([
-            i, c.reference, _xl(c.supplier.name), f'{c.period_start:%Y/%m/%d} - {c.period_end:%Y/%m/%d}',
-            c.get_status_display(), c.get_priority_display(),
-            _xl(c.assigned_accountant.get_username()) if c.assigned_accountant else '-',
-            f'{c.due_date:%Y/%m/%d}' if c.due_date else '-',
-            'نعم' if c.is_overdue else 'لا',
-            float(res.supplier_balance) if res else None, float(res.company_balance) if res else None,
-            float(res.difference) if res else None,
-        ])
-    meta = [('عدد الحالات', len(cases))]
-    if f['kpi'] in kpis.KPI_LABELS:
-        meta.append(('المؤشر', kpis.KPI_LABELS[f['kpi']]))
-    if len(cases) == EXPORT_LIMIT:
-        meta.append(('تنبيه', f'اقتُصر التصدير على أول {EXPORT_LIMIT} حالة'))
-    builder = ModernExcelBuilder('تقرير حالات المطابقة', sheet_name='الحالات')
-    start = builder.write_report_header(12, meta)
-    builder.write_table(start, ['#', 'الرقم', 'المورد', 'الفترة', 'الحالة', 'الأولوية', 'المحاسب', 'الاستحقاق',
-                                'متأخرة', 'رصيد المورد', 'رصيد الشركة', 'الفرق'], rows,
-                        col_widths=[6, 18, 30, 24, 18, 12, 16, 14, 10, 16, 16, 16])
-    log_action(AuditLog.Action.EXPORT, entity_type='reconciliation.ReconciliationCase',
-               entity_repr='تصدير حالات المطابقة (Excel)', new={'rows': len(cases), 'filters': {k: v for k, v in f.items() if v}})
-    return builder.to_response('reconciliation_cases')
-
-
-@login_required
-@view_required
-def case_print(request):
-    """صفحة مهيأة للطباعة: احفظها PDF من المتصفح (Ctrl+P)."""
-    qs, f = _filtered_cases(request)
-    cases = list(qs.select_related('supplier', 'assigned_accountant', 'result')[:EXPORT_LIMIT])
-    log_action(AuditLog.Action.EXPORT, entity_type='reconciliation.ReconciliationCase',
-               entity_repr='تصدير حالات المطابقة (PDF)', new={'rows': len(cases)})
-    return render(request, 'pages/reconciliation/print_cases.html', {
-        'cases': cases, 'f': f, 'kpi_label': kpis.KPI_LABELS.get(f['kpi']), 'now': timezone.localtime(),
-    })
 
 
 # ── الإنشاء ──────────────────────────────────────────────────────────────────
@@ -439,42 +343,3 @@ def difference_delete(request, pk, diff_pk):
     return _back(case, 'differences')
 
 
-# ── لوحة التوزيع (المشرف) ────────────────────────────────────────────────────
-@login_required
-@role_required(*SUPERVISOR_ROLES)
-def distribution(request):
-    ready = list(Case.objects.filter(status=S.READY_FOR_DISTRIBUTION)
-                 .select_related('supplier').order_by('due_date', '-created_at'))
-    loads = services.accountant_loads()
-    suggestion = None
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        ids = [int(i) for i in request.POST.getlist('case_ids') if i.isdigit()]
-        try:
-            if action == 'assign':
-                accountant = next((u for u in loads if str(u.pk) == request.POST.get('accountant')), None)
-                if not ids or accountant is None:
-                    raise TransitionError('اختر حالات ومحاسبًا')
-                n = services.assign_cases([(i, accountant) for i in ids], request.user,
-                                          request.POST.get('note', ''))
-                messages.success(request, f'تم إسناد {n} حالة إلى {accountant.get_username()}')
-                return redirect('reconciliation:distribution')
-            if action == 'suggest':
-                chosen = [c for c in ready if c.pk in ids] or ready
-                if not loads:
-                    raise TransitionError('لا يوجد محاسبون فعّالون. أنشئ مستخدمين بدور "محاسب"')
-                suggestion = services.suggest_distribution(chosen, loads)
-            elif action == 'apply':
-                users = {str(u.pk): u for u in loads}
-                pairs = [(int(k[7:]), users[v]) for k, v in request.POST.items()
-                         if k.startswith('assign_') and k[7:].isdigit() and v in users]
-                n = services.assign_cases(pairs, request.user, 'توزيع متوازن مقترح')
-                messages.success(request, f'تم اعتماد التوزيع: {n} حالة')
-                return redirect('reconciliation:distribution')
-        except TransitionError as exc:
-            messages.error(request, str(exc))
-    max_open = max([u.open_count for u in loads] + [1])
-    return render(request, 'pages/reconciliation/distribution.html', {
-        'page_title': 'إسناد الملفات', 'ready': ready, 'loads': loads, 'max_open': max_open,
-        'suggestion': suggestion,
-    })

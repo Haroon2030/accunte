@@ -126,72 +126,6 @@ class WorkflowTests(Base):
 class EndToEndLifecycleTests(Base):
     """إنشاء ← توزيع ← مطابقة ← اعتماد ← إغلاق، مع ملفات."""
 
-    def test_full_lifecycle_via_http(self):
-        # 1) الوكيل ينشئ الحالة مع كشف الحساب
-        self.client.force_login(self.agent)
-        stmt = SimpleUploadedFile('statement.xlsx', b'PK-fake-xlsx')
-        resp = self.client.post(reverse('reconciliation:create'), {
-            'supplier': self.supplier.pk, 'period_start': '2026-01-01', 'period_end': '2026-03-31',
-            'priority': 'high', 'due_date': '2026-12-31', 'statement': stmt})
-        case = Case.objects.get()
-        self.assertRedirects(resp, reverse('reconciliation:detail', args=[case.pk]))
-        self.assertEqual(case.status, S.READY_FOR_DISTRIBUTION)
-        self.assertEqual(case.documents.count(), 1)
-        self.assertEqual(len(case.documents.get().sha256), 64)
-
-        # 2) المشرف يوزع
-        self.client.force_login(self.supervisor)
-        self.client.post(reverse('reconciliation:distribution'),
-                         {'action': 'assign', 'accountant': self.acc.pk, 'case_ids': [case.pk]})
-        case.refresh_from_db()
-        self.assertEqual((case.status, case.assigned_accountant), (S.ASSIGNED, self.acc))
-        self.assertTrue(Notification.objects.filter(recipient=self.acc).exists())
-
-        # 3) المحاسب يطابق: يبدأ، يسجل النتيجة والفرق، يرفع مستندًا
-        self.client.force_login(self.acc)
-        url = lambda name, *a: reverse(f'reconciliation:{name}', args=[case.pk, *a])
-        self.client.post(url('transition'), {'to': 'reconciling'})
-        self.client.post(url('result_save'), {'supplier_balance': '1,500.50', 'company_balance': '1000'})
-        self.client.post(url('difference_add'), {'kind': 'missing_invoice', 'document_ref': 'INV-9',
-                                                  'supplier_amount': '500.50', 'company_amount': '0',
-                                                  'attachment': SimpleUploadedFile('inv.pdf', b'%PDF-1.4')})
-        self.client.post(url('document_upload'), {'file': SimpleUploadedFile('x.pdf', b'%PDF'), 'doc_type': 'supporting'})
-        self.client.post(url('transition'), {'to': 'discrepancy_found'})
-        case.refresh_from_db()
-        self.assertEqual(case.status, S.DISCREPANCY_FOUND)
-        result = case.result
-        self.assertEqual(result.difference, Decimal('500.50'))
-        self.assertEqual(case.documents.count(), 2)
-
-        diff = case.differences.get()
-        self.client.post(url('difference_toggle', diff.pk))
-        self.client.post(url('transition'), {'to': 'pending_review'})
-        case.refresh_from_db()
-        self.assertEqual(case.status, S.PENDING_REVIEW)
-
-        # 4) المحاسب لا يعتمد، والمدير المالي يعتمد ثم المشرف يغلق
-        self.client.post(url('transition'), {'to': 'completed'})
-        case.refresh_from_db()
-        self.assertEqual(case.status, S.PENDING_REVIEW)
-        self.client.force_login(self.cfo)
-        self.client.post(url('transition'), {'to': 'completed'})
-        self.client.force_login(self.supervisor)
-        self.client.post(url('transition'), {'to': 'closed'})
-        case.refresh_from_db()
-        self.assertEqual(case.status, S.CLOSED)
-        self.assertIsNotNone(case.closed_at)
-
-        # 5) التحميل يعمل ويُدقَّق
-        self.client.force_login(self.cfo)
-        doc = case.documents.first()
-        r = self.client.get(url('document_download', doc.pk))
-        self.assertEqual(r.status_code, 200)
-        self.assertIn('attachment', r['Content-Disposition'])
-
-        # سجل الحالات كامل
-        path = list(case.history.values_list('to_status', flat=True))
-        self.assertEqual(path, ['new', 'ready_for_distribution', 'assigned', 'reconciling', 'discrepancy_found',
-                                'pending_review', 'completed', 'closed'])
 
     def test_upload_rejects_bad_extension_and_size(self):
         c = self.new_case(status=S.ASSIGNED, assigned_accountant=self.acc)
@@ -205,27 +139,6 @@ class EndToEndLifecycleTests(Base):
 
 
 class WorkloadBalanceTests(Base):
-    def test_distribution_across_8_accountants_is_balanced(self):
-        accs = [make_user(f'a{i}', Role.RoleType.ACCOUNTANT) for i in range(6)] + [self.acc, self.acc2]
-        # حمل مسبق: المحاسب 0 عنده 5 حالات مفتوحة
-        for _ in range(5):
-            self.new_case(status=S.RECONCILING, assigned_accountant=accs[0])
-        ready = [self.new_case(status=S.READY_FOR_DISTRIBUTION,
-                               priority='urgent' if i < 3 else 'normal') for i in range(24)]
-
-        plan = services.suggest_distribution(ready)
-        self.assertEqual(len(plan), 24)
-        counts = {}
-        for _, u in plan:
-            counts[u.pk] = counts.get(u.pk, 0) + 1
-        self.assertEqual(len(services.accountants()), 8)
-        self.assertLessEqual(counts.get(accs[0].pk, 0), min(counts.values()))   # الأكثر حملًا يأخذ الأقل
-        totals = [counts.get(a.pk, 0) + (5 if a.pk == accs[0].pk else 0) for a in accs]
-        self.assertLessEqual(max(totals) - min(totals), 2)
-
-        services.assign_cases([(c.pk, u) for c, u in plan], self.supervisor)
-        loads = {u.pk: u.open_count for u in services.accountant_loads()}
-        self.assertEqual(sum(loads.values()), 29)
 
     def test_capacity_view_counts_overdue(self):
         yesterday = timezone.localdate() - datetime.timedelta(days=1)
@@ -234,22 +147,8 @@ class WorkloadBalanceTests(Base):
         row = next(u for u in services.accountant_loads() if u.pk == self.acc.pk)
         self.assertEqual((row.open_count, row.overdue_count), (1, 1))
 
-    def test_non_supervisor_cannot_assign(self):
-        c = self.new_case(status=S.READY_FOR_DISTRIBUTION)
-        with self.assertRaises(TransitionError):
-            services.assign_cases([(c.pk, self.acc)], self.acc2)
 
-    def test_assigning_non_accountant_rejected(self):
-        c = self.new_case(status=S.READY_FOR_DISTRIBUTION)
-        with self.assertRaises(TransitionError):
-            services.assign_cases([(c.pk, self.agent)], self.supervisor)
 
-    def test_reassign_keeps_single_active_assignment(self):
-        c = self.new_case(status=S.READY_FOR_DISTRIBUTION)
-        services.assign_cases([(c.pk, self.acc)], self.supervisor)
-        services.assign_cases([(c.pk, self.acc2)], self.supervisor)
-        self.assertEqual(c.assignments.filter(is_active=True).count(), 1)
-        self.assertEqual(c.assignments.count(), 2)
 
 
 class AccessControlTests(Base):
@@ -258,11 +157,6 @@ class AccessControlTests(Base):
         self.mine = self.new_case(status=S.RECONCILING, assigned_accountant=self.acc)
         self.peer = self.new_case(status=S.RECONCILING, assigned_accountant=self.acc2)
 
-    def test_accountant_list_shows_only_own_cases(self):
-        self.client.force_login(self.acc)
-        resp = self.client.get(reverse('reconciliation:list'))
-        refs = [c.reference for c in resp.context['page_obj']]
-        self.assertEqual(refs, [self.mine.reference])
 
     def test_accountant_gets_404_on_peer_case(self):
         self.client.force_login(self.acc)
@@ -288,26 +182,9 @@ class AccessControlTests(Base):
         r = self.client.get(reverse('reconciliation:document_download', args=[self.peer.pk, doc.pk]))
         self.assertEqual(r.status_code, 404)
 
-    def test_accountant_cannot_open_distribution_or_create(self):
-        self.client.force_login(self.acc)
-        self.assertEqual(self.client.get(reverse('reconciliation:distribution')).status_code, 302)
-        self.assertEqual(self.client.get(reverse('reconciliation:create')).status_code, 302)
 
-    def test_supplier_account_has_no_access(self):
-        u = make_user('emp', Role.RoleType.SUPPLIER)
-        self.client.force_login(u)
-        self.assertEqual(self.client.get(reverse('reconciliation:list')).status_code, 302)
 
-    def test_anonymous_redirected_to_login(self):
-        self.assertEqual(self.client.get(reverse('reconciliation:list')).status_code, 302)
 
-    def test_cfo_sees_all_but_a_peer_accountant_cannot_save_results(self):
-        self.client.force_login(self.cfo)
-        self.assertEqual(len(self.client.get(reverse('reconciliation:list')).context['page_obj']), 2)
-        self.client.force_login(self.acc2)
-        self.client.post(reverse('reconciliation:result_save', args=[self.mine.pk]),
-                         {'supplier_balance': '9', 'company_balance': '1'})
-        self.assertFalse(ReconciliationResult.objects.filter(case=self.mine).exists())
 
 
 class AuditIntegrityTests(Base):

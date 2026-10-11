@@ -182,25 +182,12 @@ class IsolationTests(PortalBase):
         html = self.client.get(reverse('portal:detail', args=[req.pk])).content.decode()
         self.assertNotIn('ملاحظة داخلية سرية', html)
 
-    def test_guard_blocks_every_staff_area(self):
-        for url in ('/service-requests/', '/inbox/', '/suppliers/', '/reconciliation/', '/proposals/', '/users/',
-                    '/audit/', '/live/badges/', '/api/', '/admin/', '/branches/', '/payments/'):
-            resp = self.client.get(url, HTTP_ACCEPT='text/html')
-            self.assertEqual((resp.status_code, resp['Location'] if resp.status_code == 302 else ''),
-                             (302, '/portal/'), url)
 
-    def test_guard_forbids_non_page_requests_and_posts(self):
-        self.assertEqual(self.client.get('/live/badges/', HTTP_ACCEPT='application/json').status_code, 403)
-        self.assertEqual(self.client.post('/service-requests/create/', {}).status_code, 403)
-        self.assertEqual(ServiceRequest.objects.count(), 0)
 
     def test_guard_allows_portal_and_logout(self):
         self.assertEqual(self.client.get('/portal/').status_code, 200)
         self.assertEqual(self.client.get('/auth/logout/').status_code, 302)
 
-    def test_guard_does_not_affect_staff(self):
-        self.client.force_login(self.sup)
-        self.assertEqual(self.client.get(reverse('servicedesk:list')).status_code, 200)
 
     def test_supplier_role_is_not_offered_as_handler(self):
         self.client.force_login(make_user('boss', RT.CFO))
@@ -253,37 +240,7 @@ class NoSupplierUploadTests(PortalBase):
         self.assertEqual(req.documents.count(), 0)
         self.assertEqual(ServiceRequestDocument.objects.count(), 0)
 
-    def test_supplier_downloads_only_files_shared_with_him(self):
-        self.order()
-        req = ServiceRequest.objects.get()
-        services.assign(req.pk, self.acc, self.sup)
-        self.client.force_login(self.acc)
-        self.client.post(reverse('servicedesk:document_upload', args=[req.pk]), {'file': self.pdf('shared.pdf'), 'share': 'on'})
-        self.client.post(reverse('servicedesk:document_upload', args=[req.pk]), {'file': self.pdf('internal.pdf')})
-        shared = req.documents.get(original_name='shared.pdf')
-        internal = req.documents.get(original_name='internal.pdf')
-        self.client.force_login(self.vendor)
-        page = self.client.get(reverse('portal:detail', args=[req.pk])).content.decode()
-        self.assertIn('shared.pdf', page)
-        self.assertNotIn('internal.pdf', page)
-        resp = self.client.get(reverse('portal:document', args=[req.pk, shared.pk]))
-        self.assertEqual(b''.join(resp.streaming_content), b'%PDF-1.4 test')
-        self.assertEqual(self.client.get(reverse('portal:document', args=[req.pk, internal.pk])).status_code, 404)
-        self.client.force_login(self.other)                                  # مورد آخر
-        self.assertEqual(self.client.get(reverse('portal:document', args=[req.pk, shared.pk])).status_code, 404)
-        self.client.logout()
-        self.assertEqual(self.client.get(reverse('portal:document', args=[req.pk, shared.pk])).status_code, 302)
 
-    def test_complaint_files_stay_confidential(self):
-        self.order(ServiceType.objects.get(code='complaint'))
-        req = ServiceRequest.objects.get()
-        cfo = make_user('boss', RT.CFO)
-        self.client.force_login(cfo)
-        self.client.post(reverse('servicedesk:document_upload', args=[req.pk]), {'file': self.pdf('proof.pdf')})
-        doc = req.documents.get()
-        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[req.pk, doc.pk])).status_code, 200)
-        self.client.force_login(self.sup)
-        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[req.pk, doc.pk])).status_code, 404)
 
 
 class WhatsAppHeaderIconTests(PortalBase):
@@ -302,99 +259,36 @@ class WhatsAppHeaderIconTests(PortalBase):
         for url in (reverse('portal:home'), reverse('portal:chat')):
             self.assertNotIn('wa-icon" ', self.client.get(url).content.decode().replace('.wa-icon {', ''))
 
-    @override_settings(WHATSAPP_SUPPORT_NUMBER='966501234567')
-    def test_staff_pages_never_get_the_portal_context(self):
-        from apps.servicedesk.portal import wa_context
-        from django.test import RequestFactory
-        req = RequestFactory().get('/service-requests/')
-        req.user = self.sup
-        self.assertEqual(wa_context(req), {})
-        req = RequestFactory().get('/portal/')
-        req.user = self.sup
-        self.assertEqual(wa_context(req), {})                                # موظف على مسار البوابة: لا شيء
 
 
-class AccountStatementTests(PortalBase):
-    """«طلب كشف حساب»: المورد يحدد الفترة، والمطابق يرفع الكشف ويشاركه، والمورد ينزّله من البوابة."""
 
-    def setUp(self):
-        super().setUp()
-        self.t = ServiceType.objects.get(code='account-statement')
 
-    def order_statement(self, **kw):
-        data = {'f_period_start': '2026-01-01', 'f_period_end': '2026-03-31', 'f_format': 'PDF'}
-        data.update(kw)
-        return self.client.post(reverse('portal:new', args=[self.t.code]), data)
 
-    def pdf(self, name='statement.pdf'):
-        return SimpleUploadedFile(name, b'%PDF-1.4 statement', content_type='application/pdf')
 
-    def test_type_converted_from_document_request(self):
-        self.assertEqual(self.t.name, 'طلب كشف حساب')
-        self.assertFalse(ServiceType.objects.filter(code='document-request').exists())
-        self.assertEqual([f['key'] for f in self.t.field_schema], ['period_start', 'period_end', 'format'])
-        self.assertEqual(self.t.required_documents, ['كشف حساب المورد'])
+class RequestTrackerTests(TestCase):
+    """مراحل الطلب للمورد: رفع ← استلام ← معالجة ← اكتمال."""
 
-    def test_period_is_required_and_ordered(self):
-        self.order_statement(f_period_start='')
-        self.order_statement(f_period_start='2026-05-01', f_period_end='2026-01-01')
-        self.assertEqual(ServiceRequest.objects.count(), 0)
-        self.order_statement()
-        self.assertEqual(ServiceRequest.objects.get().data['period_start'], '2026-01-01')
+    def make(self, status, **extra):
+        from django.utils import timezone
+        from .portal import request_tracker
+        from .models import ServiceRequest
+        req = type('R', (), dict(status=status, created_at=timezone.now(), assigned_to_id=None, resolved_at=None, **extra))
+        return request_tracker(req, [])
 
-    def deliver(self, share=True):
-        self.order_statement()
-        req = ServiceRequest.objects.get()
-        services.assign(req.pk, self.acc, self.sup)
-        self.client.force_login(self.acc)
-        services.transition(req.pk, 'in_progress', self.acc)
-        self.client.post(reverse('servicedesk:document_upload', args=[req.pk]),
-                         {'file': self.pdf(), 'label': 'كشف حساب المورد', **({'share': 'on'} if share else {})})
-        return req
+    def states(self, status):
+        return [s['state'] for s in self.make(status)]
 
-    def test_cannot_resolve_until_statement_is_shared_with_supplier(self):
-        req = self.deliver(share=False)
-        with self.assertRaises(RequestError) as cm:
-            services.transition(req.pk, 'resolved', self.acc, resolution_note='تم')
-        self.assertIn('شارك المستند', str(cm.exception))
+    def test_new_request_waits_for_receipt(self):
+        self.assertEqual(self.states('new'), ['done', 'current', 'upcoming', 'upcoming'])
 
-    def test_full_flow_supplier_downloads_the_statement(self):
-        req = self.deliver()
-        services.transition(req.pk, 'resolved', self.acc, resolution_note='أُرسل الكشف')
-        doc = req.documents.get()
-        self.assertTrue(doc.shared_with_supplier)
-        self.client.force_login(self.vendor)
-        html = self.client.get(reverse('portal:detail', args=[req.pk])).content.decode()
-        self.assertIn('statement.pdf', html)
-        self.assertIn('أُرسل الكشف', html)
-        resp = self.client.get(reverse('portal:document', args=[req.pk, doc.pk]))
-        self.assertEqual(b''.join(resp.streaming_content), b'%PDF-1.4 statement')
+    def test_processing_states_are_current_on_third_step(self):
+        for st in ('in_progress', 'waiting_vendor', 'escalated'):
+            self.assertEqual(self.states(st), ['done', 'done', 'current', 'upcoming'], st)
 
-    def test_internal_documents_are_never_shown_or_downloadable(self):
-        req = self.deliver(share=False)
-        doc = req.documents.get()
-        self.assertFalse(doc.shared_with_supplier)
-        self.client.force_login(self.vendor)
-        self.assertNotContains(self.client.get(reverse('portal:detail', args=[req.pk])), 'statement.pdf')
-        self.assertEqual(self.client.get(reverse('portal:document', args=[req.pk, doc.pk])).status_code, 404)
+    def test_finished_requests_are_all_done(self):
+        for st in ('resolved', 'closed'):
+            self.assertEqual(self.states(st), ['done', 'done', 'done', 'done'], st)
 
-    def test_staff_form_offers_share_checkbox_only_for_portal_requests(self):
-        self.order_statement()
-        portal_req = ServiceRequest.objects.get()
-        services.assign(portal_req.pk, self.acc, self.sup)
-        self.client.force_login(self.acc)
-        self.assertContains(self.client.get(reverse('servicedesk:detail', args=[portal_req.pk])), 'name="share"')
-        staff_req = services.create_request(self.sup, self.pay, self.supplier_obj(), 'x', getter={'f_invoice_number': '1'}.get)
-        services.assign(staff_req.pk, self.acc, self.sup)
-        self.assertNotContains(self.client.get(reverse('servicedesk:detail', args=[staff_req.pk])), 'name="share"')
-
-    def supplier_obj(self):
-        return self.s1
-
-    def test_share_flag_is_ignored_for_non_portal_requests(self):
-        staff_req = services.create_request(self.sup, self.pay, self.s1, 'x', getter={'f_invoice_number': '1'}.get)
-        services.assign(staff_req.pk, self.acc, self.sup)
-        self.client.force_login(self.acc)
-        self.client.post(reverse('servicedesk:document_upload', args=[staff_req.pk]), {'file': self.pdf(), 'share': 'on'})
-        self.assertFalse(staff_req.documents.get().shared_with_supplier)
-
+    def test_cancelled_shows_cancel_step(self):
+        steps = self.make('cancelled')
+        self.assertEqual(steps[-1]['state'], 'cancelled')

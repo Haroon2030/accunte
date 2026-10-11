@@ -17,8 +17,8 @@ RT = Role.RoleType
 EXPECTED_PATH = {
     RT.ADMIN: '/reconciliation/executive/',
     RT.CFO: '/reconciliation/executive/',
-    RT.ACCOUNTANT: '/reconciliation/',
-    RT.CS_SUPERVISOR: '/inbox/',
+    RT.ACCOUNTANT: '/service-requests/my-tasks/',
+    RT.CS_SUPERVISOR: '/service-requests/',
     RT.SUPPLIER: '/portal/',
 }
 
@@ -66,7 +66,7 @@ class HomeRedirectTests(TestCase):
         resp = self.client.get('/reconciliation/executive/', follow=True)     # المحاسب ممنوع منها
         self.assertEqual(resp.status_code, 200)
         self.assertLessEqual(len(resp.redirect_chain), 2)
-        self.assertEqual(resp.redirect_chain[-1][0], '/reconciliation/')
+        self.assertEqual(resp.redirect_chain[-1][0], '/service-requests/my-tasks/')
 
     def test_anonymous_goes_to_login(self):
         resp = self.client.get('/')

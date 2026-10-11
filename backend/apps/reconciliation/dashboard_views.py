@@ -25,6 +25,7 @@ def _context(request):
     data = kpis.build(services.visible_cases(request.user), period, branch_id)
     data['loads'] = services.accountant_loads()
     data['load_max'] = max([u.open_count for u in data['loads']] + [1])
+    data['request_rows'], data['request_rows_max'] = kpis.request_stage_rows(period)
     data.update({
         'period': period, 'branch_id': branch_id,
         'period_label': {'30': 'آخر 30 يومًا', '90': 'آخر 90 يومًا', '365': 'آخر سنة', 'all': 'كل الفترات'}[period],

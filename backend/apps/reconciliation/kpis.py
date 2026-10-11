@@ -99,6 +99,30 @@ def service_request_kpis(period=DEFAULT_PERIOD):
     }
 
 
+def request_stage_rows(period=DEFAULT_PERIOD):
+    """توزيع طلبات الموردين على مراحل الاستلام: [(مفتاح، تسمية، عدد)] وأكبر قيمة. للفترة المختارة."""
+    from apps.core.models import Role
+    from apps.servicedesk.models import ServiceRequest as SR
+    St = SR.Status
+    qs = SR.objects.all()
+    days = PERIODS.get(period if period in PERIODS else DEFAULT_PERIOD)
+    if days:
+        qs = qs.filter(created_at__gte=timezone.now() - datetime.timedelta(days=days))
+    new = qs.filter(status=St.NEW)
+    sent = new.filter(assigned_to__profile__role__role_type=Role.RoleType.ACCOUNTANT)
+    rows = [
+        ('awaiting', 'بانتظار الاستلام', new.filter(assigned_to__isnull=True).count()),
+        ('received', 'تم الاستلام (لم تُرسل)', new.filter(assigned_to__isnull=False).exclude(pk__in=sent.values('pk')).count()),
+        ('sent', 'أُرسلت للمطابق', sent.count()),
+        ('working', 'جاري المعالجة', qs.filter(status=St.IN_PROGRESS).count()),
+        ('waiting', 'بانتظار ردّ المورد', qs.filter(status=St.WAITING_VENDOR).count()),
+        ('escalated', 'مصعَّدة', qs.filter(status=St.ESCALATED).count()),
+        ('done', 'مكتملة', qs.filter(status__in=(St.RESOLVED, St.CLOSED)).count()),
+        ('cancelled', 'ملغاة', qs.filter(status=St.CANCELLED).count()),
+    ]
+    return rows, max([r[2] for r in rows] + [1])
+
+
 def build(base_qs, period=DEFAULT_PERIOD, branch_id=None):
     """يبني كل أرقام اللوحة. base_qs هو visible_cases للمستخدم."""
     scoped = apply_scope(base_qs, period, branch_id)

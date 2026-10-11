@@ -23,7 +23,7 @@
                 </div>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{% url 'reconciliation:list' %}" class="btn btn-secondary btn-sm"><i data-lucide="arrow-right"></i> القائمة</a>
+                <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-sm"><i data-lucide="arrow-right"></i> الرئيسية</a>
                 <a href="{% url 'reconciliation:track' case.pk %}" class="btn btn-soft btn-sm"><i data-lucide="route"></i> تتبّع المسار</a>
                 {% if can_propose %}<a href="{% url 'proposals:create' %}?case={{ case.pk }}" class="btn btn-success btn-sm"><i data-lucide="file-plus"></i> إنشاء أمر دفع</a>{% endif %}
                 {% for p in proposals %}<a href="{% url 'proposals:detail' p.pk %}" class="btn btn-soft btn-sm">{{ p.reference }} · {{ p.get_status_display }}</a>{% endfor %}
