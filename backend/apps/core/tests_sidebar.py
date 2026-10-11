@@ -76,10 +76,10 @@ class VisibilityByRoleTests(TestCase):
         req.user = make_user('acc', RT.ACCOUNTANT)
         labels = {i['key']: i['label'] for i in sidebar.leaves(sidebar.build(req))}
         self.assertEqual(labels['requests'], 'مهامي')
-        self.assertEqual(labels['cases'], 'حالات المطابقة')
+        self.assertEqual(labels['cases'], 'ملفات المطابقة')
         req.user = make_user('cfo', RT.CFO)
         labels = {i['key']: i['label'] for i in sidebar.leaves(sidebar.build(req))}
-        self.assertEqual((labels['requests'], labels['cases']), ('طلبات الخدمة', 'حالات المطابقة'))
+        self.assertEqual((labels['requests'], labels['cases']), ('طلبات الموردين', 'ملفات المطابقة'))
 
 
 class ActiveItemTests(TestCase):

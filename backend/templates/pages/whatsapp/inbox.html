@@ -19,7 +19,9 @@
 <script>
 (function () {
     'use strict';
-    var box = document.getElementById('inbox-list'), sig = box.dataset.sig, failures = 0, timer = null;
+    var box = document.getElementById('inbox-list');
+    box.addEventListener('click', function (e) { var r = e.target.closest('.inbox-row'); if (r && !e.target.closest('a')) location.href = r.dataset.href; });
+    var sig = box.dataset.sig, failures = 0, timer = null;
     function poll() {
         var qs = new URLSearchParams(location.search); qs.set('sig', sig);
         fetch(box.dataset.liveUrl + '?' + qs.toString(), { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })

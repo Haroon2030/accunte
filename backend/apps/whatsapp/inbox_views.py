@@ -11,7 +11,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -137,8 +137,9 @@ def _inbox_ctx(request):
     if request.GET.get('late'):
         limit = SLAConfiguration.current().first_response_minutes
         qs = qs.filter(awaiting_reply_since__lt=timezone.now() - datetime.timedelta(minutes=limit)).exclude(status=S.CLOSED)
+    qs = qs.annotate(msg_count=Count('messages'))
     page = Paginator(qs.order_by('-awaiting_reply_since', '-last_message_at', '-id') if tab != 'closed'
-                     else qs.order_by('-closed_at', '-id'), 25).get_page(request.GET.get('page'))
+                     else qs.order_by('-closed_at', '-id'), 50).get_page(request.GET.get('page'))
     ctx = {
         'page_title': 'صندوق واتساب', 'tab': tab, 'tabs': TABS, 'counts': _tab_counts(request.user),
         'page_obj': page, 'q': q, 'late': request.GET.get('late', ''),
@@ -151,7 +152,7 @@ def _inbox_ctx(request):
 
 def _inbox_signature(ctx):
     """بصمة ما يظهر في القائمة: تتغير فقط عند تغيّر محادثة أو عدّاد، أو كل دقيقة (لتحديث «منذ ...» و«بلا رد»)."""
-    rows = [(c.pk, c.status, c.unread_count, c.assigned_agent_id,
+    rows = [(c.pk, c.status, c.unread_count, c.msg_count, c.assigned_agent_id,
              int(c.last_message_at.timestamp()) if c.last_message_at else 0, c.is_unanswered_overdue)
             for c in ctx['page_obj']]
     raw = repr((rows, sorted(ctx['counts'].items()), ctx['page_obj'].number, int(timezone.now().timestamp() // 60)))

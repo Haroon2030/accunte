@@ -22,7 +22,7 @@ from apps.branches.models import Branch
 from apps.core.access import get_role_type, has_role, role_required
 from apps.suppliers.models import Supplier
 
-from . import kpis, services, workflow
+from . import kpis, services, tracking, workflow
 from .models import (ReconciliationCase as Case, ReconciliationDifference, ReconciliationDocument,
                      ReconciliationResult)
 from .workflow import (CREATOR_ROLES, SUPERVISOR_ROLES, TransitionError, VIEW_ROLES, allowed_transitions,
@@ -95,7 +95,7 @@ def case_list(request):
     page = Paginator(qs, 20).get_page(request.GET.get('page'))
     is_accountant = get_role_type(request.user) == 'accountant'
     return render(request, 'pages/reconciliation/list.html', {
-        'page_title': 'مهامي' if is_accountant else 'حالات المطابقة',
+        'page_title': 'مهامي' if is_accountant else 'ملفات المطابقة',
         'page_obj': page, 'f': f, 'statuses': Case.Status.choices, 'priorities': Case.Priority.choices,
         'accountants': [] if is_accountant else services.accountants(),
         'can_create': has_role(request.user, *CREATOR_ROLES),
@@ -264,14 +264,36 @@ def case_detail(request, pk):
 
 @login_required
 @view_required
+def case_track(request, pk):
+    """صفحة تتبّع المسار: المراحل، ومن تقف عنده الحالة، والسجل الزمني."""
+    case = _get_case(request, pk)
+    allowed = allowed_transitions(request.user, case)
+    return render(request, 'pages/reconciliation/track.html', {
+        'page_title': f'تتبّع {case.reference}', 'case': case, 'track': tracking.build(case),
+        'can_approve': case.status == S.PENDING_REVIEW and S.COMPLETED in allowed,
+        'can_return': case.status == S.PENDING_REVIEW and S.RECONCILING in allowed,
+        'can_close': case.status == S.COMPLETED and S.CLOSED in allowed,
+        'can_approve_close': case.status == S.PENDING_REVIEW and S.COMPLETED in allowed
+                             and has_role(request.user, *SUPERVISOR_ROLES),
+    })
+
+
+@login_required
+@view_required
 @require_POST
 def case_transition(request, pk):
     case = _get_case(request, pk)
     try:
         workflow.transition(case.pk, request.POST.get('to', ''), request.user, request.POST.get('reason', ''))
-        messages.success(request, 'تم تحديث حالة المطابقة')
+        if request.POST.get('then_close') and request.POST.get('to') == S.COMPLETED:
+            workflow.transition(case.pk, S.CLOSED, request.user, 'اعتماد وإغلاق')   # الصلاحية تُفحص كالمعتاد
+            messages.success(request, 'تم اعتماد المطابقة وإغلاق الملف')
+        else:
+            messages.success(request, 'تم تحديث حالة المطابقة')
     except TransitionError as exc:
         messages.error(request, str(exc))
+    if request.POST.get('next') == 'track':
+        return redirect('reconciliation:track', pk=case.pk)
     return _back(case)
 
 
@@ -453,6 +475,6 @@ def distribution(request):
             messages.error(request, str(exc))
     max_open = max([u.open_count for u in loads] + [1])
     return render(request, 'pages/reconciliation/distribution.html', {
-        'page_title': 'توزيع الملفات', 'ready': ready, 'loads': loads, 'max_open': max_open,
+        'page_title': 'إسناد الملفات', 'ready': ready, 'loads': loads, 'max_open': max_open,
         'suggestion': suggestion,
     })

@@ -142,6 +142,7 @@ reconciliation_patterns = [
     path('executive/print/', dashboard_views.executive_print, name='executive_print'),
     path('distribution/', recon_views.distribution, name='distribution'),
     path('<int:pk>/', recon_views.case_detail, name='detail'),
+    path('<int:pk>/track/', recon_views.case_track, name='track'),
     path('<int:pk>/transition/', recon_views.case_transition, name='transition'),
     path('<int:pk>/documents/upload/', recon_views.document_upload, name='document_upload'),
     path('<int:pk>/documents/<int:doc_pk>/download/', recon_views.document_download, name='document_download'),

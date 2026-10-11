@@ -1,3 +1,9 @@
+<button type="button" class="sb-collapse" @click="toggleSidebar()"
+        :title="sidebarOpen ? 'طي القائمة الجانبية' : 'توسيع القائمة الجانبية'"
+        :aria-label="sidebarOpen ? 'طي القائمة الجانبية' : 'توسيع القائمة الجانبية'" :aria-expanded="sidebarOpen">
+    <i data-lucide="chevron-right" x-show="sidebarOpen"></i>
+    <i data-lucide="chevron-left" x-show="!sidebarOpen" x-cloak></i>
+</button>
 <div class="sb-brand">
     <div class="sb-brand-mark"><i data-lucide="landmark"></i></div>
     <div class="sb-brand-text min-w-0">
@@ -9,7 +15,6 @@
 <nav class="sb-nav" aria-label="القائمة الرئيسية">
     {% for section in sidebar_sections %}
     <div class="sb-section">
-        {% if section.title %}<p class="sb-section-title">{{ section.title }}</p>{% endif %}
         <ul class="sb-list">
             {% for entry in section.entries %}
             {% if entry.group %}

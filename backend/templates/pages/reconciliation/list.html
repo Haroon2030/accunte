@@ -19,49 +19,42 @@
         </div>
     </div>
 
-    <form method="get" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
-        <div class="lg:col-span-2">
-            <label class="block text-xs text-slate-500 mb-1">بحث (الرقم / المورد)</label>
-            <input name="q" value="{{ f.q }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
-        </div>
-        <div>
-            <label class="block text-xs text-slate-500 mb-1">الحالة</label>
-            <select name="status" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+    <form method="get" class="filter-bar">
+        <label class="fb-search"><i data-lucide="search"></i>
+            <input name="q" value="{{ f.q }}" placeholder="بحث بالرقم أو المورد">
+        </label>
+        <label class="fb-field"><span>الحالة</span>
+            <select name="status">
                 <option value="">الكل</option>
                 {% for v, l in statuses %}<option value="{{ v }}" {% if f.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
             </select>
-        </div>
-        <div>
-            <label class="block text-xs text-slate-500 mb-1">الأولوية</label>
-            <select name="priority" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+        </label>
+        <label class="fb-field"><span>الأولوية</span>
+            <select name="priority">
                 <option value="">الكل</option>
                 {% for v, l in priorities %}<option value="{{ v }}" {% if f.priority == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
             </select>
-        </div>
+        </label>
         {% if accountants %}
-        <div>
-            <label class="block text-xs text-slate-500 mb-1">المحاسب</label>
-            <select name="accountant" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+        <label class="fb-field"><span>المحاسب</span>
+            <select name="accountant">
                 <option value="">الكل</option>
                 {% for a in accountants %}<option value="{{ a.pk }}" {% if f.accountant == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.get_full_name|default:a.username }}</option>{% endfor %}
             </select>
-        </div>
+        </label>
         {% endif %}
-        <div>
-            <label class="block text-xs text-slate-500 mb-1">الاستحقاق من</label>
-            <input type="date" name="from" value="{{ f.from }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
-        </div>
-        <div>
-            <label class="block text-xs text-slate-500 mb-1">إلى</label>
-            <input type="date" name="to" value="{{ f.to }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
-        </div>
+        <label class="fb-field"><span>الاستحقاق</span>
+            <input type="date" name="from" value="{{ f.from }}" title="من">
+            <em>إلى</em>
+            <input type="date" name="to" value="{{ f.to }}" title="إلى">
+        </label>
         {% if f.kpi %}<input type="hidden" name="kpi" value="{{ f.kpi }}">{% endif %}
         {% if f.period %}<input type="hidden" name="period" value="{{ f.period }}">{% endif %}
         {% if f.branch %}<input type="hidden" name="branch" value="{{ f.branch }}">{% endif %}
-        <div class="lg:col-span-6 flex flex-wrap items-center gap-3">
-            <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="overdue" value="1" {% if f.overdue %}checked{% endif %}> المتأخرة فقط</label>
-            <button type="submit" class="btn btn-primary"><i data-lucide="filter"></i> تصفية</button>
-            <a href="{% url 'reconciliation:list' %}" class="btn btn-secondary">مسح</a>
+        <label class="fb-check"><input type="checkbox" name="overdue" value="1" {% if f.overdue %}checked{% endif %}> المتأخرة فقط</label>
+        <div class="fb-actions">
+            <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="filter"></i> تصفية</button>
+            <a href="{% url 'reconciliation:list' %}" class="btn btn-secondary btn-sm" title="مسح التصفية"><i data-lucide="x"></i> مسح</a>
         </div>
     </form>
 
@@ -76,6 +69,7 @@
                     <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الأولوية</th>
                     <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">المحاسب</th>
                     <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">الاستحقاق</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 whitespace-nowrap">التتبّع</th>
                 </tr></thead>
                 <tbody>
                 {% for c in page_obj %}
@@ -89,9 +83,10 @@
                         <td class="px-3 py-2 text-xs whitespace-nowrap {% if c.is_overdue %}text-red-700 font-bold{% endif %}">
                             {{ c.due_date|date:"Y-m-d"|default:"—" }}{% if c.is_overdue %} · متأخرة{% endif %}
                         </td>
+                        <td class="px-3 py-2"><a href="{% url 'reconciliation:track' c.pk %}" class="btn btn-soft btn-sm" title="تتبّع مسار الحالة"><i data-lucide="route"></i> تتبّع</a></td>
                     </tr>
                 {% empty %}
-                    <tr class="data-table-empty"><td colspan="7">
+                    <tr class="data-table-empty"><td colspan="8">
                         <div class="flex flex-col items-center py-4"><i data-lucide="clipboard-check" class="w-10 h-10 text-slate-300 mb-2"></i><p class="text-slate-500 text-sm">لا توجد حالات</p></div>
                     </td></tr>
                 {% endfor %}

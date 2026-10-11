@@ -7,30 +7,40 @@
 <div class="space-y-5" x-data="{ tab: '{{ tab }}', toStatus: '', reasonOpen: false }">
 
     <!-- الرأس -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-wrap items-start justify-between gap-4">
-        <div>
-            <div class="flex items-center gap-3 flex-wrap">
-                <h2 class="text-lg font-bold text-slate-800">{{ case.supplier.name }}</h2>
-                {% include "pages/reconciliation/_status_badge.html" with status=case.status label=case.get_status_display %}
-                {% if case.is_overdue %}<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">متأخرة</span>{% endif %}
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-5 flex flex-wrap items-start justify-between gap-4">
+            <div class="min-w-0">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <h2 class="text-xl font-extrabold text-slate-800">{{ case.supplier.name }}</h2>
+                    {% include "pages/reconciliation/_status_badge.html" with status=case.status label=case.get_status_display %}
+                    {% if case.is_overdue %}<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">متأخرة</span>{% endif %}
+                </div>
+                <div class="case-chips">
+                    <span><i data-lucide="calendar-range"></i> {{ case.period_start|date:"Y-m-d" }} ← {{ case.period_end|date:"Y-m-d" }}</span>
+                    <span class="{% if case.priority == 'urgent' %}is-red{% elif case.priority == 'high' %}is-orange{% endif %}"><i data-lucide="flag"></i> أولوية {{ case.get_priority_display }}</span>
+                    <span class="{% if case.is_overdue %}is-red{% endif %}"><i data-lucide="alarm-clock"></i> الاستحقاق {{ case.due_date|date:"Y-m-d"|default:"—" }}</span>
+                    <span><i data-lucide="user-round"></i> {% if case.assigned_accountant %}{{ case.assigned_accountant.get_full_name|default:case.assigned_accountant.username }}{% else %}غير مسندة{% endif %}</span>
+                </div>
             </div>
-            <p class="text-sm text-slate-500 mt-1">
-                الفترة {{ case.period_start|date:"Y-m-d" }} → {{ case.period_end|date:"Y-m-d" }}
-                · الأولوية {{ case.get_priority_display }}
-                · الاستحقاق {{ case.due_date|date:"Y-m-d"|default:"—" }}
-            </p>
+            <div class="flex flex-wrap gap-2">
+                <a href="{% url 'reconciliation:list' %}" class="btn btn-secondary btn-sm"><i data-lucide="arrow-right"></i> القائمة</a>
+                <a href="{% url 'reconciliation:track' case.pk %}" class="btn btn-soft btn-sm"><i data-lucide="route"></i> تتبّع المسار</a>
+                {% if can_propose %}<a href="{% url 'proposals:create' %}?case={{ case.pk }}" class="btn btn-success btn-sm"><i data-lucide="file-plus"></i> إنشاء أمر دفع</a>{% endif %}
+                {% for p in proposals %}<a href="{% url 'proposals:detail' p.pk %}" class="btn btn-soft btn-sm">{{ p.reference }} · {{ p.get_status_display }}</a>{% endfor %}
+            </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-            <a href="{% url 'reconciliation:list' %}" class="btn btn-secondary btn-sm"><i data-lucide="arrow-right"></i> القائمة</a>
-            {% if can_propose %}<a href="{% url 'proposals:create' %}?case={{ case.pk }}" class="btn btn-success btn-sm"><i data-lucide="file-plus"></i> إنشاء مقترح دفع</a>{% endif %}
-            {% for p in proposals %}<a href="{% url 'proposals:detail' p.pk %}" class="btn btn-soft btn-sm">{{ p.reference }} · {{ p.get_status_display }}</a>{% endfor %}
-            {% for value, label in transitions %}
+        {% if transitions %}
+        <div class="case-actions">
+            <span class="case-actions-label"><i data-lucide="arrow-left-right"></i> نقل الحالة إلى</span>
+            {% for value, label in transitions %}{% if value != 'cancelled' %}
             <button type="button" @click="toStatus='{{ value }}'; reasonOpen=true"
-                class="btn btn-sm {% if value == 'cancelled' %}btn-danger{% elif value == 'completed' %}btn-success{% elif value == 'reconciling' and case.status == 'pending_review' %}btn-warning{% else %}btn-primary{% endif %}">
-                {{ label }}
-            </button>
-            {% endfor %}
+                class="btn btn-sm {% if value == 'completed' %}btn-success{% elif value == 'reconciling' and case.status == 'pending_review' %}btn-warning{% else %}btn-primary{% endif %}">{{ label }}</button>
+            {% endif %}{% endfor %}
+            {% for value, label in transitions %}{% if value == 'cancelled' %}
+            <button type="button" @click="toStatus='cancelled'; reasonOpen=true" class="btn btn-sm btn-secondary case-cancel"><i data-lucide="ban"></i> إلغاء الحالة</button>
+            {% endif %}{% endfor %}
         </div>
+        {% endif %}
     </div>
 
     <!-- نافذة تأكيد الانتقال -->
@@ -52,24 +62,25 @@
     </div>
 
     <!-- التبويبات -->
-    <div class="flex flex-wrap gap-1 border-b border-slate-200">
-        <button type="button" @click="tab='info'" :class="tab==='info' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">المعلومات</button>
-        <button type="button" @click="tab='documents'" :class="tab==='documents' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">المستندات ({{ documents|length }})</button>
-        <button type="button" @click="tab='result'" :class="tab==='result' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">نتيجة المطابقة</button>
-        <button type="button" @click="tab='differences'" :class="tab==='differences' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">الفروقات ({{ diffs|length }})</button>
-        <button type="button" @click="tab='history'" :class="tab==='history' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2">السجل</button>
+    <div class="seg-tabs">
+        <button type="button" @click="tab='info'" :class="tab==='info' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2"><i data-lucide="info"></i> المعلومات </button>
+        <button type="button" @click="tab='documents'" :class="tab==='documents' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2"><i data-lucide="paperclip"></i> المستندات {% if documents|length %}<span class="rounded-full">{{ documents|length }}</span>{% endif %}</button>
+        <button type="button" @click="tab='result'" :class="tab==='result' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2"><i data-lucide="scale"></i> نتيجة المطابقة </button>
+        <button type="button" @click="tab='differences'" :class="tab==='differences' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2"><i data-lucide="alert-triangle"></i> الفروقات {% if diffs|length %}<span class="rounded-full">{{ diffs|length }}</span>{% endif %}</button>
+        <button type="button" @click="tab='history'" :class="tab==='history' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500'" class="px-4 py-2 text-sm font-semibold border-b-2"><i data-lucide="history"></i> السجل </button>
     </div>
 
     <!-- المعلومات -->
     <div x-show="tab==='info'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-            <div><dt class="text-xs text-slate-500">المورد</dt><dd><a class="text-primary-700 hover:underline" href="{% url 'suppliers:detail' case.supplier.pk %}">{{ case.supplier.name }}</a> <span class="font-mono text-xs text-slate-500">({{ case.supplier.code }})</span></dd></div>
-            <div><dt class="text-xs text-slate-500">المحاسب المسؤول</dt><dd>{% if case.assigned_accountant %}{{ case.assigned_accountant.get_full_name|default:case.assigned_accountant.username }}{% else %}— غير مسندة{% endif %}</dd></div>
-            <div><dt class="text-xs text-slate-500">أنشأها</dt><dd>{{ case.created_by.username }} · {{ case.created_at|date:"Y-m-d H:i" }}</dd></div>
-            <div class="sm:col-span-2 lg:col-span-3"><dt class="text-xs text-slate-500">الفروع</dt>
-                <dd>{% for b in case.branches.all %}<span class="inline-block px-2 py-0.5 bg-slate-100 rounded text-xs ml-1">{{ b.name }}</span>{% empty %}—{% endfor %}</dd></div>
-            <div class="sm:col-span-2 lg:col-span-3"><dt class="text-xs text-slate-500">ملاحظات</dt><dd class="whitespace-pre-line">{{ case.notes|default:"—" }}</dd></div>
-        </dl>
+        <div class="kv-grid">
+            <div class="kv"><span class="kv-ico"><i data-lucide="briefcase"></i></span><div><dt>المورد</dt><dd><a href="{% url 'suppliers:detail' case.supplier.pk %}">{{ case.supplier.name }}</a> <small>({{ case.supplier.code }})</small></dd></div></div>
+            <div class="kv"><span class="kv-ico"><i data-lucide="user-round"></i></span><div><dt>المحاسب المسؤول</dt><dd>{% if case.assigned_accountant %}{{ case.assigned_accountant.get_full_name|default:case.assigned_accountant.username }}{% else %}غير مسندة{% endif %}</dd></div></div>
+            <div class="kv"><span class="kv-ico"><i data-lucide="file-plus"></i></span><div><dt>أنشأها</dt><dd>{{ case.created_by.get_full_name|default:case.created_by.username }} <small>{{ case.created_at|date:"Y-m-d H:i" }}</small></dd></div></div>
+            <div class="kv"><span class="kv-ico"><i data-lucide="calendar-range"></i></span><div><dt>فترة المطابقة</dt><dd class="whitespace-nowrap">{{ case.period_start|date:"Y-m-d" }} ← {{ case.period_end|date:"Y-m-d" }}</dd></div></div>
+            <div class="kv"><span class="kv-ico"><i data-lucide="building-2"></i></span><div><dt>الفروع</dt><dd>{% for b in case.branches.all %}<span class="kv-tag">{{ b.name }}</span>{% empty %}—{% endfor %}</dd></div></div>
+            <div class="kv"><span class="kv-ico"><i data-lucide="refresh-cw"></i></span><div><dt>آخر تحديث</dt><dd class="whitespace-nowrap">{{ case.updated_at|date:"Y-m-d H:i" }}</dd></div></div>
+        </div>
+        <div class="kv-notes"><dt><i data-lucide="sticky-note"></i> ملاحظات</dt><dd class="whitespace-pre-line">{{ case.notes|default:"لا توجد ملاحظات" }}</dd></div>
     </div>
 
     <!-- المستندات -->

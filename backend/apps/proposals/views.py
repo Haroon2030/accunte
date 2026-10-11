@@ -78,7 +78,7 @@ def proposal_list(request):
         qs = qs.filter(status=f['status'])
     page = Paginator(qs, 20).get_page(g.get('page'))
     return render(request, 'pages/proposals/list.html', {
-        'page_title': 'مقترحات الدفع', 'page_obj': page, 'f': f, 'statuses': PaymentProposal.Status.choices,
+        'page_title': 'أوامر الدفع المقترحة', 'page_obj': page, 'f': f, 'statuses': PaymentProposal.Status.choices,
         'can_create': has_role(request.user, *CREATOR_ROLES),
         'qs_extra': '&'.join(f'{k}={v}' for k, v in f.items() if v),
         'threshold': workflow.cfo_threshold(),

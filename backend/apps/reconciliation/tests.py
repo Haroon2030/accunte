@@ -338,3 +338,75 @@ class AuditIntegrityTests(Base):
             workflow.transition(c.pk, S.COMPLETED, self.cfo)
         self.assertFalse(AuditLog.objects.filter(action=AuditLog.Action.STATUS_CHANGE).exists())
         self.assertEqual(StatusHistory.objects.count(), 0)
+
+
+class CaseTrackingTests(TestCase):
+    """صفحة تتبّع المسار: مراحل، من تقف عنده الحالة، وسلسلة الأحداث."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        from apps.core.models import Role, UserProfile
+        from apps.suppliers.models import Supplier
+        User = get_user_model()
+        cls.cfo = User.objects.create_user('trk_cfo', password='x', first_name='مدير')
+        role, _ = Role.objects.get_or_create(role_type=Role.RoleType.CFO, defaults={'name': 'المدير المالي'})
+        UserProfile.objects.update_or_create(user=cls.cfo, defaults={'role': role})
+        cls.acc = User.objects.create_user('trk_acc', password='x', first_name='محاسب')
+        cls.supplier = Supplier.objects.create(name='مورد تتبّع', code='TRK1')
+        cls.case = Case.objects.create(supplier=cls.supplier, period_start=datetime.date(2026, 1, 1), period_end=datetime.date(2026, 1, 31),
+                                       created_by=cls.cfo, status=Case.Status.RECONCILING, assigned_accountant=cls.acc)
+        from .models import StatusHistory, WorkAssignment
+        WorkAssignment.objects.create(case=cls.case, accountant=cls.acc, assigned_by=cls.cfo, note='عاجل')
+        StatusHistory.objects.create(case=cls.case, from_status='new', to_status='ready_for_distribution', changed_by=cls.cfo)
+        StatusHistory.objects.create(case=cls.case, from_status='ready_for_distribution', to_status='assigned', changed_by=cls.cfo)
+        StatusHistory.objects.create(case=cls.case, from_status='assigned', to_status='reconciling', changed_by=cls.acc)
+
+    def test_build_tracks_stage_holder_and_events(self):
+        from . import tracking
+        t = tracking.build(self.case)
+        states = {s['key']: s['state'] for s in t['stages']}
+        self.assertEqual(states['working'], 'current')
+        self.assertEqual(states['intake'], 'done')
+        self.assertEqual(states['assigned'], 'done')
+        self.assertEqual(states['review'], 'upcoming')
+        self.assertIn('محاسب', t['holder']['name'])
+        self.assertEqual(len(t['chain']), 1)
+        titles = ' '.join(e['title'] for e in t['events'])
+        self.assertIn('أُسندت إلى', titles)
+        self.assertTrue(0 < t['progress'] < 100)
+
+    def test_cancelled_case_marks_stage_cancelled(self):
+        from . import tracking
+        from .models import StatusHistory
+        self.case.status = Case.Status.CANCELLED
+        self.case.save()
+        StatusHistory.objects.create(case=self.case, from_status='reconciling', to_status='cancelled',
+                                     changed_by=self.cfo, reason='طلب المورد')
+        t = tracking.build(self.case)
+        self.assertTrue(t['cancelled'])
+        self.assertEqual([s['key'] for s in t['stages'] if s['state'] == 'cancelled'], ['working'])
+        self.assertIsNone(t['holder'])
+
+    def test_page_renders_for_supervisor_only_visible_cases(self):
+        self.client.force_login(self.cfo)
+        r = self.client.get(f'/reconciliation/{self.case.pk}/track/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'عند من الآن')
+        self.assertContains(r, 'مورد تتبّع')
+        other = __import__('django.contrib.auth', fromlist=['get_user_model']).get_user_model().objects.create_user('trk_other', password='x')
+        self.client.force_login(other)
+        self.assertIn(self.client.get(f'/reconciliation/{self.case.pk}/track/').status_code, (302, 403, 404))
+
+    def test_approve_and_close_in_one_step_from_track_page(self):
+        from .models import ReconciliationResult
+        Case.objects.filter(pk=self.case.pk).update(status=Case.Status.PENDING_REVIEW)
+        ReconciliationResult.objects.create(case=self.case, supplier_balance=100, company_balance=100, recorded_by=self.acc)
+        self.client.force_login(self.cfo)
+        page = self.client.get(f'/reconciliation/{self.case.pk}/track/')
+        self.assertContains(page, 'اعتماد وإغلاق')
+        r = self.client.post(f'/reconciliation/{self.case.pk}/transition/',
+                             {'to': 'completed', 'then_close': '1', 'next': 'track'})
+        self.assertRedirects(r, f'/reconciliation/{self.case.pk}/track/', fetch_redirect_response=False)
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.status, Case.Status.CLOSED)

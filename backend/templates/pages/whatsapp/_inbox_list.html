@@ -1,52 +1,71 @@
-<div class="flex flex-wrap gap-1 border-b border-slate-200 mb-3">
+{% comment %}قائمة المحادثات: جدول كثيف (صف لكل محادثة) يتسع لمئات المحادثات يوميًا مع ترقيم صفحات.{% endcomment %}
+<div class="flex flex-wrap gap-1 mb-3">
     {% for key, label in tabs %}
     <a href="?tab={{ key }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if late %}&late=1{% endif %}"
        class="px-3 py-2 text-sm font-semibold border-b-2 {% if tab == key %}border-primary-600 text-primary-700{% else %}border-transparent text-slate-500 hover:text-slate-700{% endif %}">
         {{ label }}
-        {% for k, n in counts.items %}{% if k == key and n %}<span class="mr-1 px-1.5 py-0.5 rounded-full text-[11px] {% if key == 'new' or key == 'escalated' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-600{% endif %}">{{ n }}</span>{% endif %}{% endfor %}
+        {% for k, n in counts.items %}{% if k == key and n %}<span class="mr-1 px-1.5 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600">{{ n }}</span>{% endif %}{% endfor %}
     </a>
     {% endfor %}
 </div>
 
 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-    <ul class="divide-y divide-slate-100">
-        {% for c in page_obj %}
-        <li>
-            <a href="{% url 'whatsapp_inbox:conversation' c.pk %}" class="flex flex-wrap sm:flex-nowrap items-center gap-3 px-4 py-3 hover:bg-slate-50 {% if c.unread_count %}bg-blue-50/40{% endif %}">
-                <span class="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold shrink-0">{% if c.display_name %}{{ c.display_name|slice:":1" }}{% else %}#{% endif %}</span>
-                <span class="flex-1 min-w-0">
-                    <span class="flex flex-wrap items-center gap-2">
-                        <span class="font-semibold text-slate-800 truncate"><bdi>{% if c.display_name %}{{ c.display_name }}{% else %}+{{ c.contact_number }}{% endif %}</bdi></span>
-                        {% if c.supplier %}<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] truncate max-w-[160px]">{{ c.supplier.name }}</span>
-                        {% else %}<span class="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-800 text-[11px]">رقم غير مرتبط بمورد</span>{% endif %}
-                        {% if c.status == 'escalated' %}<span class="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[11px]">مصعَّدة</span>{% endif %}
-                    </span>
-                    {% if c.channel == 'portal' %}<span class="block text-xs text-green-700 mt-0.5">دردشة بوابة الموردين</span>{% else %}<span class="block text-xs text-slate-500 mt-0.5" dir="ltr" style="text-align:right">+{{ c.contact_number }}</span>{% endif %}
-                </span>
-                <span class="text-left shrink-0 space-y-1">
-                    <span class="block text-xs text-slate-500">{{ c.last_message_at|timesince }}</span>
-                    <span class="flex items-center justify-end gap-1.5">
-                        {% if c.is_unanswered_overdue %}<span class="px-1.5 py-0.5 rounded bg-red-600 text-white text-[11px]">بلا رد {{ c.waiting_minutes }} د</span>{% endif %}
-                        {% if c.unread_count %}<span class="min-w-[20px] h-5 px-1 rounded-full bg-green-600 text-white text-[11px] flex items-center justify-center">{{ c.unread_count }}</span>{% endif %}
-                    </span>
-                    <span class="block text-[11px] text-slate-500">{% if c.assigned_agent %}{{ c.assigned_agent.get_full_name|default:c.assigned_agent.username }}{% else %}— غير مسندة{% endif %}</span>
-                </span>
-            </a>
-        </li>
-        {% empty %}
-        <li class="px-4 py-12 text-center text-slate-400 text-sm">
-            <i data-lucide="message-circle" class="w-10 h-10 mx-auto mb-2"></i>لا توجد محادثات
-        </li>
-        {% endfor %}
-    </ul>
+    <div class="data-table-wrap overflow-x-auto">
+        <table class="data-table inbox-table w-full text-sm">
+            <thead><tr>
+                <th>المحادثة</th>
+                <th>المورد</th>
+                <th>الحالة</th>
+                <th class="inbox-num">الرسائل</th>
+                <th>آخر نشاط</th>
+                <th>المسؤول</th>
+            </tr></thead>
+            <tbody>
+            {% for c in page_obj %}
+                <tr class="inbox-row{% if c.unread_count %} is-unread{% endif %}" data-href="{% url 'whatsapp_inbox:conversation' c.pk %}">
+                    <td>
+                        <a href="{% url 'whatsapp_inbox:conversation' c.pk %}" class="inbox-who">
+                            <span class="inbox-avatar">{% if c.display_name %}{{ c.display_name|slice:":1" }}{% else %}#{% endif %}</span>
+                            <span class="min-w-0">
+                                <span class="block font-semibold truncate"><bdi>{% if c.display_name %}{{ c.display_name }}{% else %}+{{ c.contact_number }}{% endif %}</bdi></span>
+                                <span class="block text-[11px] text-slate-500" dir="ltr" style="text-align:right">{% if c.channel == 'portal' %}بوابة الموردين{% else %}+{{ c.contact_number }}{% endif %}</span>
+                            </span>
+                        </a>
+                    </td>
+                    <td>{% if c.supplier %}<span class="truncate">{{ c.supplier.name }}</span>{% else %}<span class="inbox-tag inbox-tag--warn">غير مرتبط بمورد</span>{% endif %}</td>
+                    <td>
+                        {% if c.status == 'escalated' %}<span class="inbox-tag inbox-tag--red">مصعَّدة</span>{% endif %}
+                        {% if c.is_unanswered_overdue %}<span class="inbox-tag inbox-tag--solid">بلا رد {{ c.waiting_minutes }} د</span>{% endif %}
+                        {% if not c.status == 'escalated' and not c.is_unanswered_overdue %}<span class="text-slate-500">{{ c.get_status_display }}</span>{% endif %}
+                    </td>
+                    <td class="inbox-num">
+                        <span class="inbox-count" title="عدد الرسائل">{{ c.msg_count }}</span>
+                        {% if c.unread_count %}<span class="inbox-unread" title="غير مقروءة">{{ c.unread_count }} جديدة</span>{% endif %}
+                    </td>
+                    <td class="text-slate-500">{{ c.last_message_at|timesince }}</td>
+                    <td class="text-slate-500">{% if c.assigned_agent %}{{ c.assigned_agent.get_full_name|default:c.assigned_agent.username }}{% else %}<span class="text-slate-400">غير مسندة</span>{% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr class="data-table-empty"><td colspan="6"><p class="py-10 text-center text-slate-400 text-sm">لا توجد محادثات</p></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 {% if page_obj.paginator.num_pages > 1 %}
-<div class="flex items-center justify-between mt-3">
-    <span class="text-sm text-slate-600">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
-    <div class="flex gap-2">
-        {% if page_obj.has_previous %}<a class="btn btn-secondary btn-sm" href="?tab={{ tab }}&page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}">السابق</a>{% endif %}
-        {% if page_obj.has_next %}<a class="btn btn-secondary btn-sm" href="?tab={{ tab }}&page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}">التالي</a>{% endif %}
-    </div>
+{% with qs="&tab="|add:tab %}
+<div class="flex flex-wrap items-center justify-between gap-2 mt-3">
+    <span class="text-sm text-slate-600">{{ page_obj.start_index }}–{{ page_obj.end_index }} من {{ page_obj.paginator.count }} محادثة</span>
+    <nav class="flex items-center gap-1" aria-label="الصفحات">
+        {% if page_obj.has_previous %}<a class="inbox-page" href="?page={{ page_obj.previous_page_number }}{{ qs }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if late %}&late=1{% endif %}" aria-label="السابق">&rsaquo;</a>{% endif %}
+        {% for n in page_obj.paginator.page_range %}
+            {% if n == page_obj.number %}<span class="inbox-page is-current" aria-current="page">{{ n }}</span>
+            {% elif n == 1 or n == page_obj.paginator.num_pages or n >= page_obj.number|add:"-2" and n <= page_obj.number|add:"2" %}<a class="inbox-page" href="?page={{ n }}{{ qs }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if late %}&late=1{% endif %}">{{ n }}</a>
+            {% elif n == page_obj.number|add:"-3" or n == page_obj.number|add:"3" %}<span class="inbox-gap">…</span>{% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}<a class="inbox-page" href="?page={{ page_obj.next_page_number }}{{ qs }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if late %}&late=1{% endif %}" aria-label="التالي">&lsaquo;</a>{% endif %}
+    </nav>
 </div>
+{% endwith %}
 {% endif %}

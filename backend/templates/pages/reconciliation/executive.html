@@ -4,7 +4,7 @@
 {% block page_title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-4">
 
     <!-- المرشحات والتصدير -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-3 justify-between">
@@ -31,65 +31,65 @@
 
     <!-- المؤشرات الرئيسية: كل بطاقة تفتح الحالات المكوِّنة لها -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <a href="{% url 'reconciliation:list' %}?kpi=all&{{ scope_qs }}" class="kpi-card bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
+        <a href="{% url 'reconciliation:list' %}?kpi=all&{{ scope_qs }}" class="kpi-card bg-white border border-slate-200 rounded-xl p-3 hover:shadow-md transition">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                    <div class="text-xs text-slate-500">الحالات المستلمة</div>
-                    <div class="text-3xl font-bold text-slate-800 mt-1">{{ counts.all }}</div>
+                    <div class="text-xs text-slate-500">الملفات الواردة</div>
+                    <div class="text-2xl font-bold text-slate-800 mt-1">{{ counts.all }}</div>
                 </div>
                 <span class="kpi-ico kpi-ico--blue"><i data-lucide="layers"></i></span>
             </div>
         </a>
-        <a href="{% url 'reconciliation:list' %}?kpi=new&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
+        <a href="{% url 'reconciliation:list' %}?kpi=new&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-3 hover:shadow-md transition">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                    <div class="text-xs text-slate-500">جديدة / قبل الإسناد</div>
-                    <div class="text-3xl font-bold text-indigo-700 mt-1">{{ counts.new }}</div>
+                    <div class="text-xs text-slate-500">جديدة (لم تُسند)</div>
+                    <div class="text-2xl font-bold text-indigo-700 mt-1">{{ counts.new }}</div>
                 </div>
                 <span class="kpi-ico kpi-ico--indigo"><i data-lucide="sparkles"></i></span>
             </div>
         </a>
-        <a href="{% url 'reconciliation:list' %}?kpi=in_progress&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
+        <a href="{% url 'reconciliation:list' %}?kpi=in_progress&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-3 hover:shadow-md transition">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <div class="text-xs text-slate-500">قيد التنفيذ</div>
-                    <div class="text-3xl font-bold text-blue-700 mt-1">{{ counts.in_progress }}</div>
+                    <div class="text-2xl font-bold text-blue-700 mt-1">{{ counts.in_progress }}</div>
                 </div>
                 <span class="kpi-ico kpi-ico--blue"><i data-lucide="loader"></i></span>
             </div>
         </a>
-        <a href="{% url 'reconciliation:list' %}?kpi=completed&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
+        <a href="{% url 'reconciliation:list' %}?kpi=completed&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-3 hover:shadow-md transition">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <div class="text-xs text-slate-500">مكتملة</div>
-                    <div class="text-3xl font-bold text-green-700 mt-1">{{ counts.completed }}</div>
+                    <div class="text-2xl font-bold text-green-700 mt-1">{{ counts.completed }}</div>
                 </div>
                 <span class="kpi-ico kpi-ico--green"><i data-lucide="check-circle"></i></span>
             </div>
         </a>
-        <a href="{% url 'reconciliation:list' %}?kpi=overdue&{{ scope_qs }}" class="border rounded-xl p-4 hover:shadow-md transition {% if counts.overdue %}bg-red-50 border-red-200{% else %}bg-white border-slate-200{% endif %}">
+        <a href="{% url 'reconciliation:list' %}?kpi=overdue&{{ scope_qs }}" class="border rounded-xl p-3 hover:shadow-md transition {% if counts.overdue %}bg-red-50 border-red-200{% else %}bg-white border-slate-200{% endif %}">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <div class="text-xs {% if counts.overdue %}text-red-700{% else %}text-slate-500{% endif %}">متأخرة</div>
-                    <div class="text-3xl font-bold {% if counts.overdue %}text-red-700{% else %}text-slate-800{% endif %} mt-1">{{ counts.overdue }}</div>
+                    <div class="text-2xl font-bold {% if counts.overdue %}text-red-700{% else %}text-slate-800{% endif %} mt-1">{{ counts.overdue }}</div>
                 </div>
                 <span class="kpi-ico kpi-ico--red"><i data-lucide="alarm-clock"></i></span>
             </div>
         </a>
-        <a href="{% url 'reconciliation:list' %}?kpi=waiting_vendor&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
+        <a href="{% url 'reconciliation:list' %}?kpi=waiting_vendor&{{ scope_qs }}" class="bg-white border border-slate-200 rounded-xl p-3 hover:shadow-md transition">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <div class="text-xs text-slate-500">بانتظار رد المورد</div>
-                    <div class="text-3xl font-bold text-yellow-700 mt-1">{{ counts.waiting_vendor }}</div>
+                    <div class="text-2xl font-bold text-yellow-700 mt-1">{{ counts.waiting_vendor }}</div>
                 </div>
                 <span class="kpi-ico kpi-ico--amber"><i data-lucide="hourglass"></i></span>
             </div>
         </a>
-        <a href="{% url 'reconciliation:list' %}?kpi=stale&{{ scope_qs }}" class="border rounded-xl p-4 hover:shadow-md transition {% if counts.stale %}bg-orange-50 border-orange-200{% else %}bg-white border-slate-200{% endif %}">
+        <a href="{% url 'reconciliation:list' %}?kpi=stale&{{ scope_qs }}" class="border rounded-xl p-3 hover:shadow-md transition {% if counts.stale %}bg-orange-50 border-orange-200{% else %}bg-white border-slate-200{% endif %}">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                    <div class="text-xs {% if counts.stale %}text-orange-700{% else %}text-slate-500{% endif %}">راكدة (أكثر من {{ stale_days }} أيام بلا نشاط)</div>
-                    <div class="text-3xl font-bold {% if counts.stale %}text-orange-700{% else %}text-slate-800{% endif %} mt-1">{{ counts.stale }}</div>
+                    <div class="text-xs {% if counts.stale %}text-orange-700{% else %}text-slate-500{% endif %}">متوقفة (أكثر من {{ stale_days }} أيام بلا حركة)</div>
+                    <div class="text-2xl font-bold {% if counts.stale %}text-orange-700{% else %}text-slate-800{% endif %} mt-1">{{ counts.stale }}</div>
                 </div>
                 <span class="kpi-ico kpi-ico--orange"><i data-lucide="snowflake"></i></span>
             </div>
@@ -97,10 +97,10 @@
         <div class="bg-white border border-slate-200 rounded-xl p-4">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                <div class="text-xs text-slate-500">متوسط زمن الحل</div>
+                <div class="text-xs text-slate-500">متوسط مدة التسوية</div>
                 {% if avg_resolution %}
-                <div class="text-3xl font-bold text-slate-800 mt-1">{{ avg_resolution.days }} <span class="text-sm font-medium text-slate-500">يوم</span></div>
-                <div class="text-xs text-slate-400 mt-0.5">من {{ resolved_n }} حالة منتهية</div>
+                <div class="text-2xl font-bold text-slate-800 mt-1">{{ avg_resolution.days }} <span class="text-sm font-medium text-slate-500">يوم</span></div>
+                <div class="text-xs text-slate-400 mt-0.5">من {{ resolved_n }} ملف مسوّى</div>
                 {% else %}
                 <div class="text-lg text-slate-400 mt-2">لا بيانات بعد</div>
                 {% endif %}
@@ -110,15 +110,15 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
 
         <!-- الفروقات -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
-            <h3 class="font-semibold text-slate-700 text-sm">الفروقات</h3>
+            <h3 class="font-semibold text-slate-700 text-sm">فروقات الأرصدة</h3>
             <div class="flex items-end gap-4">
                 <a href="{% url 'reconciliation:list' %}?kpi=discrepancy&{{ scope_qs }}" class="hover:opacity-80">
                     <div class="text-4xl font-bold {% if discrepancy.rate %}text-red-700{% else %}text-green-700{% endif %}">{{ discrepancy.rate }}%</div>
-                    <div class="text-xs text-slate-500">{{ discrepancy.cases }} من {{ discrepancy.worked }} حالة تمت مطابقتها</div>
+                    <div class="text-xs text-slate-500">{{ discrepancy.cases }} من {{ discrepancy.worked }} ملف تمت مطابقته</div>
                 </a>
             </div>
             <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-red-500" style="width: {{ discrepancy.rate|floatformat:0 }}%"></div></div>
@@ -129,7 +129,7 @@
 
         <!-- توزيع الحالات -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-            <h3 class="font-semibold text-slate-700 text-sm mb-3">توزيع الحالات حسب الحالة</h3>
+            <h3 class="font-semibold text-slate-700 text-sm mb-3">توزيع الملفات حسب المرحلة</h3>
             <div class="space-y-2">
                 {% for value, label, n in status_rows %}
                 <a href="{% url 'reconciliation:list' %}?status={{ value }}&{{ scope_qs }}" class="flex items-center gap-3 text-xs hover:opacity-80">
@@ -140,16 +140,32 @@
                 {% endfor %}
             </div>
         </div>
+            <!-- طلبات الخدمة -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-slate-700 text-sm">طلبات الموردين</h3>
+            <a href="{% url 'servicedesk:list' %}?tab=all" class="text-xs text-primary-700 underline">عرض الكل</a>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+            <a href="{% url 'servicedesk:list' %}?tab=all" class="border border-slate-200 rounded-lg p-3 hover:shadow"><div class="text-xs text-slate-500">الواردة</div><div class="text-2xl font-bold">{{ requests.total }}</div></a>
+            <a href="{% url 'servicedesk:list' %}?tab=open" class="border border-slate-200 rounded-lg p-3 hover:shadow"><div class="text-xs text-slate-500">مفتوحة</div><div class="text-2xl font-bold text-blue-700">{{ requests.open }}</div></a>
+            <a href="{% url 'servicedesk:list' %}?tab=overdue" class="border rounded-lg p-3 hover:shadow {% if requests.overdue %}bg-red-50 border-red-200{% else %}border-slate-200{% endif %}"><div class="text-xs {% if requests.overdue %}text-red-700{% else %}text-slate-500{% endif %}">متأخرة</div><div class="text-2xl font-bold {% if requests.overdue %}text-red-700{% endif %}">{{ requests.overdue }}</div></a>
+            <a href="{% url 'servicedesk:list' %}?tab=escalated" class="border border-slate-200 rounded-lg p-3 hover:shadow"><div class="text-xs text-slate-500">مصعَّدة</div><div class="text-2xl font-bold text-orange-600">{{ requests.escalated }}</div></a>
+            <div class="border border-slate-200 rounded-lg p-3"><div class="text-xs text-slate-500">متوسط مدة التسوية</div>
+                <div class="text-2xl font-bold">{% if requests.avg_resolution %}{{ requests.avg_resolution.hours }} <span class="text-sm text-slate-500">ساعة</span>{% else %}—{% endif %}</div></div>
+        </div>
+    </div>
     </div>
 
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
     <!-- أحمال المحاسبين -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="px-4 py-3 border-b border-slate-200 font-semibold text-slate-700 text-sm">الحمل الحالي لكل محاسب</div>
+        <div class="px-4 py-3 border-b border-slate-200 font-semibold text-slate-700 text-sm">أعباء العمل لكل محاسب</div>
         <div class="data-table-wrap overflow-x-auto">
             <table class="data-table w-full text-sm">
                 <thead><tr>
                     <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">المحاسب</th>
-                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 w-1/2">الحالات المفتوحة</th>
+                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 w-1/2">الملفات المفتوحة</th>
                     <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">متأخرة</th>
                     <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600">عاجلة</th>
                 </tr></thead>
@@ -172,7 +188,7 @@
     <!-- مقترحات الدفع -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span class="font-semibold text-slate-700">مقترحات الدفع حسب الحالة</span>
+            <span class="font-semibold text-slate-700">أوامر الدفع حسب المرحلة</span>
             <span class="text-xs text-slate-500">
                 بانتظار القرار: <b>{{ proposals.pending_count }}</b> (<span dir="ltr">{{ proposals.pending_total|floatformat:2 }}</span> ر.س)
                 {% if proposals.stale_count %}· <span class="text-orange-700 font-bold">{{ proposals.stale_count }} متأخر القرار</span>{% endif %}
@@ -203,27 +219,13 @@
         </div>
     </div>
 
-    <!-- طلبات الخدمة -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold text-slate-700 text-sm">طلبات الخدمة</h3>
-            <a href="{% url 'servicedesk:list' %}?tab=all" class="text-xs text-primary-700 underline">عرض الكل</a>
-        </div>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <a href="{% url 'servicedesk:list' %}?tab=all" class="border border-slate-200 rounded-lg p-3 hover:shadow"><div class="text-xs text-slate-500">المستلمة</div><div class="text-2xl font-bold">{{ requests.total }}</div></a>
-            <a href="{% url 'servicedesk:list' %}?tab=open" class="border border-slate-200 rounded-lg p-3 hover:shadow"><div class="text-xs text-slate-500">مفتوحة</div><div class="text-2xl font-bold text-blue-700">{{ requests.open }}</div></a>
-            <a href="{% url 'servicedesk:list' %}?tab=overdue" class="border rounded-lg p-3 hover:shadow {% if requests.overdue %}bg-red-50 border-red-200{% else %}border-slate-200{% endif %}"><div class="text-xs {% if requests.overdue %}text-red-700{% else %}text-slate-500{% endif %}">متأخرة</div><div class="text-2xl font-bold {% if requests.overdue %}text-red-700{% endif %}">{{ requests.overdue }}</div></a>
-            <a href="{% url 'servicedesk:list' %}?tab=escalated" class="border border-slate-200 rounded-lg p-3 hover:shadow"><div class="text-xs text-slate-500">مصعَّدة</div><div class="text-2xl font-bold text-orange-600">{{ requests.escalated }}</div></a>
-            <div class="border border-slate-200 rounded-lg p-3"><div class="text-xs text-slate-500">متوسط زمن الحل</div>
-                <div class="text-2xl font-bold">{% if requests.avg_resolution %}{{ requests.avg_resolution.hours }} <span class="text-sm text-slate-500">ساعة</span>{% else %}—{% endif %}</div></div>
-        </div>
     </div>
 
     <!-- التنبيهات -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div class="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
             <div class="px-4 py-3 border-b border-red-100 bg-red-50 font-semibold text-red-800 text-sm flex justify-between">
-                <span>حالات متأخرة</span><a class="text-xs underline" href="{% url 'reconciliation:list' %}?kpi=overdue&{{ scope_qs }}">عرض الكل ({{ counts.overdue }})</a>
+                <span>ملفات متأخرة</span><a class="text-xs underline" href="{% url 'reconciliation:list' %}?kpi=overdue&{{ scope_qs }}">عرض الكل ({{ counts.overdue }})</a>
             </div>
             <ul class="divide-y divide-slate-100 text-sm">
                 {% for c in overdue_list %}
@@ -231,12 +233,12 @@
                     <a href="{% url 'reconciliation:detail' c.pk %}" class="text-primary-700 hover:underline truncate"><span class="font-mono text-xs">{{ c.reference }}</span> · {{ c.supplier.name }}</a>
                     <span class="text-xs text-red-700 whitespace-nowrap">{{ c.due_date|date:"Y-m-d" }}</span>
                 </li>
-                {% empty %}<li class="px-4 py-4 text-xs text-slate-500">لا توجد حالات متأخرة</li>{% endfor %}
+                {% empty %}<li class="px-4 py-4 text-xs text-slate-500">لا توجد ملفات متأخرة</li>{% endfor %}
             </ul>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden">
             <div class="px-4 py-3 border-b border-orange-100 bg-orange-50 font-semibold text-orange-800 text-sm flex justify-between">
-                <span>حالات راكدة</span><a class="text-xs underline" href="{% url 'reconciliation:list' %}?kpi=stale&{{ scope_qs }}">عرض الكل ({{ counts.stale }})</a>
+                <span>ملفات متوقفة</span><a class="text-xs underline" href="{% url 'reconciliation:list' %}?kpi=stale&{{ scope_qs }}">عرض الكل ({{ counts.stale }})</a>
             </div>
             <ul class="divide-y divide-slate-100 text-sm">
                 {% for c in stale_list %}
@@ -244,7 +246,7 @@
                     <a href="{% url 'reconciliation:detail' c.pk %}" class="text-primary-700 hover:underline truncate"><span class="font-mono text-xs">{{ c.reference }}</span> · {{ c.supplier.name }}</a>
                     <span class="text-xs text-orange-700 whitespace-nowrap">{{ c.get_status_display }}</span>
                 </li>
-                {% empty %}<li class="px-4 py-4 text-xs text-slate-500">لا توجد حالات راكدة</li>{% endfor %}
+                {% empty %}<li class="px-4 py-4 text-xs text-slate-500">لا توجد ملفات متوقفة</li>{% endfor %}
             </ul>
         </div>
     </div>
