@@ -7,8 +7,8 @@
 <div class="sb-brand">
     <div class="sb-brand-mark"><i data-lucide="landmark"></i></div>
     <div class="sb-brand-text min-w-0">
-        <div class="sb-brand-title truncate">نظام المدفوعات</div>
-        <div class="sb-brand-sub truncate">المطابقة وخدمة الموردين</div>
+        <div class="sb-brand-title truncate">نظام مطابقة الموردين</div>
+        <div class="sb-brand-sub truncate">الذمم الدائنة وخدمة الموردين</div>
     </div>
 </div>
 
@@ -47,6 +47,7 @@
         <div class="sb-user-role">{% if user.is_superuser and not user.profile.role %}مدير النظام{% else %}{{ user.profile.role.name|default:"مستخدم" }}{% endif %}</div>
     </div>
     <div class="sb-tools">
+        <a href="{% url 'auth:change_password' %}" class="sb-tool" title="تغيير كلمة المرور" aria-label="تغيير كلمة المرور"><i data-lucide="key-round"></i></a>
         <button type="button" class="sb-tool" data-sound-toggle onclick="liveNav.toggleSound()" aria-label="صوت التنبيه"><i data-lucide="volume-2"></i></button>
         <span class="sb-live-dot" data-live-dot title="متصل: التحديث مباشر"></span>
     </div>

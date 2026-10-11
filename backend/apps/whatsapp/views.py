@@ -98,7 +98,7 @@ def send_test(request):
     if denied:
         return denied
     number = request.POST.get('number', '')
-    text = request.POST.get('text', '').strip() or 'رسالة اختبار من نظام المدفوعات ✅'
+    text = request.POST.get('text', '').strip() or 'رسالة اختبار من نظام مطابقة الموردين ✅'
     try:
         client.send_text(number, text)
     except WhatsAppError as exc:
