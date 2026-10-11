@@ -31,6 +31,10 @@ DATABASES = {
         'OPTIONS': {
             'charset': 'utf8mb4',
         },
+        # اتصالات دائمة: الاستضافة تحدّد عدد الاتصالات الجديدة في الساعة (max_connections_per_hour)،
+        # والصفحات تستعلم تلقائيًا كل بضع ثوانٍ، فبدون هذا يُفتح اتصال جديد لكل طلب وتُستنزف الحصة (خطأ 1226).
+        'CONN_MAX_AGE': config('DB_CONN_MAX_AGE', default=600, cast=int),
+        'CONN_HEALTH_CHECKS': True,
     }
 }
 
