@@ -5,7 +5,13 @@ echo "=== Starting Application ==="
 
 # Wait for database to be ready
 echo "Waiting for database..."
-sleep 5
+# محاولة اتصال واحدة كل 60 ثانية: الاستضافة تحدّد عدد الاتصالات في الساعة (max_connections_per_hour)،
+# والانهيار وإعادة التشغيل السريعة كانت تستنزفها. التطبيق ينتظر بهدوء حتى تعود القاعدة.
+until python manage.py shell -c "from django.db import connection; connection.ensure_connection()" >/dev/null 2>&1; do
+    echo "Database not reachable yet; retrying in 60s..."
+    sleep 60
+done
+echo "Database is reachable."
 
 echo "=== Running migrations ==="
 python manage.py migrate --noinput
