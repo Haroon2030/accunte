@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from django.urls import reverse
 
-from apps.core.access import get_role_type, has_role
+from apps.core.access import get_role_type, has_role, is_full_admin
 from apps.core.models import Role
 
 RT = Role.RoleType
@@ -82,7 +82,7 @@ ADMIN_ONLY = {'users', 'roles'}
 
 def _allowed(user, item):
     if item.key in ADMIN_ONLY:
-        return user.is_superuser or get_role_type(user) == RT.ADMIN
+        return is_full_admin(user)
     if not item.roles:
         return True
     return has_role(user, *item.roles)

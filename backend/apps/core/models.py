@@ -155,7 +155,7 @@ class UserProfile(models.Model):
     @property
     def is_admin(self):
         """هل المستخدم مدير نظام؟"""
-        return self.role and self.role.role_type == Role.RoleType.ADMIN
+        return bool(self.role and self.role.role_type in (Role.RoleType.ADMIN, Role.RoleType.CFO))
     
     @property
     def can_see_all_branches(self):

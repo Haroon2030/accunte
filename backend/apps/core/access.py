@@ -29,6 +29,15 @@ def get_role_type(user):
     return role.role_type if role and role.is_active else None
 
 
+# الأدوار ذات الصلاحيات الكاملة: مدير النظام والمدير المالي (يُعامل كسوبر أدمن)
+FULL_ACCESS_ROLES = (RT.ADMIN, RT.CFO)
+
+
+def is_full_admin(user):
+    """سوبر يوزر أو دور مدير نظام أو مدير مالي: يتجاوز كل فحوص الأدوار وإدارة المستخدمين والصلاحيات."""
+    return user.is_authenticated and (user.is_superuser or get_role_type(user) in FULL_ACCESS_ROLES)
+
+
 def is_portal_supplier(user):
     """حساب مورد (بوابة الموردين): يصل إلى /portal/ فقط."""
     return get_role_type(user) == RT.SUPPLIER and not user.is_superuser
@@ -38,7 +47,7 @@ def has_role(user, *role_types):
     role = get_role_type(user)
     if role is None:
         return False
-    return role == RT.ADMIN or role in role_types
+    return role in FULL_ACCESS_ROLES or role in role_types
 
 
 def role_required(*role_types, message='ليس لديك صلاحية للوصول إلى هذه الصفحة'):

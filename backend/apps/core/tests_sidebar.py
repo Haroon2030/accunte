@@ -38,7 +38,7 @@ WORK_ALL = {'inbox', 'requests', 'cases', 'proposals', 'suppliers', 'statement'}
 
 EXPECTED = {
     RT.ADMIN: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'users', 'roles', 'audit', 'whatsapp_link'},
-    RT.CFO: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'audit', 'whatsapp_link'},
+    RT.CFO: EXECUTIVE | WORK_ALL | {'distribution', 'service_types', 'branches', 'audit', 'whatsapp_link', 'users', 'roles'},
     RT.CS_SUPERVISOR: {'inbox', 'requests', 'cases', 'distribution', 'proposals', 'suppliers', 'whatsapp_link', 'statement'},
     RT.ACCOUNTANT: {'requests', 'cases', 'proposals', 'suppliers', 'statement'},
     RT.SUPPLIER: set(),
@@ -60,8 +60,8 @@ class VisibilityByRoleTests(TestCase):
     def test_user_without_role_sees_nothing(self):
         self.assertEqual(keys_for(make_user('norole')), set())
 
-    def test_users_and_roles_pages_are_admin_only(self):
-        for role in (RT.CFO, RT.CS_SUPERVISOR):
+    def test_users_and_roles_pages_are_for_full_admins_only(self):
+        for role in (RT.CS_SUPERVISOR, RT.ACCOUNTANT):  # المدير المالي سوبر أدمن؛ هؤلاء لا
             self.assertFalse({'users', 'roles'} & keys_for(make_user(f'x_{role}', role)), role)
 
     def test_every_nav_url_resolves_and_keys_are_unique(self):

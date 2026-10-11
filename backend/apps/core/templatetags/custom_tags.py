@@ -23,7 +23,7 @@ def is_admin_user(user):
         return True
     try:
         role = user.profile.role
-        return role is not None and role.role_type == 'admin'
+        return role is not None and role.role_type in ('admin', 'cfo')
     except Exception:
         return False
 

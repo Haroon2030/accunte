@@ -47,9 +47,11 @@ class ConversationLiveTests(LiveBase):
         self.c.unread_count = 2
         self.c.save()
         self.msg('A')
-        self.live(self.cfo)                                # يطّلع فقط ولا يتصرف: لا يقرأها
+        self.live(self.cfo)                                # المدير المالي سوبر أدمن: يتصرف فيقرأها
         self.c.refresh_from_db()
-        self.assertEqual(self.c.unread_count, 2)
+        self.assertEqual(self.c.unread_count, 0)
+        self.c.unread_count = 2
+        self.c.save()
         self.live(self.a1)
         self.c.refresh_from_db()
         self.assertEqual(self.c.unread_count, 0)
@@ -130,8 +132,8 @@ class SendAjaxTests(LiveBase):
 
     def test_viewer_cannot_send(self):
         with mock.patch('apps.whatsapp.client.send_text') as sent:
-            resp = self.post(self.cfo)
-        self.assertEqual(resp.status_code, 400)
+            resp = self.post(self.acc)
+        self.assertIn(resp.status_code, (302, 400, 403))   # المحاسب بلا صلاحية الصندوق: يُردّ قبل الإرسال
         sent.assert_not_called()
         self.assertEqual(M.objects.count(), 0)
 

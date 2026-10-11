@@ -29,7 +29,7 @@ def _admin_users():
             users.append(user)
             continue
         profile = getattr(user, 'profile', None)
-        if profile and profile.role and profile.role.role_type == Role.RoleType.ADMIN:
+        if profile and profile.role and profile.role.role_type in (Role.RoleType.ADMIN, Role.RoleType.CFO):
             users.append(user)
     return users
 

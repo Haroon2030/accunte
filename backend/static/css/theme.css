@@ -355,3 +355,10 @@ main .seg-tabs > .border-b-2 { display: inline-flex; align-items: center; justif
 .fb-check { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; cursor: pointer; }
 .fb-actions { display: inline-flex; gap: 0.4rem; margin-inline-start: auto; }
 @media (max-width: 640px) { .fb-field, .fb-search { flex: 1 1 100%; } .fb-actions { width: 100%; } .fb-actions .btn { flex: 1; } }
+
+/* زر القائمة الجانبية: يظهر فقط في الشاشات الصغيرة (الدرج المنزلق) */
+.hdr-menu-btn { display: none; width: 2.5rem; height: 2.5rem; border-radius: 0.65rem; place-items: center; background: var(--page-bg); border: 1px solid var(--card-line); color: var(--ink); cursor: pointer; flex: none; }
+.hdr-menu-btn:hover { background: var(--brand-soft); color: var(--brand-dark); }
+.hdr-menu-btn svg { width: 1.3rem; height: 1.3rem; stroke-width: 2; }
+@media (max-width: 1023px) { .hdr-menu-btn { display: grid; } }
+@media (max-width: 640px) { .fb-field { flex-wrap: wrap; height: auto; padding-block: 0.3rem; } .fb-field input[type='date'] { flex: 1 1 7rem; width: auto; } }

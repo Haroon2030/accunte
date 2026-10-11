@@ -280,7 +280,7 @@ class ClaimAndConcurrencyTests(Base):
     def test_only_supervisors_assign_and_can_reassign(self):
         c = self.conv(status=S.OPEN, assigned_agent=self.a1)
         with self.assertRaises(ConversationError):
-            services.assign(c.pk, self.a2, self.cfo)
+            services.assign(c.pk, self.a2, self.acc)
         services.assign(c.pk, self.a2, self.sup)
         c.refresh_from_db()
         self.assertEqual(c.assigned_agent, self.a2)
@@ -289,9 +289,9 @@ class ClaimAndConcurrencyTests(Base):
 
     def test_viewer_roles_cannot_act_on_conversations(self):
         c = self.conv(status=S.OPEN, assigned_agent=self.a1)
-        for fn in (lambda: services.set_status(c.pk, self.cfo, S.PENDING),
-                   lambda: services.release(c.pk, self.cfo),
-                   lambda: services.send_reply(c.pk, self.cfo, 'مرحبا')):
+        for fn in (lambda: services.set_status(c.pk, self.acc, S.PENDING),
+                   lambda: services.release(c.pk, self.acc),
+                   lambda: services.send_reply(c.pk, self.acc, 'مرحبا')):
             with self.assertRaises(ConversationError):
                 fn()
 
@@ -374,7 +374,7 @@ class SendTests(Base):
     def test_viewer_cannot_reply_on_unassigned(self):
         c = self.conv(status=S.NEW)
         with self.assertRaises(ConversationError):
-            services.send_reply(c.pk, self.cfo, 'أهلا')
+            services.send_reply(c.pk, self.acc, 'أهلا')
 
     def test_webhook_echo_arriving_before_id_saved_is_merged(self):
         c = self.conv(status=S.OPEN, assigned_agent=self.a1)
@@ -450,10 +450,11 @@ class InboxViewTests(Base):
 
     def test_open_marks_read_only_for_who_can_act(self):
         SupplierConversation.objects.filter(pk=self.mine.pk).update(unread_count=3)
-        self.client.force_login(self.cfo)      # يطّلع ولا يتصرف: لا تُصفَّر
+        self.client.force_login(self.cfo)      # المدير المالي سوبر أدمن: يتصرف فتُصفَّر
         self.client.get(reverse('whatsapp_inbox:conversation', args=[self.mine.pk]))
         self.mine.refresh_from_db()
-        self.assertEqual(self.mine.unread_count, 3)
+        self.assertEqual(self.mine.unread_count, 0)
+        SupplierConversation.objects.filter(pk=self.mine.pk).update(unread_count=3)
         self.client.force_login(self.a1)
         self.client.get(reverse('whatsapp_inbox:conversation', args=[self.mine.pk]))
         self.mine.refresh_from_db()
@@ -483,7 +484,7 @@ class InboxViewTests(Base):
         self.client.force_login(self.a2)
         r = self.client.post(reverse('whatsapp_inbox:claim', args=[self.new.pk]), follow=True)
         self.assertIn('موظف آخر', r.content.decode())              # سبقه زميله
-        self.client.force_login(self.cfo)
+        self.client.force_login(self.acc)      # المحاسب لا يملك صلاحية الصندوق
         r = self.client.post(reverse('whatsapp_inbox:claim', args=[self.new.pk]), follow=True)
         self.assertIn('ليس لديك صلاحية', r.content.decode())
         self.client.post(reverse('whatsapp_inbox:send', args=[self.new.pk]), {'text': 'تسلل'})

@@ -25,7 +25,7 @@ from apps.items.models import Item, ItemBatch
 from apps.space_rentals.models import SpaceRental
 from apps.payments.models import PaymentRequest, PaymentRequestItem
 from apps.core.models import Role, Notification
-from apps.core.access import SUPPLIER_MANAGE_ROLES, get_role_type, role_required
+from apps.core.access import SUPPLIER_MANAGE_ROLES, get_role_type, is_full_admin, role_required
 from apps.audit.models import AuditLog
 from apps.audit.services import log_action, snapshot as audit_snapshot, diff as audit_diff
 from apps.core.excel_export import ModernExcelBuilder
@@ -152,15 +152,8 @@ def admin_required(view_func):
         if not request.user.is_authenticated:
             return redirect('auth:login')
 
-        if request.user.is_superuser:
+        if is_full_admin(request.user):
             return view_func(request, *args, **kwargs)
-
-        try:
-            user_role = request.user.profile.role
-            if user_role and user_role.role_type == Role.RoleType.ADMIN:
-                return view_func(request, *args, **kwargs)
-        except Exception:
-            pass
 
         messages.error(request, 'ليس لديك صلاحية للوصول إلى هذه الصفحة')
         return redirect('dashboard')
@@ -173,15 +166,8 @@ class AdminRequiredMixin:
         if not request.user.is_authenticated:
             return redirect('auth:login')
 
-        if request.user.is_superuser:
+        if is_full_admin(request.user):
             return super().dispatch(request, *args, **kwargs)
-
-        try:
-            user_role = request.user.profile.role
-            if user_role and user_role.role_type == Role.RoleType.ADMIN:
-                return super().dispatch(request, *args, **kwargs)
-        except Exception:
-            pass
 
         messages.error(request, 'ليس لديك صلاحية للوصول إلى هذه الصفحة')
         return redirect('dashboard')

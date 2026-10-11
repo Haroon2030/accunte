@@ -4,6 +4,16 @@
 <h1 class="text-2xl font-extrabold text-slate-800 mb-1">{{ stype.name }}</h1>
 <p class="text-slate-500 mb-6">{{ stype.description }}{% if stype.description %} · {% endif %}نرد عليك خلال {{ stype.sla_hours }} ساعة.</p>
 
+{% if stype.confidential %}
+<div class="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-900">
+    <i data-lucide="shield-check" class="w-5 h-5 mt-0.5 shrink-0"></i>
+    <div class="text-sm leading-relaxed">
+        <b>شكواك تصل مباشرةً إلى {% if stype.destination_role == 'cfo' %}المدير المالي{% else %}الإدارة العليا{% endif %}.</b>
+        لا يطّلع عليها فريق الدعم ولا المحاسبون، وتُعامَل بسرّية تامة.
+    </div>
+</div>
+{% endif %}
+
 {% if errors %}<div class="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">{% for e in errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
 
 <form method="post" class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4" style="box-shadow: var(--lift); border-inline-end: 4px solid #4678ae">
@@ -27,7 +37,7 @@
         <textarea name="details" rows="4" maxlength="4000" class="w-full px-3 py-2 border border-slate-200 rounded-lg">{{ post.details }}</textarea>
     </div>
     <div class="flex gap-2">
-        <button class="btn btn-primary rounded-xl">إرسال الطلب</button>
+        <button class="btn btn-primary rounded-xl">{% if stype.confidential %}<i data-lucide="send"></i> إرسال الشكوى للمدير المالي{% else %}إرسال الطلب{% endif %}</button>
         <a href="{% url 'portal:home' %}" class="btn btn-secondary rounded-xl">رجوع</a>
     </div>
 </form>

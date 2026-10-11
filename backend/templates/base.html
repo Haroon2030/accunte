@@ -1048,7 +1048,7 @@
             localStorage.removeItem('theme');
         } catch (e) {}
     </script>
-    <link href="/static/css/theme.css?v=20261110" rel="stylesheet">
+    <link href="/static/css/theme.css?v=20261112" rel="stylesheet">
 </head>
 <body class="min-h-screen" x-data="appShell()" x-init="initShell()">
     <div id="htmx-progress" aria-hidden="true"><div id="htmx-progress-bar"></div></div>
@@ -1070,6 +1070,7 @@
             <!-- Header -->
             <header class="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm flex items-center justify-between px-6">
                 <div class="flex items-center gap-4">
+                    <button type="button" class="hdr-menu-btn" @click="toggleSidebar()" :aria-expanded="mobileMenuOpen" title="القائمة" aria-label="فتح القائمة الجانبية"><i data-lucide="menu"></i></button>
                     <h1 class="text-xl font-bold text-slate-800">{% block page_title %}{% endblock %}</h1>
                 </div>
 

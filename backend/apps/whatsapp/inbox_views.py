@@ -194,7 +194,7 @@ def _agents():
     from django.contrib.auth import get_user_model
     RT = Role.RoleType
     return get_user_model().objects.filter(
-        Q(profile__role__role_type__in=[RT.CS_SUPERVISOR, RT.ADMIN]) | Q(is_superuser=True),
+        Q(profile__role__role_type__in=[RT.CS_SUPERVISOR, RT.ADMIN, RT.CFO]) | Q(is_superuser=True),
         is_active=True).distinct().order_by('username')
 
 

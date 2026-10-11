@@ -27,12 +27,12 @@ class AgentsListTests(TestCase):
         inactive.is_active = False
         inactive.save()
         names = {u.username for u in _agents()}
-        self.assertEqual(names, {'u_admin', 'u_cs_supervisor', 'root'})
+        self.assertEqual(names, {'u_admin', 'u_cs_supervisor', 'u_cfo', 'root'})
         conv = SupplierConversation.objects.create(contact_number=NUMBER, status='new')
         sup = users[RT.CS_SUPERVISOR]
         for u in _agents():                          # كل من يظهر في القائمة يقبله الإسناد فعلًا
             services.assign(conv.pk, u, sup)
-        for r in (RT.ACCOUNTANT, RT.CFO):                # ومن لا يظهر يرفضه الإسناد
+        for r in (RT.ACCOUNTANT,):                # ومن لا يظهر يرفضه الإسناد
             with self.assertRaises(ConversationError):
                 services.assign(conv.pk, users[r], sup)
         self.assertIsNotNone(root)
@@ -140,9 +140,7 @@ class CreateSupplierFromConversationTests(TestCase):
         with self.assertRaises(ConversationError):
             services.create_supplier_from_conversation(self.conv.pk, self.sup, 'x')    # ولا يدير الموردين
         self.assertEqual(Supplier.objects.count(), 0)
-        with self.assertRaises(ConversationError):
-            self.create(self.cfo)                                      # المدير المالي يطّلع ولا يتصرف في المحادثة
-        self.create(self.admin)                                        # مدير النظام وحده يجمع الصلاحيتين
+        self.create(self.cfo)                                          # المدير المالي سوبر أدمن: يجمع الصلاحيتين مثل مدير النظام
         self.assertEqual(Supplier.objects.count(), 1)
 
     def test_validation_and_duplicates(self):
