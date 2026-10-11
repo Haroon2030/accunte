@@ -235,75 +235,83 @@ class UserAdminTests(PortalBase):
         self.assertTrue(Role.objects.filter(role_type='supplier').exists())
 
 
-class UploadTests(PortalBase):
+class NoSupplierUploadTests(PortalBase):
+    """المورد لا يرفع ملفات من البوابة؛ يستلم فقط ما يشاركه الموظف معه."""
+
     def pdf(self, name='kashf.pdf', data=b'%PDF-1.4 test'):
         return SimpleUploadedFile(name, data, content_type='application/pdf')
 
-    def test_every_portal_service_offers_file_upload(self):
+    def test_no_portal_form_has_a_file_input(self):
         for t in ServiceType.objects.filter(is_active=True, portal_menu=True):
             html = self.client.get(reverse('portal:new', args=[t.code])).content.decode()
-            self.assertIn('name="files"', html, t.code)
-            self.assertIn('multiple', html, t.code)
-            self.assertIn('multipart/form-data', html, t.code)
+            self.assertNotIn('type="file"', html, t.code)
+            self.assertNotIn('multipart/form-data', html, t.code)
 
-    def test_files_are_stored_with_hash_and_audited(self):
-        self.order(files=[self.pdf(), self.pdf('b.pdf', b'%PDF second')])
+    def test_files_posted_anyway_are_ignored(self):
+        self.order(files=[self.pdf(), self.pdf('b.pdf')])
         req = ServiceRequest.objects.get()
-        docs = list(req.documents.order_by('original_name'))
-        self.assertEqual([d.original_name for d in docs], ['b.pdf', 'kashf.pdf'])
-        self.assertTrue(all(len(d.sha256) == 64 and d.uploaded_by == self.vendor and d.label == 'مرفق المورد' for d in docs))
-        self.assertEqual(AuditLog.objects.filter(entity_type='servicedesk.Document', action='create').count(), 2)
-
-    def test_files_are_optional(self):
-        self.order()
-        self.assertEqual(ServiceRequest.objects.get().documents.count(), 0)
-
-    def test_bad_extension_or_size_rejects_whole_request(self):
-        resp = self.order(files=[self.pdf(), SimpleUploadedFile('virus.exe', b'MZ')])
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(ServiceRequest.objects.count(), 0)
+        self.assertEqual(req.documents.count(), 0)
         self.assertEqual(ServiceRequestDocument.objects.count(), 0)
-        with mock.patch('apps.reconciliation.services.MAX_FILE_BYTES', 5):
-            self.order(files=[self.pdf()])
-        self.assertEqual(ServiceRequest.objects.count(), 0)
 
-    def test_more_than_five_files_rejected(self):
-        resp = self.order(files=[self.pdf(f'f{i}.pdf') for i in range(6)])
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(ServiceRequest.objects.count(), 0)
-        self.assertIn('الحد الأقصى', ''.join(resp.context['errors']))
-
-    def test_supplier_downloads_only_own_files(self):
-        self.order(files=[self.pdf()])
-        req = ServiceRequest.objects.get()
-        doc = req.documents.get()
-        url = reverse('portal:document', args=[req.pk, doc.pk])
-        resp = self.client.get(url)
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(b''.join(resp.streaming_content), b'%PDF-1.4 test')
-        self.assertContains(self.client.get(reverse('portal:detail', args=[req.pk])), 'kashf.pdf')
-        self.client.force_login(self.other)
-        self.assertEqual(self.client.get(url).status_code, 404)
-        self.client.logout()
-        self.assertEqual(self.client.get(url).status_code, 302)
-
-    def test_staff_see_the_uploaded_files(self):
-        self.order(files=[self.pdf()])
+    def test_supplier_downloads_only_files_shared_with_him(self):
+        self.order()
         req = ServiceRequest.objects.get()
         services.assign(req.pk, self.acc, self.sup)
         self.client.force_login(self.acc)
+        self.client.post(reverse('servicedesk:document_upload', args=[req.pk]), {'file': self.pdf('shared.pdf'), 'share': 'on'})
+        self.client.post(reverse('servicedesk:document_upload', args=[req.pk]), {'file': self.pdf('internal.pdf')})
+        shared = req.documents.get(original_name='shared.pdf')
+        internal = req.documents.get(original_name='internal.pdf')
+        self.client.force_login(self.vendor)
+        page = self.client.get(reverse('portal:detail', args=[req.pk])).content.decode()
+        self.assertIn('shared.pdf', page)
+        self.assertNotIn('internal.pdf', page)
+        resp = self.client.get(reverse('portal:document', args=[req.pk, shared.pk]))
+        self.assertEqual(b''.join(resp.streaming_content), b'%PDF-1.4 test')
+        self.assertEqual(self.client.get(reverse('portal:document', args=[req.pk, internal.pk])).status_code, 404)
+        self.client.force_login(self.other)                                  # مورد آخر
+        self.assertEqual(self.client.get(reverse('portal:document', args=[req.pk, shared.pk])).status_code, 404)
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse('portal:document', args=[req.pk, shared.pk])).status_code, 302)
+
+    def test_complaint_files_stay_confidential(self):
+        self.order(ServiceType.objects.get(code='complaint'))
+        req = ServiceRequest.objects.get()
+        cfo = make_user('boss', RT.CFO)
+        self.client.force_login(cfo)
+        self.client.post(reverse('servicedesk:document_upload', args=[req.pk]), {'file': self.pdf('proof.pdf')})
         doc = req.documents.get()
         self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[req.pk, doc.pk])).status_code, 200)
-
-    def test_complaint_attachments_stay_confidential(self):
-        complaint = ServiceType.objects.get(code='complaint')
-        self.order(complaint, files=[self.pdf('proof.pdf')])
-        req = ServiceRequest.objects.get()
-        doc = req.documents.get()
         self.client.force_login(self.sup)
         self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[req.pk, doc.pk])).status_code, 404)
-        self.client.force_login(make_user('boss', RT.CFO))
-        self.assertEqual(self.client.get(reverse('servicedesk:document_download', args=[req.pk, doc.pk])).status_code, 200)
+
+
+class WhatsAppHeaderIconTests(PortalBase):
+    @override_settings(WHATSAPP_SUPPORT_NUMBER='+966 50 123 4567')
+    def test_icon_on_every_portal_page_links_to_the_account(self):
+        self.order()
+        req = ServiceRequest.objects.get()
+        for url in (reverse('portal:home'), reverse('portal:list'), reverse('portal:detail', args=[req.pk]),
+                    reverse('portal:chat'), reverse('portal:new', args=['payment-status'])):
+            html = self.client.get(url).content.decode()
+            self.assertIn('class="wa-icon"', html, url)
+            self.assertIn('href="https://wa.me/966501234567', html, url)
+
+    @override_settings(WHATSAPP_SUPPORT_NUMBER='', WHATSAPP_ENABLED=False)
+    def test_no_icon_without_a_number(self):
+        for url in (reverse('portal:home'), reverse('portal:chat')):
+            self.assertNotIn('wa-icon" ', self.client.get(url).content.decode().replace('.wa-icon {', ''))
+
+    @override_settings(WHATSAPP_SUPPORT_NUMBER='966501234567')
+    def test_staff_pages_never_get_the_portal_context(self):
+        from apps.servicedesk.portal import wa_context
+        from django.test import RequestFactory
+        req = RequestFactory().get('/service-requests/')
+        req.user = self.sup
+        self.assertEqual(wa_context(req), {})
+        req = RequestFactory().get('/portal/')
+        req.user = self.sup
+        self.assertEqual(wa_context(req), {})                                # موظف على مسار البوابة: لا شيء
 
 
 class AccountStatementTests(PortalBase):

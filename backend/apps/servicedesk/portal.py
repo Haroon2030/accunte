@@ -71,7 +71,7 @@ def _my_requests(request):
 @supplier_required
 def home(request):
     return render(request, 'pages/portal/home.html', {
-        'supplier': request.user.profile.supplier, 'service_types': _services(), 'wa_link': whatsapp_link(),
+        'supplier': request.user.profile.supplier, 'service_types': _services(),
         'recent': _my_requests(request)[:5],
     })
 
@@ -84,7 +84,7 @@ def request_new(request, code):
     if request.method == 'POST':
         try:
             req = services.create_from_portal(request.user, stype, post.get('subject', ''), post.get('details', ''),
-                                              getter=post.get, files=request.FILES.getlist('files'))
+                                              getter=post.get)
         except RequestError as exc:
             errors.append(str(exc))
         else:
@@ -92,7 +92,6 @@ def request_new(request, code):
             return redirect('portal:detail', pk=req.pk)
     return render(request, 'pages/portal/form.html', {
         'stype': stype, 'schema': stype.field_schema or [], 'errors': errors, 'post': post,
-        'max_files': services.MAX_PORTAL_FILES,
         'supplier': request.user.profile.supplier,
     })
 
@@ -159,3 +158,10 @@ def chat_send(request):
         return _no_store(JsonResponse({'ok': False, 'error': str(exc)}, status=400))
     return _no_store(JsonResponse({'ok': True, 'messages': _chat_messages(request, int(after) if after.isdigit() else 0)}))
 
+
+def wa_context(request):
+    """يضيف رابط واتساب الدعم لقوالب البوابة (أيقونة الترويسة). لا يعمل خارج /portal/ ولا لغير المورد."""
+    user = getattr(request, 'user', None)
+    if not request.path.startswith('/portal/') or user is None or not user.is_authenticated or not is_portal_supplier(user):
+        return {}
+    return {'wa_link': whatsapp_link()}

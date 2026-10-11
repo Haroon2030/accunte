@@ -15,8 +15,6 @@ from apps.audit.models import AuditLog
 from apps.audit.services import log_action
 from apps.core.access import get_role_type, has_role
 from apps.core.models import Notification, Role
-from apps.reconciliation.services import file_sha256, validate_upload
-from apps.reconciliation.workflow import TransitionError
 
 from .models import RequestStatusHistory, ServiceRequest, ServiceType
 
@@ -245,37 +243,10 @@ def create_from_whatsapp(conversation, stype, details, subject=''):
     return req
 
 
-MAX_PORTAL_FILES = 5
-
-
-def _validated_files(files):
-    files = [f for f in (files or []) if f]
-    if len(files) > MAX_PORTAL_FILES:
-        raise RequestError(f'الحد الأقصى {MAX_PORTAL_FILES} ملفات للطلب الواحد')
-    try:
-        for f in files:
-            validate_upload(f)
-    except TransitionError as exc:
-        raise RequestError(str(exc))
-    return files
-
-
-def attach_files(req, files, user, label='', shared=False):
-    """يحفظ الملفات (بعد التحقق منها) كمستندات للطلب مع بصمة SHA-256 وسجل تدقيق لكل ملف."""
-    from .models import ServiceRequestDocument
-    for f in files:
-        doc = ServiceRequestDocument(request=req, label=label[:120], original_name=f.name[:255], size=f.size,
-                                     uploaded_by=user, sha256=file_sha256(f), shared_with_supplier=shared)
-        doc.file.save(f.name, f, save=True)
-        log_action(AuditLog.Action.CREATE, doc, entity_type='servicedesk.Document',
-                   entity_repr=f'{req.reference}: {doc.original_name}',
-                   new={'label': label, 'name': doc.original_name, 'sha256': doc.sha256, 'shared': shared}, actor=user)
-
-
 @transaction.atomic
-def create_from_portal(user, stype, subject, details='', getter=None, files=None):
+def create_from_portal(user, stype, subject, details='', getter=None):
     """طلب يقدّمه المورد بنفسه من بوابة الموردين: المورد هو صاحب الحساب، والحقول تُتحقَّق كما في الطلب العادي.
-    المرفقات (حتى 5) تُتحقَّق كلها قبل إنشاء الطلب، فلا يُنشأ طلب بملف مرفوض."""
+    لا رفع ملفات من جهة المورد: المستندات التي تصله يشاركها الموظف معه فقط."""
     supplier = getattr(getattr(user, 'profile', None), 'supplier', None)
     if supplier is None:
         raise RequestError('حسابك غير مرتبط بمورد. تواصل مع الإدارة')
@@ -285,7 +256,6 @@ def create_from_portal(user, stype, subject, details='', getter=None, files=None
     data, errors = validate_fields(stype.field_schema, getter or (lambda k: ''))
     if errors:
         raise RequestError(' · '.join(errors))
-    files = _validated_files(files)
     now = timezone.now()
     req = ServiceRequest.objects.create(
         service_type=stype, supplier=supplier, subject=subject[:200], details=(details or '').strip()[:4000], data=data,
@@ -294,7 +264,6 @@ def create_from_portal(user, stype, subject, details='', getter=None, files=None
     RequestStatusHistory.objects.create(request=req, to_status=S.NEW, changed_by=user, reason='طلب من بوابة الموردين')
     log_action(AuditLog.Action.CREATE, req, entity_type='servicedesk.ServiceRequest',
                new={'type': stype.code, 'supplier': supplier.pk, 'source': 'portal'}, actor=user)
-    attach_files(req, files, user, label='مرفق المورد', shared=True)
     _notify(_intake_users(stype), 'طلب خدمة جديد من بوابة الموردين', f'{req.reference} · {stype.name} · {supplier.name}', req)
     return req
 
