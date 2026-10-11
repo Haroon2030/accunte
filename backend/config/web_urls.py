@@ -219,6 +219,9 @@ portal_patterns = [
     path('requests/<int:pk>/', portal_views.request_detail, name='detail'),
     path('requests/<int:pk>/documents/<int:doc_pk>/', portal_views.document_download, name='document'),
     path('new/<slug:code>/', portal_views.request_new, name='new'),
+    path('chat/', portal_views.chat, name='chat'),
+    path('chat/poll/', portal_views.chat_poll, name='chat_poll'),
+    path('chat/send/', portal_views.chat_send, name='chat_send'),
 ]
 
 # Main URL patterns

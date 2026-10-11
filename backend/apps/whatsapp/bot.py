@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from . import ai, services
 from .models import BOT_COLLECT as COLLECT
+from .models import CHANNEL_PORTAL
 from .models import BOT_HUMAN as HUMAN
 from .models import BOT_IDLE as IDLE
 from .models import BOT_MENU as MENU
@@ -34,13 +35,14 @@ FREE_TEXT_MIN = 8
 _DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234567890123456789')
 
 
-def enabled():
-    return bool(settings.WHATSAPP_ENABLED and settings.WHATSAPP_BOT_ENABLED)
+def enabled(conv):
+    """المساعد يعمل على دردشة البوابة دائمًا (ما لم يُوقف)، وعلى واتساب إن كان الربط مفعّلًا."""
+    return bool(settings.WHATSAPP_BOT_ENABLED and (conv.channel == CHANNEL_PORTAL or settings.WHATSAPP_ENABLED))
 
 
 def eligible(conv):
     """هل يتولى المساعد هذه المحادثة؟ مورد معروف، لا موظف مسؤول، ولم تُسلَّم للدعم."""
-    return (enabled() and conv.supplier_id is not None and conv.assigned_agent_id is None
+    return (enabled(conv) and conv.supplier_id is not None and conv.assigned_agent_id is None
             and conv.bot_state != HUMAN)
 
 

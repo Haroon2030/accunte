@@ -77,14 +77,13 @@ class HomeAndServicesTests(PortalBase):
     def test_whatsapp_chat_is_one_of_the_services(self):
         html = self.client.get(reverse('portal:home')).content.decode()
         self.assertIn('https://wa.me/966501234567', html)
-        self.assertIn('التحدث مع الدعم عبر واتساب', html)
+        self.assertIn('التحدث عبر واتساب', html)
 
     @override_settings(WHATSAPP_SUPPORT_NUMBER='', WHATSAPP_ENABLED=False)
-    def test_whatsapp_card_is_always_listed_but_disabled_without_number(self):
+    def test_live_chat_card_always_listed_whatsapp_card_only_with_number(self):
         html = self.client.get(reverse('portal:home')).content.decode()
-        self.assertIn('التحدث مع الدعم عبر واتساب', html)
+        self.assertIn('دردشة مباشرة مع الدعم', html)
         self.assertNotIn('wa.me', html)
-        self.assertIn('is-disabled', html)
 
     @override_settings(WHATSAPP_SUPPORT_NUMBER='', WHATSAPP_ENABLED=True, EVOLUTION_API_URL='http://evo.test',
                        EVOLUTION_API_KEY='k', EVOLUTION_INSTANCE='hr')

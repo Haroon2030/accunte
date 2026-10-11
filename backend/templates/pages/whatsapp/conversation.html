@@ -29,7 +29,7 @@ function supplierLinker() {
                 <a href="{% url 'whatsapp_inbox:inbox' %}" class="btn btn-secondary btn-sm"><i data-lucide="arrow-right"></i></a>
                 <div class="min-w-0">
                     <div class="font-bold text-slate-800 truncate">{{ conv.display_name|default:conv.contact_number }}</div>
-                    <div class="text-xs text-slate-500" dir="ltr" style="text-align:right">+{{ conv.contact_number }}</div>
+                    {% if conv.channel == 'portal' %}<div class="text-xs text-green-700">دردشة بوابة الموردين</div>{% else %}<div class="text-xs text-slate-500" dir="ltr" style="text-align:right">+{{ conv.contact_number }}</div>{% endif %}
                 </div>
             </div>
             <div class="flex items-center gap-2">

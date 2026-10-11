@@ -31,6 +31,8 @@ class SLAConfiguration(models.Model):
 
 # حالات المساعد الآلي (apps/whatsapp/bot.py)
 BOT_IDLE, BOT_MENU, BOT_COLLECT, BOT_HUMAN = '', 'menu', 'collect', 'human'
+# قناة المحادثة: واتساب، أو دردشة بوابة الموردين (رقمها الداخلي portal:<معرّف المورد>، ولا يُرسل لها شيء عبر واتساب)
+CHANNEL_WHATSAPP, CHANNEL_PORTAL = 'whatsapp', 'portal'
 
 
 class SupplierConversation(models.Model):
@@ -44,6 +46,7 @@ class SupplierConversation(models.Model):
         CLOSED = 'closed', 'مغلقة'
 
     contact_number = models.CharField('رقم الواتساب', max_length=20, unique=True)
+    channel = models.CharField('القناة', max_length=10, default=CHANNEL_WHATSAPP)
     display_name = models.CharField('الاسم الظاهر', max_length=150, blank=True)
     supplier = models.ForeignKey('suppliers.Supplier', on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='conversations', verbose_name='المورد')

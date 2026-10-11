@@ -21,7 +21,7 @@ from apps.core.models import Notification, Role
 
 from . import client
 from .client import WhatsAppError
-from .models import BOT_COLLECT, BOT_HUMAN, BOT_IDLE, BOT_MENU, ConversationAssignment, ConversationMessage, SupplierConversation
+from .models import BOT_COLLECT, BOT_HUMAN, BOT_IDLE, BOT_MENU, CHANNEL_PORTAL, ConversationAssignment, ConversationMessage, SupplierConversation
 
 log = logging.getLogger(__name__)
 S = SupplierConversation.Status
@@ -113,6 +113,63 @@ def _notify(users, title, message, conv):
         Notification.objects.bulk_create(rows)
 
 
+def _mark_inbound(conv, ts):
+    """أثر رسالة واردة على المحادثة: عدّاد غير مقروء، بدء انتظار الرد، وإعادة الفتح (والمساعد يبدأ من جديد).
+    يُرجع True إن كانت المحادثة مغلقة وأُعيد فتحها."""
+    conv.unread_count = F('unread_count') + 1
+    if conv.awaiting_reply_since is None:
+        conv.awaiting_reply_since = ts
+    reopened = False
+    if conv.status in (S.CLOSED, S.PENDING):
+        reopened = conv.status == S.CLOSED
+        conv.status = S.OPEN if conv.assigned_agent_id else S.NEW
+        conv.closed_at = None
+        if reopened:
+            conv.bot_state, conv.bot_service_code, conv.bot_attempts = BOT_IDLE, '', 0
+    return reopened
+
+
+def _notify_inbound(conv, created, reopened, preview):
+    if created or reopened:
+        _notify(_desk_users(RT.CS_SUPERVISOR), 'محادثة جديدة', f'{conv.display_name or conv.contact_number}: {preview}', conv)
+    elif conv.assigned_agent_id and conv.unread_count == 1:
+        _notify([conv.assigned_agent], 'رسالة جديدة من مورد', f'{conv.display_name or conv.contact_number}: {preview}', conv)
+
+
+MAX_PORTAL_TEXT = 2000
+
+
+def ingest_portal_message(user, text):
+    """رسالة من المورد في دردشة بوابة الموردين: تمر بنفس مسار واتساب (المساعد الآلي ثم الموظفون)."""
+    text = (text or '').strip()
+    if not text:
+        raise ConversationError('اكتب رسالتك')
+    if len(text) > MAX_PORTAL_TEXT:
+        raise ConversationError(f'الرسالة أطول من {MAX_PORTAL_TEXT} حرف')
+    supplier = getattr(getattr(user, 'profile', None), 'supplier', None)
+    if supplier is None:
+        raise ConversationError('حسابك غير مرتبط بمورد')
+    ts = timezone.now()
+    from . import bot
+    with transaction.atomic():
+        conv, created = SupplierConversation.objects.get_or_create(
+            contact_number=f'portal:{supplier.pk}',
+            defaults={'display_name': supplier.name[:150], 'supplier': supplier, 'channel': CHANNEL_PORTAL, 'status': S.NEW})
+        conv = SupplierConversation.objects.select_for_update().get(pk=conv.pk)
+        msg = M.objects.create(conversation=conv, direction=M.Direction.IN, kind=M.Kind.TEXT, body=text, timestamp=ts,
+                               status=M.DeliveryStatus.RECEIVED, sent_by=user)
+        reopened = _mark_inbound(conv, ts)
+        conv.last_message_at = ts
+        conv.save()
+        conv.refresh_from_db()
+        bot_handles = bot.eligible(conv)
+        if not bot_handles:
+            _notify_inbound(conv, created, reopened, text[:60])
+    if bot_handles:
+        bot.handle(conv.pk, msg.pk)
+    return msg
+
+
 def notify_desk_new_conversation(conv, text):
     _notify(_desk_users(RT.CS_SUPERVISOR), 'محادثة واتساب جديدة',
             f'{conv.display_name or conv.contact_number}: {text}', conv)
@@ -175,27 +232,14 @@ def ingest_message(data):
                 conv.last_response_seconds = msg.response_seconds
                 conv.awaiting_reply_since = None
         else:
-            conv.unread_count = F('unread_count') + 1
-            if conv.awaiting_reply_since is None:
-                conv.awaiting_reply_since = ts
-            if conv.status in (S.CLOSED, S.PENDING):
-                reopened = conv.status == S.CLOSED
-                conv.status = S.OPEN if conv.assigned_agent_id else S.NEW
-                conv.closed_at = None
-                if reopened:       # محادثة جديدة: يبدأ المساعد من القائمة من جديد
-                    conv.bot_state, conv.bot_service_code, conv.bot_attempts = BOT_IDLE, '', 0
+            reopened = _mark_inbound(conv, ts)
         conv.save()
         conv.refresh_from_db()
 
         from . import bot
         bot_handles = not from_me and bot.eligible(conv)     # المساعد يرد بنفسه فلا إشعار للموظفين الآن
         if not from_me and not bot_handles:
-            if created or reopened:
-                _notify(_desk_users(RT.CS_SUPERVISOR), 'محادثة واتساب جديدة',
-                        f'{conv.display_name or conv.contact_number}: {body[:60] or "[" + msg.get_kind_display() + "]"}', conv)
-            elif conv.assigned_agent_id and conv.unread_count == 1:
-                _notify([conv.assigned_agent], 'رسالة جديدة من مورد',
-                        f'{conv.display_name or conv.contact_number}: {body[:60] or "[" + msg.get_kind_display() + "]"}', conv)
+            _notify_inbound(conv, created, reopened, body[:60] or '[' + msg.get_kind_display() + ']')
     if kind != M.Kind.TEXT and not from_me:
         schedule_media_fetch(msg.pk)       # الملف يُجلب بعد حفظ الرسالة، دون تعطيل الـ webhook
     if bot_handles:
@@ -366,6 +410,8 @@ def other_typing(conv, user):
 
 @transaction.atomic
 def link_supplier(conv_id, user, supplier):
+    if SupplierConversation.objects.filter(pk=conv_id, channel=CHANNEL_PORTAL).exists():
+        raise ConversationError('محادثة البوابة مرتبطة بمورد حسابها ولا تُعدَّل')
     conv = SupplierConversation.objects.select_for_update().get(pk=conv_id)
     if not can_act(user, conv):
         raise ConversationError('ليس لديك صلاحية على هذه المحادثة')
@@ -402,6 +448,8 @@ def _next_supplier_code(conv):
 @transaction.atomic
 def create_supplier_from_conversation(conv_id, user, name, code='', tax_number=''):
     """ينشئ موردًا جديدًا من رقم المحادثة ويربطه بها. للأدوار التي تدير الموردين فقط."""
+    if SupplierConversation.objects.filter(pk=conv_id, channel=CHANNEL_PORTAL).exists():
+        raise ConversationError('محادثة البوابة مرتبطة بمورد حسابها ولا تُعدَّل')
     from apps.core.access import SUPPLIER_MANAGE_ROLES
     from apps.suppliers.models import Supplier
     conv = SupplierConversation.objects.select_for_update().get(pk=conv_id)
@@ -465,9 +513,10 @@ def send_reply(conv_id, user, text):
             response = max(0, int((now - conv.awaiting_reply_since).total_seconds()))
             conv.last_response_seconds = response
             conv.awaiting_reply_since = None
+        portal = conv.channel == CHANNEL_PORTAL          # تصل المورد في البوابة مباشرة: لا طابور إرسال
         msg = M.objects.create(conversation=conv, direction=M.Direction.OUT, kind=M.Kind.TEXT, body=text,
-                               sent_by=user, status=M.DeliveryStatus.PENDING, response_seconds=response,
-                               timestamp=now)
+                               sent_by=user, response_seconds=response, timestamp=now,
+                               status=M.DeliveryStatus.SENT if portal else M.DeliveryStatus.PENDING)
         if conv.status in (S.NEW, S.PENDING):
             conv.status = S.OPEN
         conv.last_message_at = now
@@ -477,17 +526,21 @@ def send_reply(conv_id, user, text):
         if conv.bot_state in (BOT_MENU, BOT_COLLECT):
             conv.bot_state = BOT_HUMAN          # تدخّل موظف: يصمت المساعد
         conv.save()
-        _queue_delivery(msg.pk)
+        if not portal:
+            _queue_delivery(msg.pk)
     return msg
 
 
 def send_automated(conv, text):
     """رد المساعد الآلي: لا يغيّر عدّادات الموظفين ولا مؤقت انتظار الرد، ويُعلَّم «رد آلي»."""
     now = timezone.now()
+    portal = conv.channel == CHANNEL_PORTAL
     msg = M.objects.create(conversation=conv, direction=M.Direction.OUT, kind=M.Kind.TEXT, body=text[:MAX_TEXT],
-                           is_automated=True, status=M.DeliveryStatus.PENDING, timestamp=now)
+                           is_automated=True, timestamp=now,
+                           status=M.DeliveryStatus.SENT if portal else M.DeliveryStatus.PENDING)
     SupplierConversation.objects.filter(pk=conv.pk).update(last_message_at=now)
-    _queue_delivery(msg.pk)
+    if not portal:
+        _queue_delivery(msg.pk)
     return msg
 
 
@@ -512,6 +565,9 @@ def deliver(message_id):
     msg = M.objects.select_related('conversation').get(pk=message_id)
     if msg.status not in (M.DeliveryStatus.PENDING, M.DeliveryStatus.FAILED):
         return msg
+    if msg.conversation.channel == CHANNEL_PORTAL:           # تصل المورد في البوابة مباشرة، لا عبر واتساب
+        M.objects.filter(pk=msg.pk).update(status=M.DeliveryStatus.SENT, error='')
+        return M.objects.get(pk=msg.pk)
     try:
         resp = client.send_text(msg.conversation.contact_number, msg.body)
     except WhatsAppError as exc:

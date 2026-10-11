@@ -4,15 +4,26 @@
 <p class="text-slate-500 mb-6">اختر الخدمة التي تحتاجها وسيصل طلبك مباشرة إلى الفريق المختص.</p>
 
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    <a class="svc-card wa{% if not wa_link %} is-disabled{% endif %}" {% if wa_link %}href="{{ wa_link }}" target="_blank" rel="noopener"{% else %}aria-disabled="true"{% endif %}>
+    <a class="svc-card wa" href="{% url 'portal:chat' %}">
         <div class="flex items-center gap-3">
             <span class="svc-icon"><i data-lucide="message-circle"></i></span>
             <div>
-                <div class="font-bold text-slate-800">التحدث مع الدعم عبر واتساب</div>
-                <div class="text-sm text-slate-500">{% if wa_link %}مساعد آلي يرد فورًا، ويحوّلك لفريق الدعم عند الحاجة{% else %}غير متاح حاليًا، استخدم الخدمات الأخرى{% endif %}</div>
+                <div class="font-bold text-slate-800">دردشة مباشرة مع الدعم</div>
+                <div class="text-sm text-slate-500">مساعد آلي يرد فورًا، ويحوّلك لفريق الدعم عند الحاجة</div>
             </div>
         </div>
     </a>
+    {% if wa_link %}
+    <a class="svc-card wa" href="{{ wa_link }}" target="_blank" rel="noopener">
+        <div class="flex items-center gap-3">
+            <span class="svc-icon"><i data-lucide="phone"></i></span>
+            <div>
+                <div class="font-bold text-slate-800">التحدث عبر واتساب</div>
+                <div class="text-sm text-slate-500">تابع محادثتك مع الدعم من تطبيق واتساب</div>
+            </div>
+        </div>
+    </a>
+    {% endif %}
     {% for t in service_types %}
     <a class="svc-card{% if t.confidential %} sensitive{% endif %}" href="{% url 'portal:new' t.code %}">
         <div class="flex items-center gap-3">
