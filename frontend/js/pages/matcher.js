@@ -1,9 +1,9 @@
 'use strict';
 
 function MatcherHome(props) {
-  const rows = props.reqs.filter(function (r) { return r.stage < 4; })
+  const rows = props.reqs.filter(function (r) { return r.stage < 4 && (r.matcher === ME.matcher || !r.matcher); })
     .sort(function (a, b) { return a.due - b.due; });
-  const unr = unreadSum(rows.filter(function (r) { return r.matcher === props.me.name; }), 'matcher', props.seen);
+  const unr = unreadSum(rows.filter(function (r) { return r.matcher === ME.matcher; }), 'matcher', props.seen);
   const late = rows.filter(isLate).length;
   return div({ className: 'stack' },
     div({ className: 'sechead' }, h2(null, 'طابور المطابقة'), span({ className: 'muted small' }, rows.length + ' طلب مفتوح' + (late ? ' · ' + late + ' متأخر' : ''))),

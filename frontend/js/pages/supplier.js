@@ -61,7 +61,7 @@ function NewRequest(props) {
         div({ className: 'dropzone' },
           input({ id: 'nr-file', type: 'file', hidden: true, accept: '.pdf,.xlsx,.xls,.csv', onChange: function (e) {
             const f = e.target.files[0];
-            if (f) { setFile(f); setError(''); }
+            if (f) { setFile({ name: f.name, size: f.size, file: f }); setError(''); }
             e.target.value = '';
           } }),
           label({ htmlFor: 'nr-file', className: 'btn ghost' }, h(Icon, { name: 'clip' }), file ? 'تغيير الملف' : 'اختيار ملف'),
@@ -111,7 +111,7 @@ function NewComplaint(props) {
         span({ className: 'lbl' }, 'مستندات داعمة (اختياري)'),
         div({ className: 'dropzone' },
           input({ id: 'nc-file', type: 'file', multiple: true, hidden: true, onChange: function (e) {
-            const added = Array.prototype.slice.call(e.target.files);
+            const added = Array.prototype.map.call(e.target.files, function (f) { return { name: f.name, size: f.size, file: f }; });
             setFiles(files.concat(added)); e.target.value = '';
           } }),
           label({ htmlFor: 'nc-file', className: 'btn ghost' }, h(Icon, { name: 'clip' }), 'إرفاق مستند'),

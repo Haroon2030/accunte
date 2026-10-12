@@ -31,9 +31,16 @@ function lastTouch(r) {
 const senderName = function (r, m) { return m.from === 'supplier' ? r.supplier : m.from === 'matcher' ? (r.matcher || 'المطابق') : 'المدير المالي'; };
 const chatCount = function (r) { return r.messages.filter(function (m) { return m.from !== 'system'; }).length; };
 
-/* unread: a message is "new" for a role until that role opens the conversation (the server stores when) */
+/* unread: a message is "new" for a role until that role opens the conversation */
+const LOAD_TS = NOW.getTime();
+const SEEN0 = {
+  'MT-2610-0151:supplier': ago(0, 10).getTime(),
+  'MT-2610-0144:matcher': ago(0, 6).getTime(),
+  'SH-2610-0009:supplier': ago(1, 0).getTime(),
+  'SH-2610-0008:manager': ago(1, 0).getTime()
+};
 function tracksUnread(id, role) { return id.indexOf('SH-') === 0 ? (role === 'supplier' || role === 'manager') : (role === 'supplier' || role === 'matcher'); }
-function seenAt(seen, id, role) { const v = seen[id + ':' + role]; return v != null ? v : 0; }
+function seenAt(seen, id, role) { const v = seen[id + ':' + role]; return v != null ? v : LOAD_TS; }
 function isFresh(m, role, since) { return m.from !== 'system' && m.from !== role && m.at.getTime() > since; }
 function unreadOf(conv, role, seen) {
   if (!tracksUnread(conv.id, role)) return 0;

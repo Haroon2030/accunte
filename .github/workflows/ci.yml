@@ -12,7 +12,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: sudo apt-get update && sudo apt-get install -y libmysqlclient-dev pkg-config
       - run: pip install -r backend/requirements.txt
-      - run: python manage.py test apps
+      - run: python manage.py test portal
         working-directory: backend
+        env:
+          DJANGO_ENV: development
+          DB_ENGINE: django.db.backends.sqlite3
+          DB_NAME: ci.sqlite3
+          USE_R2: 'False'

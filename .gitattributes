@@ -1,5 +1,0 @@
-backend/entrypoint.sh text eol=lf
-*.pdf binary
-*.png binary
-*.xlsx binary
-backend/static/statement/tests/fixtures/*.csv binary

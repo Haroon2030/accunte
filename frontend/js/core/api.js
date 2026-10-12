@@ -1,64 +1,56 @@
 'use strict';
 
-/* =====================================================================
-   API client. Same origin as the page: the session cookie authenticates
-   and Django checks the CSRF token we echo back in X-CSRFToken.
-   ===================================================================== */
+/* Talks to the Django backend (same origin). Session cookie + CSRF header, JSON or multipart. */
 const API = (function () {
-  let onUnauthorized = function () {};
-
   function csrf() {
-    const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    const m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
     return m ? decodeURIComponent(m[1]) : '';
   }
-  function apiError(status, message, data) {
-    const e = new Error(message);
-    e.status = status; e.data = data || null;
-    return e;
+  function messageOf(data) {
+    if (!data) return '';
+    if (Array.isArray(data)) return typeof data[0] === 'string' ? data[0] : '';
+    if (typeof data.detail === 'string') return data.detail;
+    const k = Object.keys(data)[0];
+    const v = k ? data[k] : '';
+    return Array.isArray(v) ? v[0] : (typeof v === 'string' ? v : '');
   }
-  /* files: { fieldName: File | File[] } turns the call into multipart/form-data */
-  function call(method, url, payload, files) {
-    const opts = { method: method, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf(), Accept: 'application/json' } };
-    if (files) {
-      const fd = new FormData();
-      Object.keys(payload || {}).forEach(function (k) { if (payload[k] != null) fd.append(k, payload[k]); });
-      Object.keys(files).forEach(function (k) {
-        [].concat(files[k] || []).forEach(function (f) { fd.append(k, f, f.name); });
-      });
-      opts.body = fd;
-    } else if (method !== 'GET' && payload !== undefined) {
-      opts.headers['Content-Type'] = 'application/json';
-      opts.body = JSON.stringify(payload);
-    }
-    return fetch(url, opts).then(function (res) {
-      return res.json().catch(function () { return null; }).then(function (data) {
-        if (!res.ok) {
-          if (res.status === 401 && url.indexOf('/api/auth/') !== 0) onUnauthorized();
-          throw apiError(res.status, (data && data.error) || 'حدث خطأ غير متوقع. حاول مرة أخرى.', data);
+  function call(method, path, body) {
+    const opt = { method: method, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() } };
+    if (typeof FormData !== 'undefined' && body instanceof FormData) opt.body = body;
+    else if (body !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+    return fetch('/api' + path, opt).then(function (r) {
+      return r.text().then(function (t) {
+        let data = null;
+        try { data = t ? JSON.parse(t) : null; } catch (e) { data = null; }
+        if (!r.ok) {
+          const err = new Error(messageOf(data) || (r.status === 401 || r.status === 403 ? 'انتهت الجلسة، سجّل الدخول من جديد.' : 'تعذّر إتمام العملية، حاول مرة أخرى.'));
+          err.status = r.status; err.data = data;
+          throw err;
         }
         return data;
       });
-    }, function () {
-      throw apiError(0, 'تعذّر الاتصال بالخادم. تحقق من الاتصال وأعد المحاولة.');
     });
   }
 
-  return {
-    get: function (url) { return call('GET', url); },
-    post: function (url, payload) { return call('POST', url, payload || {}); },
-    upload: function (url, payload, files) { return call('POST', url, payload, files); },
-    setUnauthorizedHandler: function (fn) { onUnauthorized = fn; },
-    attachmentUrl: function (id) { return '/api/attachments/' + id + '/'; }
-  };
-})();
+  const D = function (s) { return s ? new Date(s) : null; };
+  const stages = function (o) { const a = []; Object.keys(o || {}).forEach(function (k) { a[+k] = D(o[k]); }); return a; };
+  const msg = function (m) { return Object.assign({}, m, { at: D(m.at) }); };
 
-/* ---------- server JSON -> the shapes the pages already use (ISO strings become Dates) ---------- */
-const toDate = function (s) { return s ? new Date(s) : null; };
-const fromMsg = function (m) { return Object.assign({}, m, { at: new Date(m.at) }); };
-const fromReq = function (r) {
-  return Object.assign({}, r, { created: toDate(r.created), due: toDate(r.due), reached: r.reached.map(toDate), messages: r.messages.map(fromMsg) });
-};
-const fromComplaint = function (c) {
-  return Object.assign({}, c, { created: toDate(c.created), reached: c.reached.map(toDate), messages: c.messages.map(fromMsg) });
-};
-const fromUser = function (u) { return Object.assign({}, u, { last: toDate(u.last), created: toDate(u.created) }); };
+  return {
+    get: function (p) { return call('GET', p); },
+    post: function (p, b) { return call('POST', p, b); },
+    patch: function (p, b) { return call('PATCH', p, b); },
+    user: function (u) { return Object.assign({}, u, { last: D(u.last), created: D(u.created) }); },
+    request: function (r) { return Object.assign({}, r, { created: D(r.created), due: D(r.due), reached: stages(r.reached), messages: (r.messages || []).map(msg) }); },
+    complaint: function (c) { return Object.assign({}, c, { created: D(c.created), reached: stages(c.reached), messages: (c.messages || []).map(msg) }); },
+    message: msg
+  };
+}());
+
+/* multipart body from plain fields + File objects picked in the UI (entries look like {name, size, file}) */
+function formOf(fields, fileField, picked) {
+  const fd = new FormData();
+  Object.keys(fields).forEach(function (k) { if (fields[k] != null && fields[k] !== '') fd.append(k, fields[k]); });
+  (picked || []).forEach(function (p) { if (p.file) fd.append(fileField, p.file, p.name); });
+  return fd;
+}

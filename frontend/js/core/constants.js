@@ -5,6 +5,7 @@ const DAY = 864e5;
 const NOW = new Date();
 const SLA_DAYS = 5;
 const ROLE_NAME = { supplier: 'المورد', matcher: 'المطابق', manager: 'المدير المالي', recon: 'مطابقة الكشوف', users: 'المستخدمون' };
+const ME = { supplier: 'شركة النخبة للتوريدات', matcher: 'خالد العتيبي', manager: 'سلمان القحطاني' };
 const STAGES = [
   { title: 'تقديم الطلب', desc: 'وصل كشف الحساب من المورد برقم طلب فريد.' },
   { title: 'بانتظار التوزيع', desc: 'المنسق يختار المطابق المناسب للطلب.' },

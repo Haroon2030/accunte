@@ -65,7 +65,7 @@ function Chat(props) {
     })) : null,
     div({ className: 'row' },
       input({ id: 'chat-file', type: 'file', multiple: true, hidden: true, onChange: function (e) {
-        const added = Array.prototype.slice.call(e.target.files);
+        const added = Array.prototype.map.call(e.target.files, function (f) { return { name: f.name, size: f.size, file: f }; });
         setFiles(files.concat(added)); e.target.value = '';
       } }),
       label({ htmlFor: 'chat-file', className: 'btn ghost' }, h(Icon, { name: 'clip' }), 'إرفاق مستند'),
@@ -103,8 +103,8 @@ function Tracking(props) {
   const advance = function () { const toDialogue = r.stage === 2; props.onAdvance(); if (toDialogue) setPanel('chat'); };
   const st = statusOf(r, role);
   const late = isLate(r);
-  const allFiles = [{ id: r.statement.id, name: r.statement.name, size: r.statement.size, by: r.supplier, at: r.created }];
-  r.messages.forEach(function (m) { m.files.forEach(function (f) { allFiles.push({ id: f.id, name: f.name, size: f.size, by: senderName(r, m), at: m.at }); }); });
+  const allFiles = r.statement ? [{ name: r.statement.name, size: r.statement.size, url: r.statement.url, by: r.supplier, at: r.created }] : [];
+  r.messages.forEach(function (m) { m.files.forEach(function (f) { allFiles.push({ name: f.name, size: f.size, url: f.url, by: senderName(r, m), at: m.at }); }); });
   return div({ className: 'stack' },
     div({ className: 'thead' },
       button({ className: 'btn ghost', onClick: props.onBack }, h(Icon, { name: 'back' }), 'رجوع'),
@@ -128,7 +128,7 @@ function Tracking(props) {
             dt(null, 'الفرق المبدئي'), dd(null, sar(r.diff)),
             r.notes ? dt(null, 'ملاحظات المورد') : null, r.notes ? dd(null, r.notes) : null),
           ul({ className: 'filelist', 'aria-label': 'المرفقات' }, allFiles.map(function (f, i) {
-            return li({ key: f.name + i }, h(Icon, { name: 'file', size: 16 }), (f.id ? h('a', { className: 'fn filelink', dir: 'auto', href: API.attachmentUrl(f.id), download: f.name }, f.name) : span({ className: 'fn', dir: 'auto' }, f.name)), span({ className: 'fm' }, f.by + ' · ' + fmtSize(f.size)));
+            return li({ key: f.name + i }, h(Icon, { name: 'file', size: 16 }), span({ className: 'fn', dir: 'auto' }, f.url ? h('a', { href: f.url, target: '_blank', rel: 'noopener' }, f.name) : f.name), span({ className: 'fm' }, f.by + ' · ' + fmtSize(f.size)));
           })))),
       div({ className: 'col', 'data-on': panel === 'chat' },
         h(Chat, { req: r, role: role, observer: role === 'manager', baseline: baseline, visible: chatVisible, onSend: props.onSend }))));
@@ -145,7 +145,7 @@ function ComplaintTracking(props) {
   const goChat = function () { setPanel('chat'); };
   const st = statusC(c, role);
   const allFiles = [];
-  c.messages.forEach(function (m) { m.files.forEach(function (f) { allFiles.push({ id: f.id, name: f.name, size: f.size, by: senderName(c, m) }); }); });
+  c.messages.forEach(function (m) { m.files.forEach(function (f) { allFiles.push({ name: f.name, size: f.size, url: f.url, by: senderName(c, m) }); }); });
   return div({ className: 'stack' },
     div({ className: 'thead' },
       button({ className: 'btn ghost', onClick: props.onBack }, h(Icon, { name: 'back' }), 'رجوع'),
@@ -167,7 +167,7 @@ function ComplaintTracking(props) {
             dt(null, 'تاريخ التقديم'), dd(null, fmtDT(c.created)),
             dt(null, 'طلب المطابقة المرتبط'), dd(null, c.related ? span({ className: 'mono' }, c.related) : 'غير مرتبطة بطلب')),
           allFiles.length ? ul({ className: 'filelist', 'aria-label': 'المرفقات' }, allFiles.map(function (f, i) {
-            return li({ key: f.name + i }, h(Icon, { name: 'file', size: 16 }), (f.id ? h('a', { className: 'fn filelink', dir: 'auto', href: API.attachmentUrl(f.id), download: f.name }, f.name) : span({ className: 'fn', dir: 'auto' }, f.name)), span({ className: 'fm' }, f.by + ' · ' + fmtSize(f.size)));
+            return li({ key: f.name + i }, h(Icon, { name: 'file', size: 16 }), span({ className: 'fn', dir: 'auto' }, f.url ? h('a', { href: f.url, target: '_blank', rel: 'noopener' }, f.name) : f.name), span({ className: 'fm' }, f.by + ' · ' + fmtSize(f.size)));
           })) : null)),
       div({ className: 'col', 'data-on': panel === 'chat' },
         h(Chat, { req: c, role: role, observer: false, baseline: baseline, visible: chatVisible, mode: c.stage === 3 ? 'closed' : 'open', closedNote: 'أُغلقت الشكوى بعد رد المدير المالي. السجل محفوظ للمراجعة.', onSend: props.onSend }))));

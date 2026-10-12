@@ -13,11 +13,7 @@ function AlertBar(props) {
 }
 
 function FileChip(props) {
-  /* a file already on the server (has an id) downloads through the permission-checked API; a picked File is just shown */
-  const label = props.f.id
-    ? h('a', { href: API.attachmentUrl(props.f.id), dir: 'auto', download: props.f.name, className: 'filelink' }, props.f.name)
-    : span({ dir: 'auto' }, props.f.name);
   return span({ className: 'file' }, h(Icon, { name: 'file', size: 14 }),
-    label, span({ className: 'sz' }, h('em', null, fmtSize(props.f.size))),
+    props.f.url ? h('a', { href: props.f.url, target: '_blank', rel: 'noopener', dir: 'auto' }, props.f.name) : span({ dir: 'auto' }, props.f.name), span({ className: 'sz' }, h('em', null, fmtSize(props.f.size))),
     props.onRemove ? button({ type: 'button', 'aria-label': 'إزالة ' + props.f.name, onClick: props.onRemove, className: 'rm' }, h(Icon, { name: 'close', size: 14 })) : null);
 }

@@ -1,8 +1,9 @@
 'use strict';
 
 /* =====================================================================
-   Accounts: roles, page access, small helpers. Accounts, passwords and
-   permissions live in the backend (Django); nothing sensitive is kept here.
+   Accounts: login, forced password change, users administration.
+   Demo only: accounts live in memory. In production the backend stores
+   salted password hashes, enforces roles on every request and audits changes.
    ===================================================================== */
 const ROLE_LABEL = { supplier: 'مورد', matcher: 'مطابق', manager: 'مدير مالي', admin: 'مدير النظام' };
 const ROLE_PAGES = {
@@ -13,10 +14,10 @@ const ROLE_PAGES = {
 };
 const HOME_PAGE = { supplier: 'supplier', matcher: 'matcher', manager: 'manager', admin: 'users' };
 const PAGE_LABEL = { supplier: 'صفحة المورد', matcher: 'صفحة المطابق', manager: 'لوحة المدير المالي', recon: 'مطابقة الكشوف', users: 'إدارة المستخدمين' };
-/* two separate entrances: suppliers use /portal/ (supplier.html), staff use / (index.html) */
+/* two separate entrances: suppliers use supplier.html, staff use index.html */
 const PORTAL = document.body.getAttribute('data-portal') || 'staff';
-
-/* temporary password suggestion for the admin form (the server validates every password again) */
+const inPortal = function (u) { return (u.role === 'supplier') === (PORTAL === 'supplier'); };
+/* accounts live in the database; manage them from the users page */
 function genPass() {
   const sets = ['abcdefghjkmnpqrstuvwxyz', 'ABCDEFGHJKMNPQRSTUVWXYZ', '23456789', '@#$%'];
   const all = sets.join('');

@@ -57,6 +57,16 @@ function Dashboard(props) {
   const loadRows = Object.keys(load).map(function (k) { return [k, load[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
   const maxLoad = loadRows.length ? loadRows[0][1] : 1;
 
+  const cOpen = props.complaints.filter(function (c) { return c.stage < 3; }).length;
+  const cReplied = props.complaints.length - cOpen;
+  const cBySup = {};
+  props.complaints.forEach(function (c) { cBySup[c.supplier] = (cBySup[c.supplier] || 0) + 1; });
+  const cTop = Object.keys(cBySup).map(function (k) { return [k, cBySup[k]]; }).sort(function (a, b) { return b[1] - a[1]; })[0];
+  const doneBy = {};
+  doneAll.forEach(function (r) { if (r.matcher) doneBy[r.matcher] = (doneBy[r.matcher] || 0) + 1; });
+  const doneRows = Object.keys(doneBy).map(function (k) { return [k, doneBy[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+  const maxDone = doneRows.length ? doneRows[0][1] : 1;
+
   const counts = {
     all: reqs.length, late: late.length, reply: replyN,
     matching: reqs.filter(function (r) { return keyOf(r) === 'matching'; }).length,
@@ -76,6 +86,11 @@ function Dashboard(props) {
       h(Kpi, { label: 'متأخرة عن ' + SLA_DAYS + ' أيام', value: late.length, note: replyN + ' منها تنتظر رد المورد', tone: late.length ? 'bad' : '' }),
       h(Kpi, { label: 'منجزة هذا الشهر', value: doneMonth.length, note: 'طلبات أُغلقت بالاتفاق' }),
       h(Kpi, { label: 'متوسط مدة الإنجاز', value: avg.toFixed(1), note: 'يوم لكل طلب منجز' })),
+    div({ className: 'kpis' },
+      h(Kpi, { label: 'شكاوى مفتوحة', value: cOpen, note: 'من أصل ' + props.complaints.length + ' شكوى', tone: cOpen ? 'bad' : '' }),
+      h(Kpi, { label: 'شكاوى جديدة', value: newC, note: 'لم تُراجع بعد', tone: newC ? 'bad' : '' }),
+      h(Kpi, { label: 'شكاوى تم الرد عليها', value: cReplied, note: props.complaints.length ? Math.round(cReplied / props.complaints.length * 100) + '% من الشكاوى' : 'لا توجد شكاوى' }),
+      h(Kpi, { label: 'أكثر مورد شكوى', value: cTop ? cTop[1] : 0, note: cTop ? cTop[0] : 'لا توجد شكاوى' })),
     div({ className: 'two' },
       section({ className: 'panel' }, h3(null, 'أين تقف الطلبات الآن'),
         div({ className: 'strip', role: 'img', 'aria-label': pipeline.map(function (x) { return x[0] + ' ' + x[2]; }).join('، ') },
@@ -85,6 +100,10 @@ function Dashboard(props) {
         ul({ className: 'load' }, loadRows.map(function (x) {
           return li({ key: x[0] }, span(null, x[0]), div({ className: 'track' }, h('i', { style: { width: (x[1] / maxLoad * 100) + '%' } })), h('b', null, x[1]));
         })))),
+    section({ className: 'panel' }, h3(null, 'المطابقون الأكثر إنجازاً'),
+      doneRows.length ? ul({ className: 'load top' }, doneRows.map(function (x, i) {
+        return li({ key: x[0], className: i === 0 ? 'first' : '' }, span(null, x[0], i === 0 ? span({ className: 'crown' }, 'الأول') : null), div({ className: 'track' }, h('i', { style: { width: (x[1] / maxDone * 100) + '%' } })), h('b', null, x[1]));
+      })) : p({ className: 'muted' }, 'لا توجد طلبات منجزة بعد.')),
     div({ className: 'tools' },
       div({ className: 'filters', role: 'group', 'aria-label': 'تصفية الطلبات' }, FILTERS.map(function (f) {
         return button({ key: f[0], className: 'fchip', 'aria-pressed': flt === f[0], onClick: function () { setFlt(f[0]); } }, f[1], h('b', null, counts[f[0]]));
