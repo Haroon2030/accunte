@@ -20,8 +20,8 @@ function UsersPage(props) {
     const f = formV, er = {};
     const un = normUser(f.username);
     if (!f.name.trim()) er.name = 'أدخل الاسم الكامل.';
-    if (!/^[a-z0-9._-]{1,30}$/.test(un)) er.username = 'حتى 30 خانة: حروف إنجليزية صغيرة وأرقام و . _ - فقط.';
-    else if (users.some(function (x) { return x.username === un && x.id !== f.id; })) er.username = 'اسم المستخدم مستخدم لحساب آخر.';
+    if (!/^[a-z0-9._-]{1,30}$/.test(un)) er.username = 'أرقام أو حروف إنجليزية صغيرة، حتى 30 خانة.';
+    else if (users.some(function (x) { return x.username === un && x.id !== f.id; })) er.username = 'رقم المستخدم مستخدم لحساب آخر.';
     if (f.role === 'supplier' && !f.org.trim()) er.org = 'أدخل اسم المورد التابع له الحساب.';
     if (f.role === 'supplier') {
       const tx = normDigits(f.taxNo), cd = f.code.trim();
@@ -56,7 +56,7 @@ function UsersPage(props) {
   const cx = confirm ? users.filter(function (u) { return u.id === confirm.id; })[0] : null;
   const cols = [
     { key: 'name', label: 'الاسم', filter: 'text', val: function (x) { return x.name; }, render: function (x) { return strong({ style: { fontWeight: 600 } }, x.name, x.id === me.id ? span({ className: 'muted small' }, ' (أنت)') : null); } },
-    { key: 'username', label: 'اسم المستخدم', filter: 'text', val: function (x) { return x.username; }, render: function (x) { return span({ className: 'mono' }, x.username); } },
+    { key: 'username', label: 'رقم المستخدم', filter: 'text', val: function (x) { return x.username; }, render: function (x) { return span({ className: 'mono' }, x.username); } },
     { key: 'role', label: 'الدور', filter: 'select', fv: function (x) { return ROLE_LABEL[x.role]; }, val: function (x) { return ROLE_LABEL[x.role]; }, render: function (x) { return ROLE_LABEL[x.role]; } },
     { key: 'org', label: 'الجهة', filter: 'text', val: function (x) { return x.org; }, render: function (x) { return x.org; } },
     { key: 'code', label: 'رمز المورد', filter: 'text', val: function (x) { return x.code || ''; }, render: function (x) { return x.code ? span({ className: 'mono' }, x.code) : span({ className: 'muted' }, '—'); } },
@@ -97,7 +97,7 @@ function UsersPage(props) {
       h3(null, formV.id ? 'تعديل مستخدم' : 'مستخدم جديد'),
       div({ className: 'uform' },
         fld('uf-name', 'الاسم الكامل', input({ id: 'uf-name', type: 'text', value: formV.name, onChange: function (e) { setF('name', e.target.value); } }), 'name'),
-        fld('uf-user', 'اسم المستخدم', input({ id: 'uf-user', type: 'text', className: 'ltr', autoCapitalize: 'none', value: formV.username, onChange: function (e) { setF('username', e.target.value); } }), 'username', 'حروف إنجليزية صغيرة وأرقام.'),
+        fld('uf-user', 'رقم المستخدم', input({ id: 'uf-user', type: 'text', className: 'ltr', autoCapitalize: 'none', value: formV.username, onChange: function (e) { setF('username', e.target.value); } }), 'username', 'يكفي رقم، مثل 1 أو 2025.'),
         fld('uf-role', 'الدور', select({ id: 'uf-role', value: formV.role, disabled: formV.id === me.id, onChange: function (e) { setF('role', e.target.value); } },
           roleOpts.map(function (r) { return option({ key: r, value: r }, ROLE_LABEL[r]); })), 'role', 'يصل إلى: ' + ROLE_PAGES[formV.role].map(function (k) { return PAGE_LABEL[k]; }).join('، ')),
         fld('uf-org', formV.role === 'supplier' ? 'اسم المورد' : 'الجهة / القسم', input({ id: 'uf-org', type: 'text', value: formV.org, onChange: function (e) { setF('org', e.target.value); } }), 'org'),

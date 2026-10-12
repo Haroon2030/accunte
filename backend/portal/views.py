@@ -75,8 +75,8 @@ class LoginView(APIView):
         pw = request.data.get('password') or ''
         portal = request.data.get('portal') or 'staff'
         if not name or not pw:
-            raise ValidationError({'detail': 'أدخل اسم المستخدم وكلمة المرور.'})
-        bad = ValidationError({'detail': 'اسم المستخدم أو كلمة المرور غير صحيحة.'})
+            raise ValidationError({'detail': 'أدخل رقم المستخدم وكلمة المرور.'})
+        bad = ValidationError({'detail': 'رقم المستخدم أو كلمة المرور غير صحيحة.'})
         user = User.objects.filter(username=name).first()
         if not user or (user.role == User.SUPPLIER) != (portal == 'supplier'):
             raise bad
@@ -123,9 +123,9 @@ def clean_user_payload(data, instance=None):
     if not name:
         errors['name'] = 'أدخل الاسم الكامل.'
     if not USERNAME_RE.match(username):
-        errors['username'] = 'حتى 30 خانة: حروف إنجليزية صغيرة وأرقام و . _ - فقط.'
+        errors['username'] = 'أرقام أو حروف إنجليزية صغيرة، حتى 30 خانة.'
     elif User.objects.filter(username=username).exclude(pk=getattr(instance, 'pk', None)).exists():
-        errors['username'] = 'اسم المستخدم مستخدم لحساب آخر.'
+        errors['username'] = 'رقم المستخدم مستخدم لحساب آخر.'
     if role not in dict(User.ROLES):
         errors['role'] = 'دور غير صحيح.'
     if role == User.SUPPLIER:

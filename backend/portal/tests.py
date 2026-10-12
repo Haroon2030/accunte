@@ -69,7 +69,7 @@ class PortalTests(TestCase):
 
     def test_change_password_rule(self):
         c = login(self.sup, 'supplier')
-        self.assertEqual(c.post('/api/auth/change-password', {'password': '123456'}, format='json').status_code, 400)
+        self.assertEqual(c.post('/api/auth/change-password', {'password': '123'}, format='json').status_code, 400)
         self.assertEqual(c.post('/api/auth/change-password', {'password': 'NewPass99'}, format='json').status_code, 200)
 
     # ---- users

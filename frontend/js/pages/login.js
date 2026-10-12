@@ -30,7 +30,7 @@ function Login(props) {
     e.preventDefault();
     if (left > 0 || busy) return;
     const name = normUser(u);
-    if (!name || !pw) { setErr('أدخل اسم المستخدم وكلمة المرور.'); return; }
+    if (!name || !pw) { setErr('أدخل رقم المستخدم وكلمة المرور.'); return; }
     setBusy(true);
     API.post('/auth/login', { username: name, password: pw, portal: PORTAL }).then(function (d) {
       setErr(''); setFails(0); setBusy(false);
@@ -61,15 +61,15 @@ function Login(props) {
           h1(null, 'تعيين كلمة مرور جديدة'),
           p({ className: 'sub' }, 'هذه أول مرة تدخل فيها بكلمة مرور مؤقتة، اختر كلمة مرور خاصة بك للمتابعة.'),
           err ? div({ className: 'loginerr', role: 'alert' }, err) : null,
-          div({ className: 'field' }, label({ htmlFor: 'np' }, 'كلمة المرور الجديدة'), h(PwInput, { id: 'np', value: np, onChange: setNp, autoComplete: 'new-password' }), span({ className: 'hint' }, '8 خانات على الأقل، حروف إنجليزية وأرقام.')),
+          div({ className: 'field' }, label({ htmlFor: 'np' }, 'كلمة المرور الجديدة'), h(PwInput, { id: 'np', value: np, onChange: setNp, autoComplete: 'new-password' }), span({ className: 'hint' }, '4 خانات على الأقل، تكفي الأرقام.')),
           div({ className: 'field' }, label({ htmlFor: 'np2' }, 'تأكيد كلمة المرور'), h(PwInput, { id: 'np2', value: np2, onChange: setNp2, autoComplete: 'new-password' })),
           button({ type: 'submit', className: 'btn primary', style: { width: '100%' } }, 'حفظ والدخول'))
         : form({ onSubmit: submit, noValidate: true },
           h1(null, 'تسجيل الدخول'),
           p({ className: 'sub' }, PORTAL === 'supplier' ? 'بوابة الموردين: أدخل بيانات حساب شركتك' : 'أدخل بيانات حسابك للوصول إلى النظام'),
           err ? div({ className: 'loginerr', role: 'alert' }, err, left > 0 ? ' (' + left + ' ث)' : '') : null,
-          div({ className: 'field' }, label({ htmlFor: 'lg-u' }, 'اسم المستخدم'),
-            input({ id: 'lg-u', type: 'text', className: 'ltr', autoComplete: 'username', autoCapitalize: 'none', spellCheck: false, value: u, onChange: function (e) { setU(e.target.value); } })),
+          div({ className: 'field' }, label({ htmlFor: 'lg-u' }, 'رقم المستخدم'),
+            input({ id: 'lg-u', type: 'text', inputMode: 'numeric', className: 'ltr', autoComplete: 'username', autoCapitalize: 'none', spellCheck: false, value: u, onChange: function (e) { setU(e.target.value); } })),
           div({ className: 'field' }, label({ htmlFor: 'lg-p' }, 'كلمة المرور'), h(PwInput, { id: 'lg-p', value: pw, onChange: setPw, autoComplete: 'current-password' })),
           button({ type: 'submit', className: 'btn primary', style: { width: '100%' }, disabled: left > 0 || busy }, 'دخول'))));
 }

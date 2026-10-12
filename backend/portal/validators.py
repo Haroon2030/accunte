@@ -9,10 +9,8 @@ TAX_RE = re.compile(r'^\d{15}$')
 
 
 def check_password_rule(pw):
-    if not pw or len(pw) < 8:
-        raise ValidationError('كلمة المرور 8 خانات على الأقل.')
-    if not re.search(r'[A-Za-z]', pw) or not re.search(r'\d', pw):
-        raise ValidationError('يجب أن تحتوي حروفاً إنجليزية وأرقاماً.')
+    if not pw or len(pw) < 4:
+        raise ValidationError('كلمة المرور 4 خانات على الأقل.')
 
 
 ARABIC_DIGITS = {ord(c): str(i) for i, c in enumerate('٠١٢٣٤٥٦٧٨٩')}

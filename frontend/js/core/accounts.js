@@ -30,8 +30,7 @@ function genPass() {
   return out.join('');
 }
 function passErr(pw) {
-  if (!pw || pw.length < 8) return 'كلمة المرور 8 خانات على الأقل.';
-  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return 'يجب أن تحتوي حروفاً إنجليزية وأرقاماً.';
+  if (!pw || pw.length < 4) return 'كلمة المرور 4 خانات على الأقل.';
   return '';
 }
 const normUser = function (v) { return rcLatin(String(v || '')).trim().toLowerCase(); };
