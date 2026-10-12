@@ -248,3 +248,18 @@ class BootstrapUsersTests(TestCase):
 
 def login_status(username, pw):
     return APIClient().post('/api/auth/login', {'username': username, 'password': pw}, format='json').status_code
+
+    def test_unused_first_admin_follows_the_default_but_a_used_one_does_not(self):
+        with mock.patch.dict(os.environ, {'BOOTSTRAP_USERS': ''}):
+            call_command('bootstrap_users')
+            admin = User.objects.get(username='1')
+            admin.set_password('Old12345')              # as if an earlier deploy used another default
+            admin.save()
+            call_command('bootstrap_users')
+            self.assertTrue(User.objects.get(username='1').check_password('526400'))
+            admin = User.objects.get(username='1')
+            admin.set_password('Mine1234')
+            admin.last_login = admin.created_at         # someone signed in
+            admin.save()
+            call_command('bootstrap_users')
+            self.assertTrue(User.objects.get(username='1').check_password('Mine1234'))

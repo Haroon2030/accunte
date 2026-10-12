@@ -4,7 +4,8 @@ On the very first deploy (the database has no accounts) it creates one admin:
   username  ADMIN_USERNAME, default "1"
   password  ADMIN_PASSWORD, default "526400"
 The admin must choose a new password at first login, then creates everyone else from the users page.
-Later deploys do nothing, so deleting or renaming that account is never undone.
+Later deploys leave it alone once someone has signed in (or deleted it), except that an admin nobody has used yet
+is kept on the current default password.
 
 BOOTSTRAP_USERS (optional JSON list) creates extra accounts that do not exist yet:
   [{"username": "4", "role": "supplier", "name": "...", "org": "...", "code": "S-1001", "taxNo": "...", "password": "..."}]
@@ -29,14 +30,21 @@ class Command(BaseCommand):
         raw = os.environ.get('BOOTSTRAP_USERS', '').strip()
         if raw:
             self.create_listed(raw)
-        self.create_first_admin()
+        self.create_first_admin(refresh=not raw)
 
-    def create_first_admin(self):
+    def create_first_admin(self, refresh=True):
+        username = normalize_digits(os.environ.get('ADMIN_USERNAME') or '1').strip().lower()
+        pw = os.environ.get('ADMIN_PASSWORD') or DEFAULT_ADMIN_PASSWORD
+        unused = User.objects.filter(username=username, role=User.ADMIN, last_login__isnull=True, must_change_password=True).first()
+        if unused and refresh:
+            # created by an earlier deploy and nobody has signed in yet: keep it in step with the current default
+            unused.set_password(pw)
+            unused.save(update_fields=['password'])
+            self.stdout.write(f'First admin "{username}" has not been used yet; its starting password was refreshed.')
+            return
         if User.objects.exists():
             self.stdout.write('Accounts already exist; the first admin is not recreated.')
             return
-        username = normalize_digits(os.environ.get('ADMIN_USERNAME') or '1').strip().lower()
-        pw = os.environ.get('ADMIN_PASSWORD') or DEFAULT_ADMIN_PASSWORD
         user = User(username=username, role=User.ADMIN, name='مدير النظام', org='أسواق الراشد',
                     is_staff=True, is_superuser=True, must_change_password=True)
         user.set_password(pw)
