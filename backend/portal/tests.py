@@ -231,3 +231,20 @@ class BootstrapUsersTests(TestCase):
         with mock.patch.dict(os.environ, {'BOOTSTRAP_USERS': 'not json'}):
             with self.assertRaises(CommandError):
                 call_command('bootstrap_users')
+
+    def test_first_deploy_creates_only_the_admin_once(self):
+        with mock.patch.dict(os.environ, {'BOOTSTRAP_USERS': ''}):
+            call_command('bootstrap_users')
+            admin = User.objects.get()
+            self.assertEqual((admin.username, admin.role), ('1', 'admin'))
+            self.assertTrue(admin.must_change_password)
+            self.assertEqual(login_status('1', '123456'), 200)       # signs in, but the API stays locked until a new password
+            self.assertEqual(APIClient().get('/api/users/').status_code, 403)
+            admin.delete()
+            User.objects.create(username='x', name='x')
+            call_command('bootstrap_users')                            # later deploys never recreate it
+            self.assertFalse(User.objects.filter(username='1').exists())
+
+
+def login_status(username, pw):
+    return APIClient().post('/api/auth/login', {'username': username, 'password': pw}, format='json').status_code

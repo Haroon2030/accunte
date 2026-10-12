@@ -1,12 +1,14 @@
-"""Create the first accounts at deploy time from the BOOTSTRAP_USERS environment variable.
+"""Create the first admin at deploy time. Nothing to configure.
 
-BOOTSTRAP_USERS is a JSON list, set in the hosting panel (never committed):
-  [{"username": "1", "role": "admin", "name": "مدير النظام", "password": "..."},
-   {"username": "4", "role": "supplier", "name": "مسؤول المورد", "org": "اسم المورد", "code": "S-1001",
-    "taxNo": "300000000000003", "password": "...", "forceChange": false}]
+On the very first deploy (the database has no accounts) it creates one admin:
+  username  ADMIN_USERNAME, default "1"
+  password  ADMIN_PASSWORD, default "123456"
+The admin must choose a new password at first login, then creates everyone else from the users page.
+Later deploys do nothing, so deleting or renaming that account is never undone.
 
-Safe to run on every start: an account that already exists is left untouched (its password is never reset here).
-forceChange defaults to true: the person must choose their own password at first login.
+BOOTSTRAP_USERS (optional JSON list) creates extra accounts that do not exist yet:
+  [{"username": "4", "role": "supplier", "name": "...", "org": "...", "code": "S-1001", "taxNo": "...", "password": "..."}]
+Existing accounts are never touched and their passwords are never reset here.
 """
 import json
 import os
@@ -17,16 +19,31 @@ from portal.models import User
 from portal.validators import normalize_digits
 
 ROLES = {r for r, _ in User.ROLES}
+DEFAULT_ADMIN_PASSWORD = '123456'
 
 
 class Command(BaseCommand):
-    help = 'Create accounts listed in BOOTSTRAP_USERS that do not exist yet.'
+    help = 'Create the first admin (and any BOOTSTRAP_USERS accounts) that do not exist yet.'
 
     def handle(self, *args, **opts):
         raw = os.environ.get('BOOTSTRAP_USERS', '').strip()
-        if not raw:
-            self.stdout.write('BOOTSTRAP_USERS is not set; no accounts to create.')
+        if raw:
+            self.create_listed(raw)
+        self.create_first_admin()
+
+    def create_first_admin(self):
+        if User.objects.exists():
+            self.stdout.write('Accounts already exist; the first admin is not recreated.')
             return
+        username = normalize_digits(os.environ.get('ADMIN_USERNAME') or '1').strip().lower()
+        pw = os.environ.get('ADMIN_PASSWORD') or DEFAULT_ADMIN_PASSWORD
+        user = User(username=username, role=User.ADMIN, name='مدير النظام', org='أسواق الراشد',
+                    is_staff=True, is_superuser=True, must_change_password=True)
+        user.set_password(pw)
+        user.save()
+        self.stdout.write(self.style.SUCCESS(f'First admin "{username}" created; a new password is required at first login.'))
+
+    def create_listed(self, raw):
         try:
             entries = json.loads(raw)
             assert isinstance(entries, list)
