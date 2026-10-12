@@ -78,7 +78,7 @@ function DataTable(props) {
         }))),
         tbody(null, shown.length ? shown.map(function (r) {
           const open = function () { if (props.onOpen) props.onOpen(r.id); };
-          return tr(Object.assign({ key: r.id, className: props.rowClass ? props.rowClass(r) : undefined }, props.onOpen ? { tabIndex: 0, onClick: open, onKeyDown: function (e) { if (e.key === 'Enter') open(); } } : {}),
+          return tr(Object.assign({ key: r.id, className: props.rowClass ? props.rowClass(r) : undefined }, props.onOpen ? { tabIndex: 0, onClick: open, onKeyDown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } } : {}),
             cols.map(function (c) { return td({ key: c.key, 'data-label': c.label, 'data-col': c.key }, c.render(r, open)); }));
         }) : tr(null, td({ colSpan: cols.length, className: 'empty' }, props.empty || 'لا توجد نتائج مطابقة للتصفية'))))),
     div({ className: 'pager' },
@@ -92,6 +92,8 @@ function DataTable(props) {
         button({ type: 'button', className: 'pgbtn', disabled: cur === pages, onClick: function () { setPage(cur + 1); } }, 'التالي')) : null));
 }
 
+/* light red tint: a message waits for the reader, or the record was never opened by them */
+function rowTone(unread, fresh, rec) { return [unread ? 'unread' : '', fresh && fresh(rec) ? 'fresh' : ''].filter(Boolean).join(' ') || undefined; }
 function colsFor(defs, hide) { return defs.filter(function (c) { return !hide || hide.indexOf(c.key) === -1; }); }
 const OPEN_COL = { key: 'open', label: 'إجراء', render: function (r, open) {
   return button({ type: 'button', className: 'btn ghost sm', onClick: function (e) { e.stopPropagation(); open(); } }, 'فتح', h(Icon, { name: 'chevL', size: 14 }));
@@ -109,7 +111,7 @@ function ComplaintTable(props) {
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (c) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(c), h(Badge, { n: unreadOf(c, role, props.seen) })); } },
     OPEN_COL
   ];
-  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (c) { return unreadOf(c, role, props.seen) ? 'unread' : undefined; } });
+  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (c) { return rowTone(unreadOf(c, role, props.seen), props.fresh, c); } });
 }
 
 function RequestTable(props) {
@@ -127,7 +129,7 @@ function RequestTable(props) {
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (r) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(r), h(Badge, { n: unreadOf(r, role, props.seen) })); } },
     OPEN_COL
   ];
-  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (r) { return unreadOf(r, role, props.seen) ? 'unread' : undefined; } });
+  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
 }
 
 /* one service = header with its main action + the table (filters live in the table header) */

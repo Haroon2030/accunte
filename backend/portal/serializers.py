@@ -6,7 +6,9 @@ def iso(dt):
 
 
 def user_out(u):
+    from .permissions import allowed_pages
     return {
+        'pages': allowed_pages(u), 'customPages': u.pages is not None,
         'id': u.pk, 'name': u.name, 'username': u.username, 'role': u.role, 'org': u.org,
         'code': u.code or '', 'taxNo': u.tax_no, 'active': u.is_active,
         'mustChange': u.must_change_password, 'last': iso(u.last_login), 'created': iso(u.created_at),

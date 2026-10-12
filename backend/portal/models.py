@@ -20,6 +20,7 @@ class User(AbstractUser):
     code = models.CharField('رمز المورد', max_length=30, unique=True, null=True, blank=True)
     tax_no = models.CharField('الرقم الضريبي', max_length=15, blank=True)
     must_change_password = models.BooleanField(default=False)
+    pages = models.JSONField('الصفحات المسموحة', null=True, blank=True)  # None = the role's default pages
     created_at = models.DateTimeField(default=timezone.now)
 
     REQUIRED_FIELDS = ['name']

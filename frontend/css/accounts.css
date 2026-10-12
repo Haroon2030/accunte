@@ -420,3 +420,94 @@ input[type="text"], input[type="search"], input[type="password"], select, textar
 .rc-tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 8px rgba(47, 111, 235, .35); }
 .rc-tabs button[aria-selected="true"] .rc-tabn { background: rgba(255, 255, 255, .25); color: var(--accent-ink); }
 .fchip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* ---------- add / edit user form ---------- */
+.uformwrap { background: #fff; border: 1px solid #CFDBF0; border-top: 4px solid var(--accent); border-radius: var(--r-lg); padding: 20px clamp(16px, 3vw, 28px) 22px; box-shadow: var(--shadow); }
+.uformhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.uformhead h3 { font-size: 1.1rem; margin: 0; }
+.uformclose { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--ink-2); }
+.uformclose:hover { background: var(--bad-soft); color: var(--bad); }
+.userspage .uform { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
+.userspage .uform .field.wide { grid-column: 1 / -1; }
+.userspage .uform .field { margin-bottom: 16px; }
+.userspage .uform .field > label, .userspage .uform .field > .lbl { font-size: .86rem; font-weight: 700; color: var(--ink); }
+.userspage .uform input[type="text"], .userspage .uform input[type="password"], .userspage .uform select { background: #fff; border: 1px solid #B7C9E8; }
+.userspage .uform input:focus, .userspage .uform select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.pwgen .pwrow input:placeholder-shown { direction: rtl; text-align: right; }
+.pwgen .btn { flex: none; min-width: 84px; }
+.optrow { display: flex; flex-wrap: wrap; gap: 10px; }
+.optrow .checkrow { min-height: 44px; padding: 0 14px; gap: 10px; border: 1px solid #B7C9E8; border-radius: 10px; background: #fff; font-size: .9rem; font-weight: 600; cursor: pointer; }
+.optrow .checkrow:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.userspage .formactions { justify-content: flex-start; padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--line); }
+@media (max-width: 640px) { .userspage .uform { grid-template-columns: minmax(0, 1fr); } .userspage .formactions .btn { flex: 1 1 0; } }
+
+/* password field: keep the text clear of the eye button (the generic password rule was resetting the padding) */
+.pwrow input[type] { padding-inline-end: 52px; }
+.pwrow .eye { inset-inline-end: 6px; width: 40px; height: 40px; border-radius: 8px; }
+.pwrow input:placeholder-shown { text-overflow: ellipsis; }
+
+/* users table: filters in the header, selects in the toolbar only on phones */
+.utools .tool-mobile { display: none; }
+.utable th { vertical-align: top; }
+.utable .thcell { gap: 8px; }
+.utable .thf { width: 100%; min-width: 96px; }
+.utable .rowacts { flex-wrap: wrap; gap: 2px 4px; }
+.utable .actcell { white-space: normal; min-width: 150px; }
+@media (max-width: 760px) {
+  .utools .tool-mobile { display: block; }
+  .utools .btn.sm { order: 5; }
+}
+
+/* table headers: solid brand blue with white text */
+.userspage .utable th, .userspage .matrix th, .dtbox .dt th {
+  background: #2F6FEB; color: #fff; border-bottom: 0; border-inline-end-color: rgba(255, 255, 255, .25);
+}
+.userspage .utable th .thbtn, .dtbox .dt th .thbtn, .userspage .utable th .thlabel, .dtbox .dt th .thlabel, .userspage .utable th[aria-sort] { color: #fff; font-weight: 700; }
+.userspage .utable th .thbtn:hover, .dtbox .dt th .thbtn:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.userspage .utable th .thbtn .ic, .dtbox .dt th .thbtn .ic { color: rgba(255, 255, 255, .85); }
+.userspage .utable th[aria-sort="ascending"] .thbtn .ic, .userspage .utable th[aria-sort="descending"] .thbtn .ic,
+.dtbox .dt th[aria-sort="ascending"] .thbtn .ic, .dtbox .dt th[aria-sort="descending"] .thbtn .ic { color: #fff; background: rgba(255, 255, 255, .22); border-radius: 4px; }
+.userspage .utable .thf, .dtbox .thf { border: 0 !important; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.userspage .matrix th:first-child { color: #fff; }
+.userspage .matrix .rolepill { box-shadow: 0 0 0 1px rgba(255, 255, 255, .5); }
+
+/* row actions as real buttons: icon-only in the table, icon + label on phone cards */
+.abtn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 36px; min-height: 36px; padding: 0 9px; border: 1px solid; border-radius: 9px; font: 700 .82rem var(--f-body); cursor: pointer; transition: background-color .15s, color .15s, border-color .15s, transform .1s; }
+.abtn:active { transform: translateY(1px); }
+.abtn .ic { color: inherit; flex: none; }
+.abtn.edit { background: var(--accent-soft); border-color: #B5CBF7; color: var(--accent); }
+.abtn.edit:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.abtn.pw { background: #FFF3D6; border-color: #F2D48B; color: #8A5200; }
+.abtn.pw:hover { background: #E8A317; border-color: #E8A317; color: #fff; }
+.abtn.stop { background: var(--bad-soft); border-color: #F1B9B4; color: var(--bad); }
+.abtn.stop:hover { background: var(--bad); border-color: var(--bad); color: #fff; }
+.abtn.go { background: var(--ok-soft); border-color: #A9DCC1; color: var(--ok); }
+.abtn.go:hover { background: var(--ok); border-color: var(--ok); color: #fff; }
+.utable .rowacts { display: flex; flex-wrap: nowrap; gap: 6px; }
+.utable .abl { display: none; }
+.utable .actcell { min-width: 0; white-space: nowrap; }
+@media (max-width: 760px) {
+  .utable .rowacts { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+  .utable .abtn { padding: 0 6px; font-size: .8rem; line-height: 1.25; min-height: 40px; }
+  .utable .abl { display: inline; }
+}
+
+.cust { margin-inline-start: 6px; padding: 1px 8px; border-radius: 999px; background: #FFF3D6; color: #8A5200; font-size: .7rem; font-weight: 700; vertical-align: middle; }
+.optrow .btn.sm { align-self: center; }
+
+/* ---------- review fixes: touch, sticky bar, skip link, dashboard groups ---------- */
+html { scroll-padding-top: 140px; }
+button, a, summary, select, label, input[type="checkbox"], input[type="radio"], [role="tab"], [tabindex="0"] { touch-action: manipulation; }
+body { -webkit-tap-highlight-color: rgba(47, 111, 235, .18); }
+.skip { position: absolute; inset-inline-start: 12px; top: -60px; z-index: 50; padding: 10px 16px; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 700; text-decoration: none; transition: top .15s; }
+.skip:focus { top: 8px; }
+#main:focus { outline: none; }
+.kgroup { display: flex; align-items: center; gap: 10px; font-size: 1rem; color: var(--ink); margin-top: 6px; }
+.kgroup::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .btn, .abtn, .skip, .linkbtn, .seg button, .fchip { transition: none !important; } }
+
+/* a record this account has not opened yet: light red */
+.dtbox .dt tbody tr.fresh td, .dtbox .dt tbody tr.fresh:nth-child(even) td { background: #FFF1EF; }
+.dtbox .dt tbody tr.fresh:hover td { background: #FFE2DE; }
+.dtbox .dt tbody tr.fresh td:first-child { box-shadow: inset -4px 0 0 var(--c-bad); }
+@media (max-width: 760px) { .dtbox .dt tbody tr.fresh { background: #FFF1EF; border-color: #F2B8B2; box-shadow: inset -4px 0 0 var(--c-bad); } .dtbox .dt tbody tr.fresh td:first-child { box-shadow: none; } }

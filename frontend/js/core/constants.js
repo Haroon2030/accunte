@@ -49,5 +49,5 @@ function since(d) {
   const dd = Math.round(hr / 24);
   return 'منذ ' + unit(dd, 'يوم', 'يومين', 'أيام', 'يوماً');
 }
-const sar = function (n) { return n == null ? '—' : n === 0 ? 'لا فروقات' : n.toLocaleString('en-US') + ' ر.س'; };
+const sar = function (n) { return n == null ? '—' : n === 0 ? 'لا فروقات' : new Intl.NumberFormat('en-US').format(n) + ' ر.س'; };
 const fmtSize = function (b) { return b < 1048576 ? Math.max(1, Math.round(b / 1024)) + ' KB' : (b / 1048576).toFixed(1) + ' MB'; };

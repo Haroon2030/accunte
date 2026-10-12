@@ -5,9 +5,9 @@
    Heavy libraries load only when a file of that type is chosen.
    ===================================================================== */
 const RC_LIBS = {
-  xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  mammoth: 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js',
-  pdf: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  xlsx: 'vendor/xlsx.full.min.js',
+  mammoth: 'vendor/mammoth.browser.min.js',
+  pdf: 'vendor/pdf.min.js',
   ocr: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.5/tesseract.min.js'
 };
 const rcLoaded = {};

@@ -5,6 +5,7 @@ import json
 import os
 from unittest import mock
 
+from django.core.cache import cache
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
@@ -36,6 +37,7 @@ def login(user, portal='staff'):
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}})
 class PortalTests(TestCase):
     def setUp(self):
+        cache.clear()                                   # the login rate limit counts per minute across the whole run
         self.admin = make('1', 'admin', org='أسواق الرشيد')
         self.manager = make('2', 'manager')
         self.matcher = make('3', 'matcher')
@@ -52,6 +54,13 @@ class PortalTests(TestCase):
             r = c.post('/api/auth/login', {'username': u.username, 'password': 'Pass1234'}, format='json')
             self.assertEqual(r.status_code, 200, u.role)
             self.assertEqual(r.json()['user']['role'], u.role)
+
+    def test_session_survives_a_reload(self):
+        anon = APIClient().get('/api/auth/me')
+        self.assertIsNone(anon.json()['user'])
+        c = login(self.sup, 'supplier')
+        me = c.get('/api/auth/me').json()['user']
+        self.assertEqual((me['username'], me['role']), ('4', 'supplier'))      # /me recognises the signed-in user
 
     def test_wrong_password_and_suspended(self):
         c = APIClient()
@@ -85,6 +94,23 @@ class PortalTests(TestCase):
         self.assertTrue(r.json()['mustChange'])
         self.assertEqual(c.post('/api/users/', {**body, 'username': '10'}, format='json').status_code, 400)  # duplicate code
         self.assertEqual(c.post('/api/users/', {**body, 'username': '11', 'code': 'S-11', 'taxNo': '123'}, format='json').status_code, 400)
+
+    def test_admin_sets_a_password_in_the_edit_form(self):
+        c = login(self.admin)
+        base = {'name': 'مطابق', 'username': '3', 'role': 'matcher', 'org': 'قسم'}
+        r = c.patch(f'/api/users/{self.matcher.pk}/', {**base, 'password': '123'}, format='json')
+        self.assertEqual(r.status_code, 400)                                           # too short
+        r = c.patch(f'/api/users/{self.matcher.pk}/', {**base, 'password': '654321'}, format='json')
+        self.assertEqual((r.status_code, r.json()['mustChange']), (200, False))
+        self.assertTrue(login_ok('3', '654321'))
+        r = c.patch(f'/api/users/{self.matcher.pk}/', {**base, 'password': '777777', 'mustChange': True}, format='json')
+        self.assertTrue(r.json()['mustChange'])
+        keep = {**base, 'password': ''}                                                # empty = unchanged
+        c.patch(f'/api/users/{self.matcher.pk}/', keep, format='json')
+        self.assertTrue(login_ok('3', '777777'))
+        own = c.patch(f'/api/users/{self.admin.pk}/', {'name': 'مدير', 'username': '1', 'role': 'admin', 'password': '999999'}, format='json')
+        self.assertEqual(own.status_code, 200)
+        self.assertEqual(c.get('/api/users/').status_code, 200)                        # the admin is still signed in
 
     def test_admin_cannot_demote_or_stop_self_and_reset_returns_password(self):
         c = login(self.admin)
@@ -274,3 +300,64 @@ class BootstrapUsersTests(TestCase):
         with mock.patch.dict(os.environ, {'ADMIN_FORCE_RESET': '1', 'ADMIN_PASSWORD': ''}):
             with self.assertRaises(CommandError):
                 call_command('bootstrap_users')
+
+
+class SeedDemoTests(TestCase):
+    def test_seed_is_marked_repeatable_and_removable(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        from .models import Complaint, MatchRequest, Message
+        with self.assertRaises(CommandError):
+            call_command('seed_demo_data')                       # no supplier yet
+        make('4', 'supplier', org='شركة', code='S-1')
+        make('3', 'matcher')
+        make('2', 'manager')
+        with tempfile.TemporaryDirectory() as tmp, override_settings(MEDIA_ROOT=tmp, STORAGES={
+                'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+                'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}):
+            real = MatchRequest.objects.create(supplier=User.objects.get(username='4'), period='حقيقي', notes='ملاحظة حقيقية', due_at='2030-01-01T00:00:00Z')
+            call_command('seed_demo_data')
+            self.assertEqual(sorted(MatchRequest.objects.exclude(pk=real.pk).values_list('stage', flat=True)), [1, 1, 2, 2, 3, 3, 4, 4])
+            self.assertEqual(sorted(Complaint.objects.values_list('stage', flat=True)), [1, 1, 2, 2, 3, 3])
+            self.assertTrue(Attachment.objects.count() >= 15)
+            before = MatchRequest.objects.count()
+            call_command('seed_demo_data')                       # second run adds nothing
+            self.assertEqual(MatchRequest.objects.count(), before)
+            call_command('seed_demo_data', '--clear')
+            self.assertEqual(list(MatchRequest.objects.values_list('pk', flat=True)), [real.pk])   # real data untouched
+            self.assertEqual((Complaint.objects.count(), Message.objects.count(), Attachment.objects.count()), (0, 0, 0))
+
+
+class PagePermissionTests(TestCase):
+    def setUp(self):
+        cache.clear()                                   # the login rate limit counts per minute across the whole run
+        self.admin = make('1', 'admin')
+        self.matcher = make('3', 'matcher')
+        self.sup = make('4', 'supplier', org='ش', code='S-1')
+
+    def test_defaults_then_custom_pages_are_enforced(self):
+        a = login(self.admin)
+        m = login(self.matcher)
+        self.assertEqual(m.get('/api/complaints/').status_code, 403)               # matcher: no manager page by default
+        r = a.patch(f'/api/users/{self.matcher.pk}/', {'name': 'م', 'username': '3', 'role': 'matcher', 'pages': ['matcher', 'manager']}, format='json')
+        self.assertEqual((r.status_code, r.json()['pages'], r.json()['customPages']), (200, ['matcher', 'manager'], True))
+        self.assertEqual(login(self.matcher).get('/api/complaints/').status_code, 200)  # now allowed
+        a.patch(f'/api/users/{self.matcher.pk}/', {'name': 'م', 'username': '3', 'role': 'matcher', 'pages': ['recon']}, format='json')
+        m = login(self.matcher)
+        self.assertEqual(m.get('/api/requests/').status_code, 403)                  # no matcher/manager page left
+        self.assertEqual(m.get('/api/users/').status_code, 403)
+        r = a.patch(f'/api/users/{self.matcher.pk}/', {'name': 'م', 'username': '3', 'role': 'matcher', 'pages': None}, format='json')
+        self.assertEqual((r.json()['pages'], r.json()['customPages']), (['matcher', 'recon'], False))
+
+    def test_page_rules(self):
+        a = login(self.admin)
+        base = {'name': 'x', 'role': 'matcher'}
+        self.assertEqual(a.patch(f'/api/users/{self.matcher.pk}/', {**base, 'username': '3', 'pages': []}, format='json').status_code, 400)
+        self.assertEqual(a.patch(f'/api/users/{self.matcher.pk}/', {**base, 'username': '3', 'pages': ['supplier']}, format='json').status_code, 400)
+        self.assertEqual(a.patch(f'/api/users/{self.sup.pk}/', {'name': 'x', 'username': '4', 'role': 'supplier', 'org': 'ش', 'code': 'S-1', 'pages': ['users']}, format='json').status_code, 400)
+        own = a.patch(f'/api/users/{self.admin.pk}/', {'name': 'x', 'username': '1', 'role': 'admin', 'pages': ['matcher']}, format='json')
+        self.assertEqual(own.status_code, 400)                                        # cannot lock yourself out of the users page
+        created = a.post('/api/users/', {'name': 'جديد', 'username': '8', 'role': 'matcher', 'password': '1234', 'pages': ['manager', 'users']}, format='json')
+        self.assertEqual((created.status_code, created.json()['pages']), (201, ['manager', 'users']))
+        role_change = a.patch(f'/api/users/{self.matcher.pk}/', {'name': 'x', 'username': '3', 'role': 'manager'}, format='json')
+        self.assertEqual(role_change.json()['pages'], ['matcher', 'manager', 'recon'])   # new role, its own defaults

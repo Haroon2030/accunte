@@ -16,23 +16,49 @@ function App() {
     return function () { clearTimeout(t); };
   }, [toast]);
 
+  /* records this account opened: one created after its first visit and still unopened shows with a light red tint */
+  const [opened, setOpened] = useState(null);
+  const openedKey = me ? 'opened:' + me.id : null;
+  useEffect(function () {
+    if (!openedKey) { setOpened(null); return; }
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(openedKey) || 'null'); } catch (e) { saved = null; }
+    if (!saved || !saved.since) {
+      saved = { since: Date.now(), ids: {} };
+      try { localStorage.setItem(openedKey, JSON.stringify(saved)); } catch (e) { /* private mode */ }
+    }
+    setOpened(saved);
+  }, [openedKey]);
+  const markOpened = function (id) {
+    setOpened(function (o) {
+      if (!o || o.ids[id]) return o;
+      const n = { since: o.since, ids: Object.assign({}, o.ids) };
+      n.ids[id] = 1;
+      try { localStorage.setItem(openedKey, JSON.stringify(n)); } catch (e) { /* private mode: the tint just resets */ }
+      return n;
+    });
+  };
   const mySupplier = me && me.role === 'supplier' ? me.org : '';
   const goTop = function () { try { window.scrollTo(0, 0); } catch (e) { /* ignore */ } };
-  const openReq = function (id) { setService('recon'); setView({ name: 'track', id: id }); goTop(); };
+  const openReq = function (id) { markOpened(id); setService('recon'); setView({ name: 'track', id: id }); goTop(); };
   const home = function () { setView({ name: 'home' }); goTop(); };
   const markSeen = function (id, who) { setSeen(function (s) { const o = Object.assign({}, s); o[id + ':' + who] = Date.now(); return o; }); };
-  const openC = function (id) { setService('complaint'); setView({ name: 'trackc', id: id }); goTop(); };
+  const openC = function (id) { markOpened(id); setService('complaint'); setView({ name: 'trackc', id: id }); goTop(); };
   const fail = function (e) { setToast(e.message); if (e.status === 401) setMe(null); };
 
   function loadAll(u) {
-    const jobs = [API.get('/requests/').then(function (rs) { setReqs(rs.map(API.request)); })];
-    if (u.role !== 'matcher') jobs.push(API.get('/complaints/').then(function (cs) { setComplaints(cs.map(API.complaint)); }));
-    if (u.role === 'admin') jobs.push(API.get('/users/').then(function (us) { setUsers(us.map(API.user)); }));
+    const pages = u.pages || ROLE_PAGES[u.role] || [];
+    const has = function () { return [].slice.call(arguments).some(function (p) { return pages.indexOf(p) !== -1; }); };
+    const jobs = [];
+    if (u.role === 'supplier' || has('matcher', 'manager')) jobs.push(API.get('/requests/').then(function (rs) { setReqs(rs.map(API.request)); }));
+    if (u.role === 'supplier' || has('manager')) jobs.push(API.get('/complaints/').then(function (cs) { setComplaints(cs.map(API.complaint)); }));
+    if (has('users')) jobs.push(API.get('/users/').then(function (us) { setUsers(us.map(API.user)); }));
     return Promise.all(jobs);
   }
   function enter(u, welcome) {
     const user = API.user(u);
-    setMe(user); setRole(HOME_PAGE[user.role]); setView({ name: 'home' }); goTop();
+    const mine = user.pages || ROLE_PAGES[user.role] || [];
+    setMe(user); setRole(mine.indexOf(HOME_PAGE[user.role]) !== -1 ? HOME_PAGE[user.role] : mine[0]); setView({ name: 'home' }); goTop();
     if (welcome) setToast('أهلاً ' + user.name + '.');
     loadAll(user).catch(fail);
   }
@@ -92,7 +118,8 @@ function App() {
     }).catch(fail);
   }
   const user = me || null;
-  const allowed = user ? ROLE_PAGES[user.role] : [];
+  const isFresh = function (rec) { return !!(user && user.role !== 'supplier' && opened && rec.created && rec.created.getTime() > opened.since && !opened.ids[rec.id]); };
+  const allowed = user ? (user.pages || ROLE_PAGES[user.role] || []) : [];
   function changeRole(r) { if (allowed.indexOf(r) === -1) return; setRole(r); home(); }
   function logout() {
     API.post('/auth/logout').catch(function () { /* already signed out */ }).then(function () {
@@ -100,7 +127,7 @@ function App() {
     });
   }
   function saveUser(d) {
-    const body = { name: d.name, username: d.username, role: d.role, org: d.org, code: d.code, taxNo: d.taxNo, active: d.active, password: d.password };
+    const body = { name: d.name, username: d.username, role: d.role, org: d.org, code: d.code, taxNo: d.taxNo, active: d.active, password: d.password, mustChange: d.mustChange, pages: d.pages };
     const call = d.id ? API.patch('/users/' + d.id + '/', body) : API.post('/users/', body);
     return call.then(function (u) {
       const nu = API.user(u);
@@ -141,8 +168,8 @@ function App() {
   else if (role === 'supplier') body = h(SupplierHome, { supplier: mySupplier, reqs: reqs, complaints: complaints, seen: seen, service: service, onService: setService, onOpen: openReq, onOpenC: openC, onNew: function () { setView({ name: 'new' }); goTop(); }, onNewC: function () { setView({ name: 'newc' }); goTop(); } });
   else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { users: users, me: user, onSave: saveUser, onToggle: toggleUser, onReset: resetUser, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
-  else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, onOpen: openReq });
-  else body = h(Dashboard, { reqs: reqs, complaints: complaints, seen: seen, onOpen: openReq, onOpenC: openC });
+  else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, onOpen: openReq });
+  else body = h(Dashboard, { reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });
 
   return div(null,
     header({ className: 'topbar' }, div({ className: 'gutter topin' }, h(Brand),
@@ -152,6 +179,6 @@ function App() {
         })) : null,
         div({ className: 'uchip' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
           button({ type: 'button', onClick: logout }, 'خروج'))))),
-    main({ className: 'gutter page' }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))), body),
+    main({ className: 'gutter page', id: 'main', tabIndex: -1 }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))), body),
     toast ? div({ className: 'toast', role: 'status' }, toast) : null);
 }

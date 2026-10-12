@@ -75,8 +75,9 @@ class Command(BaseCommand):
     def create_listed(self, raw):
         try:
             entries = json.loads(raw)
-            assert isinstance(entries, list)
-        except (ValueError, AssertionError):
+        except ValueError:
+            entries = None
+        if not isinstance(entries, list):
             raise CommandError('BOOTSTRAP_USERS must be a JSON list of account objects.')
         for i, e in enumerate(entries, 1):
             username = normalize_digits(e.get('username')).strip().lower()

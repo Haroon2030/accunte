@@ -97,7 +97,7 @@ p { margin: 0; }
   .navitem[aria-current="page"] { box-shadow: none; background: var(--accent); color: var(--accent-ink); }
   .navitem[aria-current="page"] .navtxt strong { color: var(--accent-ink); }
   .navitem[aria-current="page"] .navtxt small { color: rgba(255, 255, 255, .85); }
-  .navitem[aria-current="page"] .navcount { background: rgba(255, 255, 255, .2); border-color: transparent; color: var(--accent-ink); }
+  .navitem[aria-current="page"] .navcount { background: #fff; border-color: transparent; color: #1F55C4; font-weight: 700; }
   .navtxt strong { font-size: .86rem; }
 }
 @media (max-width: 480px) {

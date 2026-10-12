@@ -3,7 +3,7 @@ import secrets
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.sessions.models import Session
 from django.db import transaction
 from django.db.models import Q
@@ -13,12 +13,14 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django_ratelimit.decorators import ratelimit
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import SLA_DAYS, Attachment, Complaint, Message, MatchRequest, User
-from .permissions import IsAdmin, IsStaff, IsSupplier, can_view_complaint, can_view_request, roles
+from .permissions import (supplier_or_page, IsAdmin, IsManagerPage, IsMatcherPage, IsStaff, IsSupplier, STAFF_PAGES, SupplierOrManagerPage, allowed_pages,
+                          can_view_complaint, can_view_request, roles)
 from .serializers import complaint_out, message_out, request_out, user_out
 from .validators import INLINE_TYPES, TAX_RE, check_password_rule, extension_of, normalize_digits, validate_upload
 
@@ -57,8 +59,9 @@ def save_files(files, uploader, **parent):
 # ------------------------------------------------------------------ auth
 @method_decorator(ensure_csrf_cookie, name='dispatch')
 class MeView(APIView):
+    """Who is signed in. It must read the session: without it every page reload looked signed out."""
     permission_classes = [AllowAny]
-    authentication_classes = []
+    authentication_classes = [SessionAuthentication]
 
     def get(self, request):
         u = request.user if request.user.is_authenticated else None
@@ -141,6 +144,25 @@ def clean_user_payload(data, instance=None):
     return {'name': name, 'username': username, 'role': role, 'org': org, 'code': code or None, 'tax_no': tax}
 
 
+def clean_pages(data, role, current, editing_self):
+    """None = the role's default pages. Staff get a subset of the four staff pages; suppliers never get staff pages."""
+    raw = data.get('pages')
+    if raw is None or raw == '':
+        return None
+    if not isinstance(raw, list):
+        raise ValidationError({'pages': 'صيغة الصلاحيات غير صحيحة.'})
+    if role == User.SUPPLIER:
+        raise ValidationError({'pages': 'حساب المورد لا تُعدَّل صلاحياته.'})
+    pages = [p for p in STAFF_PAGES if p in raw]
+    if len(pages) != len(set(raw)):
+        raise ValidationError({'pages': 'صفحة غير معروفة في الصلاحيات.'})
+    if not pages:
+        raise ValidationError({'pages': 'اختر صفحة واحدة على الأقل.'})
+    if editing_self and 'users' not in pages:
+        raise ValidationError({'pages': 'لا يمكنك سحب صلاحية إدارة المستخدمين من حسابك الحالي.'})
+    return pages
+
+
 class UsersView(APIView):
     permission_classes = [IsAdmin]
 
@@ -151,7 +173,7 @@ class UsersView(APIView):
         fields = clean_user_payload(request.data)
         pw = request.data.get('password') or ''
         check_password_rule(pw)
-        user = User(**fields, must_change_password=True)
+        user = User(**fields, must_change_password=True, pages=clean_pages(request.data, fields['role'], None, False))
         user.set_password(pw)
         user.save()
         return Response(user_out(user), status=201)
@@ -170,9 +192,25 @@ class UserDetailView(APIView):
             active = True
         for k, v in fields.items():
             setattr(user, k, v)
+        if 'pages' in request.data:
+            user.pages = clean_pages(request.data, fields['role'], user.pages, user.pk == request.user.pk)
+        elif fields['role'] != User.objects.get(pk=user.pk).role:
+            user.pages = None                                  # a new role starts from its own default pages
         user.is_active = active
+        new_pw = request.data.get('password') or ''
+        if new_pw:
+            check_password_rule(new_pw)
+            user.set_password(new_pw)
+            user.must_change_password = bool(request.data.get('mustChange', False))
         user.save()
-        if not active:
+        if new_pw:
+            if user.pk == request.user.pk:
+                update_session_auth_hash(request, user)      # keep the admin signed in after changing their own password
+            else:
+                revoke_sessions(user)
+        elif not active:
+            revoke_sessions(user)
+        if new_pw and not active:
             revoke_sessions(user)
         return Response(user_out(user))
 
@@ -213,6 +251,8 @@ class UserResetView(APIView):
 
 
 # ------------------------------------------------------------------ matching requests
+supplier_or_requests = supplier_or_page('matcher', 'manager')
+
 def request_qs():
     return (MatchRequest.objects.select_related('supplier', 'matcher')
             .prefetch_related('attachments', 'messages__files', 'messages__sender'))
@@ -234,6 +274,8 @@ def system_message(parent_field, parent, text):
 
 
 class RequestsView(APIView):
+    permission_classes = [supplier_or_requests]
+
     def get(self, request):
         qs = request_qs()
         if request.user.role == User.SUPPLIER:
@@ -261,6 +303,8 @@ class RequestsView(APIView):
 
 
 class RequestDetailView(APIView):
+    permission_classes = [supplier_or_requests]
+
     def get(self, request, pk):
         return Response(request_out(get_request(request.user, pk)))
 
@@ -281,7 +325,7 @@ class RequestDetailView(APIView):
 
 
 class RequestAdvanceView(APIView):
-    permission_classes = [IsStaff]
+    permission_classes = [IsMatcherPage]
 
     @transaction.atomic
     def post(self, request, pk):
@@ -317,6 +361,8 @@ def post_message(request, parent, field, kind, allowed):
 
 
 class RequestMessagesView(APIView):
+    permission_classes = [supplier_or_requests]
+
     def post(self, request, pk):
         req = get_request(request.user, pk)
         role = request.user.role
@@ -338,7 +384,7 @@ def get_complaint(user, pk):
 
 
 class ComplaintsView(APIView):
-    permission_classes = [roles(User.SUPPLIER, User.MANAGER, User.ADMIN)]
+    permission_classes = [SupplierOrManagerPage]
 
     def get(self, request):
         qs = complaint_qs()
@@ -381,14 +427,14 @@ class ComplaintsView(APIView):
 
 
 class ComplaintDetailView(APIView):
-    permission_classes = [roles(User.SUPPLIER, User.MANAGER, User.ADMIN)]
+    permission_classes = [SupplierOrManagerPage]
 
     def get(self, request, pk):
         return Response(complaint_out(get_complaint(request.user, pk)))
 
 
 class ComplaintAdvanceView(APIView):
-    permission_classes = [roles(User.MANAGER, User.ADMIN)]
+    permission_classes = [IsManagerPage]
 
     @transaction.atomic
     def post(self, request, pk):
@@ -403,7 +449,7 @@ class ComplaintAdvanceView(APIView):
 
 
 class ComplaintMessagesView(APIView):
-    permission_classes = [roles(User.SUPPLIER, User.MANAGER, User.ADMIN)]
+    permission_classes = [SupplierOrManagerPage]
 
     def post(self, request, pk):
         c = get_complaint(request.user, pk)

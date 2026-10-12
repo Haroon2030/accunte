@@ -29,11 +29,22 @@ function UnifiedTable(props) {
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (r) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(r), h(Badge, { n: unreadOf(r, role, props.seen) })); } },
     OPEN_COL
   ];
-  return h(DataTable, { cols: defs, rows: props.rows, onOpen: props.onOpen, rowClass: function (r) { return unreadOf(r, role, props.seen) ? 'unread' : undefined; } });
+  return h(DataTable, { cols: defs, rows: props.rows, onOpen: props.onOpen, rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
 }
 
 function Dashboard(props) {
-  const [flt, setFlt] = useState('all');
+  const fromHash = function () { const m = /(?:^|[#&])f=([a-z]+)/.exec(window.location.hash || ''); return m && FILTERS.some(function (f) { return f[0] === m[1]; }) ? m[1] : 'all'; };
+  const [flt, setFltState] = useState(fromHash);
+  /* the filter lives in the address (#f=late): the back button and a shared link restore the same view */
+  const setFlt = function (k) {
+    setFltState(k);
+    try { history.pushState(null, '', k === 'all' ? window.location.pathname + window.location.search : '#f=' + k); } catch (e) { /* ignore */ }
+  };
+  useEffect(function () {
+    const back = function () { setFltState(fromHash()); };
+    window.addEventListener('popstate', back);
+    return function () { window.removeEventListener('popstate', back); };
+  }, []);
   const reqs = props.reqs;
   const keyOf = function (r) { return statusOf(r, 'manager').key; };
   const open = reqs.filter(function (r) { return r.stage < 4; });
@@ -74,18 +85,20 @@ function Dashboard(props) {
     complaints: props.complaints.length
   };
   const reqRows = flt === 'complaints' ? [] : reqs.filter(function (r) { return flt === 'all' ? true : flt === 'late' ? isLate(r) : keyOf(r) === flt; })
-    .sort(function (a, b) { return (a.stage === 4) - (b.stage === 4) || a.due - b.due; });
+    .sort(function (a, b) { return (a.stage === 4) - (b.stage === 4) || b.created - a.created; });
   const rows = (flt === 'all' || flt === 'complaints' ? cRows : []).concat(reqRows);
 
   return div({ className: 'stack' },
     div({ className: 'sechead' }, h2(null, 'متابعة المطابقات'), span({ className: 'muted small' }, 'عرض للمراقبة، بدون تدخل في سير الطلبات')),
     newC ? div({ className: 'alertbar', role: 'status' }, h(Icon, { name: 'alert' }), newC === 1 ? 'وصلتك شكوى جديدة من مورد' : 'وصلتك ' + newC + ' شكاوى جديدة من الموردين') : null,
     h(AlertBar, { n: unrC, text: newMsgText(unrC, 'الموردين') }),
+    h3({ className: 'kgroup' }, 'طلبات المطابقة'),
     div({ className: 'kpis' },
       h(Kpi, { label: 'طلبات مفتوحة', value: open.length, note: 'من أصل ' + reqs.length + ' طلب' }),
       h(Kpi, { label: 'متأخرة عن ' + SLA_DAYS + ' أيام', value: late.length, note: replyN + ' منها تنتظر رد المورد', tone: late.length ? 'bad' : '' }),
       h(Kpi, { label: 'منجزة هذا الشهر', value: doneMonth.length, note: 'طلبات أُغلقت بالاتفاق' }),
       h(Kpi, { label: 'متوسط مدة الإنجاز', value: avg.toFixed(1), note: 'يوم لكل طلب منجز' })),
+    h3({ className: 'kgroup' }, 'شكاوى الموردين'),
     div({ className: 'kpis' },
       h(Kpi, { label: 'شكاوى مفتوحة', value: cOpen, note: 'من أصل ' + props.complaints.length + ' شكوى', tone: cOpen ? 'bad' : '' }),
       h(Kpi, { label: 'شكاوى جديدة', value: newC, note: 'لم تُراجع بعد', tone: newC ? 'bad' : '' }),
@@ -98,16 +111,16 @@ function Dashboard(props) {
         div({ className: 'legend' }, pipeline.map(function (x) { return div({ key: x[0] }, h('i', { className: 'bg-' + x[1] }), x[0], h('b', null, x[2])); }))),
       section({ className: 'panel' }, h3(null, 'الحمل على المطابقين'),
         ul({ className: 'load' }, loadRows.map(function (x) {
-          return li({ key: x[0] }, span(null, x[0]), div({ className: 'track' }, h('i', { style: { width: (x[1] / maxLoad * 100) + '%' } })), h('b', null, x[1]));
+          return li({ key: x[0] }, span(null, x[0]), div({ className: 'track', role: 'img', 'aria-label': x[0] + ': ' + x[1] + ' طلب مفتوح' }, h('i', { style: { width: (x[1] / maxLoad * 100) + '%' } })), h('b', null, x[1]));
         })))),
     section({ className: 'panel' }, h3(null, 'المطابقون الأكثر إنجازاً'),
       doneRows.length ? ul({ className: 'load top' }, doneRows.map(function (x, i) {
-        return li({ key: x[0], className: i === 0 ? 'first' : '' }, span(null, x[0], i === 0 ? span({ className: 'crown' }, 'الأول') : null), div({ className: 'track' }, h('i', { style: { width: (x[1] / maxDone * 100) + '%' } })), h('b', null, x[1]));
+        return li({ key: x[0], className: i === 0 ? 'first' : '' }, span(null, x[0], i === 0 ? span({ className: 'crown' }, 'الأول') : null), div({ className: 'track', role: 'img', 'aria-label': x[0] + ': ' + x[1] + ' طلب منجز' }, h('i', { style: { width: (x[1] / maxDone * 100) + '%' } })), h('b', null, x[1]));
       })) : p({ className: 'muted' }, 'لا توجد طلبات منجزة بعد.')),
     div({ className: 'tools' },
       div({ className: 'filters', role: 'group', 'aria-label': 'تصفية الطلبات' }, FILTERS.map(function (f) {
         return button({ key: f[0], className: 'fchip', 'aria-pressed': flt === f[0], onClick: function () { setFlt(f[0]); } }, f[1], h('b', null, counts[f[0]]));
       })),
       null),
-    h(UnifiedTable, { rows: rows, seen: props.seen, onOpen: function (id) { return isComplaint({ id: id }) ? props.onOpenC(id) : props.onOpen(id); } }));
+    h(UnifiedTable, { rows: rows, seen: props.seen, fresh: props.fresh, onOpen: function (id) { return isComplaint({ id: id }) ? props.onOpenC(id) : props.onOpen(id); } }));
 }
