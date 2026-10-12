@@ -38,7 +38,7 @@ function App() {
   }
   useEffect(function () {
     API.get('/auth/me').then(function (d) {
-      if (d.user && !d.user.mustChange && (d.user.role === 'supplier') === (PORTAL === 'supplier')) enter(d.user, false);
+      if (d.user && !d.user.mustChange) enter(d.user, false);
       else setMe(null);
     }).catch(function () { setMe(null); });
   }, []);
@@ -140,7 +140,7 @@ function App() {
   else if (current) body = h(Tracking, { key: current.id + role, req: current, role: role, seenAt: seenAt(seen, current.id, role), unread: unreadOf(current, role, seen), onSeen: function () { markSeen(current.id, role); }, onBack: home, onAdvance: function () { if (current.stage === 2) setToast('فُتحت المراسلة. اكتب رسالتك للمورد في خانة المراسلات.'); advance(current.id); }, onSend: function (m) { send(current.id, m); } });
   else if (role === 'supplier') body = h(SupplierHome, { supplier: mySupplier, reqs: reqs, complaints: complaints, seen: seen, service: service, onService: setService, onOpen: openReq, onOpenC: openC, onNew: function () { setView({ name: 'new' }); goTop(); }, onNewC: function () { setView({ name: 'newc' }); goTop(); } });
   else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { users: users, me: user, onSave: saveUser, onToggle: toggleUser, onReset: resetUser, onToast: setToast });
-  else if (role === 'recon') body = h(ReconTool, { onToast: setToast });
+  else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
   else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, onOpen: openReq });
   else body = h(Dashboard, { reqs: reqs, complaints: complaints, seen: seen, onOpen: openReq, onOpenC: openC });
 
@@ -150,7 +150,7 @@ function App() {
         allowed.length > 1 ? div({ className: 'seg', role: 'group', 'aria-label': 'صفحات النظام' }, allowed.map(function (k) {
           return button({ key: k, 'aria-pressed': role === k, onClick: function () { changeRole(k); } }, ROLE_NAME[k], h(Badge, { n: roleUnread[k] || 0 }));
         })) : null,
-        div({ className: 'uchip' }, span({ className: 'av', 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
+        div({ className: 'uchip' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
           button({ type: 'button', onClick: logout }, 'خروج'))))),
     main({ className: 'gutter page' }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))), body),
     toast ? div({ className: 'toast', role: 'status' }, toast) : null);

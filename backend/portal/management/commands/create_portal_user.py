@@ -27,7 +27,7 @@ class Command(BaseCommand):
         pw = os.environ.get('PORTAL_PASSWORD') or getpass.getpass('Password: ')
         if not pw:
             raise CommandError('password is empty')
-        org = o['org'] or ('أسواق الراشد' if o['role'] != 'supplier' else '')
+        org = o['org'] or ('أسواق الرشيد' if o['role'] != 'supplier' else '')
         u, created = User.objects.get_or_create(username=o['username'], defaults={'name': o['name']})
         u.name, u.role, u.org = o['name'], o['role'], org
         u.code, u.tax_no = (o['code'] or None), o['tax_no']

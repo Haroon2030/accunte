@@ -36,7 +36,7 @@ def login(user, portal='staff'):
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}})
 class PortalTests(TestCase):
     def setUp(self):
-        self.admin = make('1', 'admin', org='أسواق الراشد')
+        self.admin = make('1', 'admin', org='أسواق الرشيد')
         self.manager = make('2', 'manager')
         self.matcher = make('3', 'matcher')
         self.sup = make('4', 'supplier', org='شركة النخبة', code='S-1')
@@ -46,14 +46,12 @@ class PortalTests(TestCase):
         return c.post('/api/requests/', {'period': 'سبتمبر 2026', 'statement': SimpleUploadedFile(name, body)}, format='multipart')
 
     # ---- auth
-    def test_portals_are_separate(self):
-        c = APIClient()
-        r = c.post('/api/auth/login', {'username': '4', 'password': 'Pass1234', 'portal': 'staff'}, format='json')
-        self.assertEqual(r.status_code, 400)
-        r = c.post('/api/auth/login', {'username': '1', 'password': 'Pass1234', 'portal': 'supplier'}, format='json')
-        self.assertEqual(r.status_code, 400)
-        login(self.sup, 'supplier')
-        login(self.admin, 'staff')
+    def test_one_login_for_every_role(self):
+        for u in (self.sup, self.admin, self.manager, self.matcher):
+            c = APIClient()
+            r = c.post('/api/auth/login', {'username': u.username, 'password': 'Pass1234'}, format='json')
+            self.assertEqual(r.status_code, 200, u.role)
+            self.assertEqual(r.json()['user']['role'], u.role)
 
     def test_wrong_password_and_suspended(self):
         c = APIClient()
@@ -202,6 +200,10 @@ class WipeLegacyTests(TransactionTestCase):
         self.assertIn('portal_user', connection.introspection.table_names())
 
 
+def login_status(username, pw):
+    return APIClient().post('/api/auth/login', {'username': username, 'password': pw}, format='json').status_code
+
+
 class BootstrapUsersTests(TestCase):
     ENTRIES = [
         {'username': '1', 'role': 'admin', 'name': 'مدير', 'password': 'Boot1234'},
@@ -246,9 +248,6 @@ class BootstrapUsersTests(TestCase):
             self.assertFalse(User.objects.filter(username='1').exists())
 
 
-def login_status(username, pw):
-    return APIClient().post('/api/auth/login', {'username': username, 'password': pw}, format='json').status_code
-
     def test_unused_first_admin_follows_the_default_but_a_used_one_does_not(self):
         with mock.patch.dict(os.environ, {'BOOTSTRAP_USERS': ''}):
             call_command('bootstrap_users')
@@ -263,3 +262,15 @@ def login_status(username, pw):
             admin.save()
             call_command('bootstrap_users')
             self.assertTrue(User.objects.get(username='1').check_password('Mine1234'))
+
+    def test_admin_recovery_from_the_panel(self):
+        User.objects.create(username='1', name='x', role='manager', is_active=False)
+        env = {'BOOTSTRAP_USERS': '', 'ADMIN_FORCE_RESET': '1', 'ADMIN_PASSWORD': 'Recover77'}
+        with mock.patch.dict(os.environ, env):
+            call_command('bootstrap_users')
+        u = User.objects.get(username='1')
+        self.assertTrue(u.check_password('Recover77'))
+        self.assertEqual((u.role, u.is_active, u.must_change_password), ('admin', True, True))
+        with mock.patch.dict(os.environ, {'ADMIN_FORCE_RESET': '1', 'ADMIN_PASSWORD': ''}):
+            with self.assertRaises(CommandError):
+                call_command('bootstrap_users')

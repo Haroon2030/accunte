@@ -41,8 +41,8 @@ const API = (function () {
     post: function (p, b) { return call('POST', p, b); },
     patch: function (p, b) { return call('PATCH', p, b); },
     user: function (u) { return Object.assign({}, u, { last: D(u.last), created: D(u.created) }); },
-    request: function (r) { return Object.assign({}, r, { created: D(r.created), due: D(r.due), reached: stages(r.reached), messages: (r.messages || []).map(msg) }); },
-    complaint: function (c) { return Object.assign({}, c, { created: D(c.created), reached: stages(c.reached), messages: (c.messages || []).map(msg) }); },
+    request: function (r) { const st = stages(r.reached); st[0] = D(r.created); return Object.assign({}, r, { created: D(r.created), due: D(r.due), reached: st, messages: (r.messages || []).map(msg) }); },
+    complaint: function (c) { const st = stages(c.reached); st[0] = D(c.created); return Object.assign({}, c, { created: D(c.created), reached: st, messages: (c.messages || []).map(msg) }); },
     message: msg
   };
 }());

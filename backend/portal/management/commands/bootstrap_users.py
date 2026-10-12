@@ -30,7 +30,28 @@ class Command(BaseCommand):
         raw = os.environ.get('BOOTSTRAP_USERS', '').strip()
         if raw:
             self.create_listed(raw)
+        if self.recover_admin():
+            return
         self.create_first_admin(refresh=not raw)
+
+    def recover_admin(self):
+        """Lost the admin password? Set ADMIN_FORCE_RESET=1 and ADMIN_PASSWORD=<new> in the hosting panel and redeploy.
+        The admin (ADMIN_USERNAME, default "1") is created or reset, reactivated, and must pick a new password at login.
+        Remove ADMIN_FORCE_RESET afterwards, otherwise every deploy resets it again."""
+        if os.environ.get('ADMIN_FORCE_RESET', '').strip().lower() not in ('1', 'true', 'yes'):
+            return False
+        pw = os.environ.get('ADMIN_PASSWORD') or ''
+        if not pw:
+            raise CommandError('ADMIN_FORCE_RESET needs ADMIN_PASSWORD to be set.')
+        username = normalize_digits(os.environ.get('ADMIN_USERNAME') or '1').strip().lower()
+        user, created = User.objects.get_or_create(username=username, defaults={'name': 'مدير النظام', 'org': 'أسواق الرشيد'})
+        user.role, user.is_active, user.must_change_password = User.ADMIN, True, True
+        user.is_staff = user.is_superuser = True
+        user.set_password(pw)
+        user.save()
+        self.stdout.write(self.style.WARNING(
+            f'Admin "{username}" {"created" if created else "reset"} from ADMIN_PASSWORD. Remove ADMIN_FORCE_RESET now.'))
+        return True
 
     def create_first_admin(self, refresh=True):
         username = normalize_digits(os.environ.get('ADMIN_USERNAME') or '1').strip().lower()
@@ -45,7 +66,7 @@ class Command(BaseCommand):
         if User.objects.exists():
             self.stdout.write('Accounts already exist; the first admin is not recreated.')
             return
-        user = User(username=username, role=User.ADMIN, name='مدير النظام', org='أسواق الراشد',
+        user = User(username=username, role=User.ADMIN, name='مدير النظام', org='أسواق الرشيد',
                     is_staff=True, is_superuser=True, must_change_password=True)
         user.set_password(pw)
         user.save()
@@ -70,7 +91,7 @@ class Command(BaseCommand):
                 raise CommandError(f'BOOTSTRAP_USERS entry {i}: supplier code {code} is already used.')
             user = User(
                 username=username, role=role, name=e.get('name') or username,
-                org=e.get('org') or ('' if role == User.SUPPLIER else 'أسواق الراشد'),
+                org=e.get('org') or ('' if role == User.SUPPLIER else 'أسواق الرشيد'),
                 code=code, tax_no=normalize_digits(e.get('taxNo')),
                 must_change_password=bool(e.get('forceChange', True)))
             user.set_password(pw)

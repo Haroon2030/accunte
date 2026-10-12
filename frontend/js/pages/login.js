@@ -32,7 +32,7 @@ function Login(props) {
     const name = normUser(u);
     if (!name || !pw) { setErr('أدخل رقم المستخدم وكلمة المرور.'); return; }
     setBusy(true);
-    API.post('/auth/login', { username: name, password: pw, portal: PORTAL }).then(function (d) {
+    API.post('/auth/login', { username: name, password: pw }).then(function (d) {
       setErr(''); setFails(0); setBusy(false);
       if (d.user.mustChange) setPending(d.user); else props.onLogin(d.user);
     }).catch(function (ex) {
@@ -66,7 +66,7 @@ function Login(props) {
           button({ type: 'submit', className: 'btn primary', style: { width: '100%' } }, 'حفظ والدخول'))
         : form({ onSubmit: submit, noValidate: true },
           h1(null, 'تسجيل الدخول'),
-          p({ className: 'sub' }, PORTAL === 'supplier' ? 'بوابة الموردين: أدخل بيانات حساب شركتك' : 'أدخل بيانات حسابك للوصول إلى النظام'),
+          p({ className: 'sub' }, 'أدخل بيانات حسابك للوصول إلى النظام'),
           err ? div({ className: 'loginerr', role: 'alert' }, err, left > 0 ? ' (' + left + ' ث)' : '') : null,
           div({ className: 'field' }, label({ htmlFor: 'lg-u' }, 'رقم المستخدم'),
             input({ id: 'lg-u', type: 'text', inputMode: 'numeric', className: 'ltr', autoComplete: 'username', autoCapitalize: 'none', spellCheck: false, value: u, onChange: function (e) { setU(e.target.value); } })),

@@ -14,7 +14,7 @@ function rcLatin(s) {
     .replace(/٫/g, '.').replace(/٬/g, ',').replace(/−/g, '-');
 }
 function rcNorm(s) {
-  return rcLatin(s).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+  return rcLatin(String(s).normalize('NFKC')).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g, '')
     .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
 }
 function rcNum(v) {
@@ -36,7 +36,8 @@ function rcNum(v) {
     if (parts.length > 1 && parts[parts.length - 1].length === 3) s = s.replace(/,/g, ''); else s = s.replace(',', '.');
   }
   const n = parseFloat(s);
-  if (isNaN(n)) return null;
+  /* more than 15 digits is never an amount: it is a glued document number or a mis-read column */
+  if (isNaN(n) || s.replace(/[.,]/g, '').length > 15) return null;
   return neg ? -n : n;
 }
 function rcDate(v) {
@@ -309,6 +310,10 @@ function rcKeysOf(doc, ref, desc) {
     if (src == null || src === '' || src instanceof Date) return;
     (rcLatin(String(src)).match(/\d{6,}/g) || []).forEach(function (m) { const k = m.replace(/^0+/, ''); if (k && out.indexOf(k) === -1) out.push(k); });
   });
+  /* Arabic PDFs sometimes hand over a long number back to front: try it both ways */
+  out.slice().forEach(function (k) { if (k.length >= 10) { const r = k.split('').reverse().join(''); if (out.indexOf(r) === -1) out.push(r); } });
+  /* a supplier often prints the invoice number with a suffix our side lacks (or the reverse): its first 10 digits stand in for it */
+  out.slice().forEach(function (k) { const h = k.slice(0, 10); if (k.length >= 12 && out.indexOf(h) === -1) out.push(h); });
   return out;
 }
 function rcCell(v) { return v instanceof Date ? v : (v == null ? '' : String(v).trim()); }

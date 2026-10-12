@@ -73,14 +73,11 @@ class LoginView(APIView):
     def post(self, request):
         name = norm_username(request.data.get('username'))
         pw = request.data.get('password') or ''
-        portal = request.data.get('portal') or 'staff'
         if not name or not pw:
             raise ValidationError({'detail': 'أدخل رقم المستخدم وكلمة المرور.'})
         bad = ValidationError({'detail': 'رقم المستخدم أو كلمة المرور غير صحيحة.'})
         user = User.objects.filter(username=name).first()
-        if not user or (user.role == User.SUPPLIER) != (portal == 'supplier'):
-            raise bad
-        if not user.check_password(pw):
+        if not user or not user.check_password(pw):
             raise bad
         if not user.is_active:
             raise ValidationError({'detail': 'هذا الحساب موقوف. تواصل مع مدير النظام لتفعيله.'})
@@ -138,7 +135,7 @@ def clean_user_payload(data, instance=None):
         if tax and not TAX_RE.match(tax):
             errors['taxNo'] = 'الرقم الضريبي 15 رقماً.'
     else:
-        org, code, tax = org or 'أسواق الراشد', '', ''
+        org, code, tax = org or 'أسواق الرشيد', '', ''
     if errors:
         raise ValidationError(errors)
     return {'name': name, 'username': username, 'role': role, 'org': org, 'code': code or None, 'tax_no': tax}

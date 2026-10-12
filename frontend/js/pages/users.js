@@ -7,6 +7,9 @@ function UsersPage(props) {
   const [errs, setErrs] = useState({});
   const [confirm, setConfirm] = useState(null);
   const [temp, setTemp] = useState(null);
+  const [q, setQ] = useState('');
+  const [roleF, setRoleF] = useState('');
+  const [statF, setStatF] = useState('');
   const users = props.users;
   const canManage = function (x) { return me.role === 'admin' || x.role !== 'admin'; };
   const roleOpts = me.role === 'admin' ? ['supplier', 'matcher', 'manager', 'admin'] : ['supplier', 'matcher', 'manager'];
@@ -33,7 +36,7 @@ function UsersPage(props) {
     if (f.id === me.id && f.role !== me.role) er.role = 'لا يمكنك تغيير دور حسابك الحالي.';
     setErrs(er);
     if (Object.keys(er).length) return;
-    props.onSave({ id: f.id, name: f.name.trim(), username: un, role: f.role, org: f.role === 'supplier' ? f.org.trim() : (f.org.trim() || 'أسواق الراشد'), taxNo: f.role === 'supplier' ? normDigits(f.taxNo) : '', code: f.role === 'supplier' ? f.code.trim() : '', password: f.password, active: f.active })
+    props.onSave({ id: f.id, name: f.name.trim(), username: un, role: f.role, org: f.role === 'supplier' ? f.org.trim() : (f.org.trim() || 'أسواق الرشيد'), taxNo: f.role === 'supplier' ? normDigits(f.taxNo) : '', code: f.role === 'supplier' ? f.code.trim() : '', password: f.password, active: f.active })
       .then(function () { setFormV(null); })
       .catch(function (ex) {
         const d = ex.data, known = { name: 1, username: 1, role: 1, org: 1, code: 1, taxNo: 1, password: 1 }, fe = {};
@@ -54,24 +57,53 @@ function UsersPage(props) {
     try { navigator.clipboard.writeText(text).then(function () { props.onToast('نُسخت كلمة المرور.'); }, function () { props.onToast('تعذّر النسخ، انسخها يدوياً.'); }); } catch (e) { props.onToast('تعذّر النسخ، انسخها يدوياً.'); }
   }
   const cx = confirm ? users.filter(function (u) { return u.id === confirm.id; })[0] : null;
-  const cols = [
-    { key: 'name', label: 'الاسم', filter: 'text', val: function (x) { return x.name; }, render: function (x) { return strong({ style: { fontWeight: 600 } }, x.name, x.id === me.id ? span({ className: 'muted small' }, ' (أنت)') : null); } },
-    { key: 'username', label: 'رقم المستخدم', filter: 'text', val: function (x) { return x.username; }, render: function (x) { return span({ className: 'mono' }, x.username); } },
-    { key: 'role', label: 'الدور', filter: 'select', fv: function (x) { return ROLE_LABEL[x.role]; }, val: function (x) { return ROLE_LABEL[x.role]; }, render: function (x) { return ROLE_LABEL[x.role]; } },
-    { key: 'org', label: 'الجهة', filter: 'text', val: function (x) { return x.org; }, render: function (x) { return x.org; } },
-    { key: 'code', label: 'رمز المورد', filter: 'text', val: function (x) { return x.code || ''; }, render: function (x) { return x.code ? span({ className: 'mono' }, x.code) : span({ className: 'muted' }, '—'); } },
-    { key: 'tax', label: 'الرقم الضريبي', filter: 'text', val: function (x) { return x.taxNo || ''; }, render: function (x) { return x.taxNo ? span({ className: 'mono' }, x.taxNo) : span({ className: 'muted' }, '—'); } },
-    { key: 'status', label: 'الحالة', filter: 'select', fv: function (x) { return x.active ? 'نشط' : 'موقوف'; }, val: function (x) { return x.active ? 1 : 0; },
-      render: function (x) { return span({ className: 'pill ' + (x.active ? (x.mustChange ? 'warn' : 'ok') : 'bad') }, span({ className: 'dot' }), x.active ? (x.mustChange ? 'نشط، لم يغيّر كلمة المرور' : 'نشط') : 'موقوف'); } },
-    { key: 'last', label: 'آخر دخول', val: function (x) { return x.last ? x.last.getTime() : 0; }, render: function (x) { return x.last ? since(x.last) : span({ className: 'muted' }, 'لم يدخل بعد'); } },
-    { key: 'act', label: 'إجراءات', render: function (x) {
-      if (!canManage(x)) return span({ className: 'muted small' }, 'للمدير فقط');
-      return div({ className: 'rowacts' },
-        button({ type: 'button', className: 'linkbtn', onClick: function () { openEdit(x); } }, 'تعديل'),
-        button({ type: 'button', className: 'linkbtn', onClick: function () { setFormV(null); setTemp(null); setConfirm({ type: 'reset', id: x.id }); } }, 'كلمة مرور جديدة'),
-        x.id === me.id ? null : button({ type: 'button', className: 'linkbtn' + (x.active ? ' danger' : ''), onClick: function () { setFormV(null); setTemp(null); setConfirm({ type: 'toggle', id: x.id }); } }, x.active ? 'إيقاف' : 'تفعيل'));
-    } }
-  ];
+  const actions = function (x) {
+    if (!canManage(x)) return span({ className: 'muted small' }, 'للمدير فقط');
+    return div({ className: 'rowacts' },
+      button({ type: 'button', className: 'linkbtn', onClick: function () { openEdit(x); } }, 'تعديل'),
+      button({ type: 'button', className: 'linkbtn', onClick: function () { setFormV(null); setTemp(null); setConfirm({ type: 'reset', id: x.id }); } }, 'كلمة مرور جديدة'),
+      x.id === me.id ? null : button({ type: 'button', className: 'linkbtn' + (x.active ? ' danger' : ''), onClick: function () { setFormV(null); setTemp(null); setConfirm({ type: 'toggle', id: x.id }); } }, x.active ? 'إيقاف' : 'تفعيل'));
+  };
+  const needle = normDigits(q).trim().toLowerCase();
+  const shown = users.filter(function (x) {
+    if (roleF && x.role !== roleF) return false;
+    if (statF && (statF === 'active') !== !!x.active) return false;
+    if (!needle) return true;
+    return [x.name, x.username, x.org, x.code, x.taxNo].join(' ').toLowerCase().indexOf(needle) !== -1;
+  }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'ar'); });
+  const statusPill = function (x) {
+    return span({ className: 'pill ' + (x.active ? (x.mustChange ? 'warn' : 'ok') : 'bad') }, span({ className: 'dot' }), x.active ? (x.mustChange ? 'لم يغيّر كلمة المرور' : 'نشط') : 'موقوف');
+  };
+  const userRow = function (x) {
+    return tr({ key: x.id, className: x.active ? '' : 'off' },
+      td({ 'data-label': 'المستخدم' }, div({ className: 'ucell' },
+        span({ className: 'uav ' + x.role, 'aria-hidden': 'true' }, String(x.name).charAt(0)),
+        div({ className: 'utxt' },
+          strong(null, x.name, x.id === me.id ? span({ className: 'you' }, 'أنت') : null),
+          span({ className: 'unum' }, 'رقم ', span({ className: 'mono' }, x.username))))),
+      td({ 'data-label': 'الدور' }, span({ className: 'rolepill ' + x.role }, ROLE_LABEL[x.role])),
+      td({ 'data-label': 'الجهة' }, div({ className: 'utxt' },
+        span(null, x.org || '—'),
+        x.role === 'supplier' && (x.code || x.taxNo) ? span({ className: 'usub' },
+          x.code ? span(null, 'رمز ', span({ className: 'mono' }, x.code)) : null,
+          x.code && x.taxNo ? ' · ' : null,
+          x.taxNo ? span(null, 'ضريبي ', span({ className: 'mono' }, x.taxNo)) : null) : null)),
+      td({ 'data-label': 'الحالة' }, statusPill(x)),
+      td({ 'data-label': 'آخر دخول' }, x.last ? since(x.last) : span({ className: 'muted' }, 'لم يدخل بعد')),
+      td({ 'data-label': 'إجراءات', className: 'actcell' }, actions(x)));
+  };
+  const usersList = div({ className: 'ulist' },
+    div({ className: 'utools' },
+      div({ className: 'usearch' }, h(Icon, { name: 'search' }),
+        input({ type: 'search', value: q, placeholder: 'ابحث بالاسم أو الرقم أو الجهة أو رمز المورد', 'aria-label': 'بحث في المستخدمين', onChange: function (e) { setQ(e.target.value); } })),
+      select({ 'aria-label': 'تصفية حسب الدور', value: roleF, onChange: function (e) { setRoleF(e.target.value); } },
+        option({ value: '' }, 'كل الأدوار'), Object.keys(ROLE_LABEL).map(function (r) { return option({ key: r, value: r }, ROLE_LABEL[r]); })),
+      select({ 'aria-label': 'تصفية حسب الحالة', value: statF, onChange: function (e) { setStatF(e.target.value); } },
+        option({ value: '' }, 'كل الحالات'), option({ value: 'active' }, 'نشط'), option({ value: 'off' }, 'موقوف')),
+      span({ className: 'muted small ucount' }, shown.length === users.length ? users.length + ' مستخدم' : shown.length + ' من ' + users.length)),
+    div({ className: 'tablewrap' }, table({ className: 'dt utable' },
+      thead(null, tr(null, ['المستخدم', 'الدور', 'الجهة', 'الحالة', 'آخر دخول', 'إجراءات'].map(function (t) { return th({ key: t, scope: 'col' }, t); }))),
+      tbody(null, shown.length ? shown.map(userRow) : tr(null, td({ colSpan: 6, className: 'empty' }, users.length ? 'لا يوجد مستخدم يطابق البحث' : 'لا يوجد مستخدمون'))))));
   const fld = function (id, lbl, ctl, k, hint) {
     return div({ className: 'field' }, label({ htmlFor: id }, lbl), ctl, errs[k] ? span({ className: 'err', role: 'alert' }, errs[k]) : (hint ? span({ className: 'hint' }, hint) : null));
   };
@@ -110,15 +142,15 @@ function UsersPage(props) {
       div({ className: 'formactions' },
         button({ type: 'submit', className: 'btn primary' }, formV.id ? 'حفظ التعديلات' : 'إضافة المستخدم'),
         button({ type: 'button', className: 'btn ghost', onClick: function () { setFormV(null); } }, 'إلغاء'))) : null,
-    h(DataTable, { cols: cols, rows: users, defaultSort: { key: 'name', dir: 'asc' }, empty: 'لا يوجد مستخدمون' }),
-    section({ className: 'uformwrap' },
-      h3(null, 'الصلاحيات حسب الدور'),
+    usersList,
+    section({ className: 'permwrap' },
+      div({ className: 'permhead' }, h3(null, 'الصلاحيات حسب الدور'), p({ className: 'muted small' }, 'الصفحات التي يراها كل دور بعد تسجيل الدخول.')),
       div({ className: 'tablewrap' }, table({ className: 'dt matrix' },
-        thead(null, tr(null, th({ scope: 'col' }, 'الصفحة'), Object.keys(ROLE_LABEL).map(function (r) { return th({ key: r, scope: 'col' }, ROLE_LABEL[r]); }))),
+        thead(null, tr(null, th({ scope: 'col' }, 'الصفحة'), Object.keys(ROLE_LABEL).map(function (r) { return th({ key: r, scope: 'col' }, span({ className: 'rolepill ' + r }, ROLE_LABEL[r])); }))),
         tbody(null, Object.keys(PAGE_LABEL).map(function (k) {
           return tr({ key: k }, td(null, PAGE_LABEL[k]), Object.keys(ROLE_LABEL).map(function (r) {
             const ok = ROLE_PAGES[r].indexOf(k) !== -1;
-            return td({ key: r }, span({ className: ok ? 'yes' : 'no', 'aria-label': ok ? 'مسموح' : 'غير مسموح' }, ok ? '✓' : '—'));
+            return td({ key: r }, ok ? span({ className: 'perm yes', role: 'img', 'aria-label': 'مسموح' }, h(Icon, { name: 'check', size: 14 })) : span({ className: 'perm no', role: 'img', 'aria-label': 'غير مسموح' }, '—'));
           }));
         }))))));
 }

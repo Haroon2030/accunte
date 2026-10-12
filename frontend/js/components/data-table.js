@@ -12,6 +12,7 @@ function DataTable(props) {
   const [sort, setSort] = useState(props.defaultSort || null);
   const [flt, setFlt] = useState({});
   const [page, setPage] = useState(1);
+  const [fopen, setFopen] = useState(false);
   const cols = props.cols;
   const fvOf = function (c) { return c.fv || function (r) { return String(c.val ? c.val(r) : ''); }; };
   const activeCols = cols.filter(function (c) { return c.filter && flt[c.key]; });
@@ -51,7 +52,21 @@ function DataTable(props) {
     return null;
   }
   const anyFilter = cols.some(function (c) { return c.filter; });
+  const sortable = cols.filter(function (c) { return c.val; });
+  /* phones: the header row is hidden and rows become cards, so filters and sorting live in this panel */
+  const phoneTools = (anyFilter || sortable.length) ? div({ className: 'dtm' },
+    button({ type: 'button', className: 'btn ghost sm dtm-toggle', 'aria-expanded': fopen, onClick: function () { setFopen(!fopen); } },
+      h(Icon, { name: 'sort', size: 14 }), 'تصفية وترتيب', activeCols.length ? span({ className: 'dtm-n' }, activeCols.length) : null),
+    fopen ? div({ className: 'dtm-panel' },
+      sortable.length ? div({ className: 'tfield' }, label(null, 'ترتيب حسب'),
+        select({ className: 'thf', 'aria-label': 'ترتيب حسب', value: sort ? sort.key + ':' + sort.dir : '', onChange: function (e) {
+          const v = e.target.value.split(':'); setSort(v[0] ? { key: v[0], dir: v[1] } : null);
+        } }, option({ value: '' }, 'بدون ترتيب'), sortable.map(function (c) {
+          return [option({ key: c.key + 'a', value: c.key + ':asc' }, c.label + ' (تصاعدي)'), option({ key: c.key + 'd', value: c.key + ':desc' }, c.label + ' (تنازلي)')];
+        }))) : null,
+      cols.filter(function (c) { return c.filter; }).map(function (c) { return div({ key: c.key, className: 'tfield' }, label(null, c.label), filterCell(c)); })) : null) : null;
   return div({ className: 'dtbox' },
+    phoneTools,
     div({ className: 'tablewrap' },
       table({ className: 'dt' },
         thead(null, tr(null, cols.map(function (c) {
@@ -64,7 +79,7 @@ function DataTable(props) {
         tbody(null, shown.length ? shown.map(function (r) {
           const open = function () { if (props.onOpen) props.onOpen(r.id); };
           return tr(Object.assign({ key: r.id, className: props.rowClass ? props.rowClass(r) : undefined }, props.onOpen ? { tabIndex: 0, onClick: open, onKeyDown: function (e) { if (e.key === 'Enter') open(); } } : {}),
-            cols.map(function (c) { return td({ key: c.key }, c.render(r, open)); }));
+            cols.map(function (c) { return td({ key: c.key, 'data-label': c.label, 'data-col': c.key }, c.render(r, open)); }));
         }) : tr(null, td({ colSpan: cols.length, className: 'empty' }, props.empty || 'لا توجد نتائج مطابقة للتصفية'))))),
     div({ className: 'pager' },
       span({ className: 'muted small' }, rows.length ? 'عرض ' + firstN + '–' + lastN + ' من ' + rows.length + (rows.length !== props.rows.length ? ' (من أصل ' + props.rows.length + ')' : '') : '0 نتيجة'),

@@ -79,6 +79,142 @@ function rcItemsToRows(items) {
   });
 }
 
+
+/* ---------------------------------------------------------------------
+   Account-statement PDFs (text layer): one entry = a "main" line carrying a date and money, followed by
+   continuation lines (wrapped description, long reference numbers). Columns come from where the money
+   sits on the page, named by the header words above it (Debit / Credit / Balance, مدين / دائن / الرصيد).
+   Returns table rows (header first) or null when the page does not look like a statement.
+   --------------------------------------------------------------------- */
+const RC_DATE_TOK = /^(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{4}|\d{4}[\/.\-]\d{1,2}[\/.\-]\d{1,2})$/;
+const RC_MONEY_TOK = /^\(?-?\d{1,3}(?:,\d{3})*\.\d{2}\)?-?$|^-?\d+\.\d{2}$/;
+const RC_INT_TOK = /^\d{3,}$/;
+const RC_OPEN_TOK = /فتتاحي|افتتاح|opening/i;
+const RC_STOP_TOK = /إجمالي العمليات|اجمالي العمليات|إجمالي|اجمالي|total|طبع بواسطة|تاريخ التقرير|المدير العام|المحاسب|يعتبر هذا الكشف/i;
+function rcPdfStatement(items) {
+  if (items.length < 40) return null;
+  const hs = items.map(function (i) { return i.h; }).sort(function (a, b) { return a - b; });
+  const medH = Math.max(hs[Math.floor(hs.length / 2)] || 10, 6);
+  const sorted = items.slice().sort(function (a, b) { return a.y - b.y || a.x0 - b.x0; });
+  const lines = [];
+  sorted.forEach(function (it) {
+    const last = lines[lines.length - 1];
+    if (last && Math.abs(it.y - last.y) <= medH * 0.6) { last.items.push(it); last.y = (last.y * (last.items.length - 1) + it.y) / last.items.length; }
+    else lines.push({ y: it.y, items: [it] });
+  });
+  const kind = function (it) {
+    if (RC_DATE_TOK.test(it.str)) return 'date';
+    if (RC_MONEY_TOK.test(it.str)) return 'money';
+    if (RC_INT_TOK.test(it.str)) return 'int';
+    return 'text';
+  };
+  lines.forEach(function (ln) {
+    ln.items.sort(function (a, b) { return a.x0 - b.x0; });
+    ln.items.forEach(function (it) { it.k = kind(it); });
+    ln.page = Math.floor(ln.y / 10000);
+    ln.text = ln.items.map(function (i) { return i.str; }).join(' ');
+    ln.main = ln.items.some(function (i) { return i.k === 'date'; }) && ln.items.some(function (i) { return i.k === 'money'; });
+    ln.open = !ln.main && RC_OPEN_TOK.test(ln.text) && ln.items.some(function (i) { return i.k === 'money'; });
+  });
+  const entries = lines.filter(function (l) { return l.main || l.open; });
+  if (entries.filter(function (l) { return l.main; }).length < 5) return null;
+
+  /* money columns: right edges that repeat down the page */
+  const cl = [];
+  entries.forEach(function (ln) {
+    ln.items.forEach(function (it) {
+      if (it.k !== 'money') return;
+      let c = cl.filter(function (x) { return Math.abs(x.x1 - it.x1) <= 12; })[0];
+      if (!c) { c = { x1: it.x1, cs: [], n: 0 }; cl.push(c); }
+      c.x1 = (c.x1 * c.n + it.x1) / (c.n + 1); c.n++; c.cs.push((it.x0 + it.x1) / 2);
+    });
+  });
+  const minN = Math.max(3, Math.round(entries.length * 0.08));
+  const cols = cl.filter(function (c) { return c.n >= minN; }).sort(function (a, b) { return a.x1 - b.x1; });
+  if (cols.length < 2 || cols.length > 4) return null;
+  cols.forEach(function (c) { c.c = c.cs.reduce(function (t, v) { return t + v; }, 0) / c.cs.length; });
+
+  /* header words above the first entry decide which column is debit / credit / balance */
+  const firstIdx = lines.indexOf(entries[0]);
+  const hdr = [];
+  lines.slice(0, firstIdx).forEach(function (ln) {
+    ln.items.forEach(function (it) {
+      const w = it.str.split(/\s+/);
+      w.forEach(function (t, wi) { hdr.push({ t: t.toLowerCase().replace(/[:.()]/g, ''), c: (it.x0 + it.x1) / 2 + (wi - (w.length - 1) / 2) * 6 }); });
+    });
+  });
+  const DR = /^(debit|dr|مدين|منه)$/, CR = /^(credit|cr|دائن|له)$/, BAL = /^(balance|net|الرصيد|رصيد)$/;
+  const rolled = cols.map(function (col) {
+    const near = hdr.filter(function (h) { return Math.abs(h.c - col.c) <= 45; });
+    const has = function (re) { return near.some(function (h) { return re.test(h.t); }); };
+    const role = has(DR) ? 'debit' : has(CR) ? 'credit' : has(BAL) ? 'balance' : '';
+    return { col: col, role: role };
+  });
+  const roleOf = function (r) { const x = rolled.filter(function (q) { return q.role === r; }); return x.length === 1 ? x[0].col : null; };
+  const colDr = roleOf('debit'), colCr = roleOf('credit'), colBal = roleOf('balance');
+  if (!(colDr && colCr) && !colBal) return null;
+  const colOf = function (it) {
+    const c = (it.x0 + it.x1) / 2;
+    let best = null, bd = 1e9;
+    cols.forEach(function (q) { const d = Math.min(Math.abs(q.c - c), Math.abs(q.x1 - it.x1)); if (d < bd) { bd = d; best = q; } });
+    return bd <= 40 ? best : null;
+  };
+
+  /* columns that repeat on every row (branch code, customer code, ...) are not document numbers */
+  const seen = {};
+  entries.forEach(function (ln) { const u = {}; ln.items.forEach(function (it) { if (it.k === 'int') u[it.str] = 1; }); Object.keys(u).forEach(function (k) { seen[k] = (seen[k] || 0) + 1; }); });
+  const constant = function (v) { return seen[v] >= Math.max(6, Math.round(entries.length * 0.04)); };
+
+  const rows = [['التاريخ', 'رقم المستند', 'البيان', 'مدين', 'دائن', 'الرصيد']];
+  let cur = null, ended = false, pageSeen = -1;
+  const arabic = /[؀-ۿ]/;
+  /* debit and credit columns hold magnitudes: some systems print credits as negatives, which would flip the sign */
+  const fmtMoney = function (t) { return t.replace(/[()\-]/g, ''); };
+  const textOf = function (its) {
+    const ar = its.some(function (i) { return arabic.test(i.str); });
+    return (ar ? its.slice().sort(function (a, b) { return b.x1 - a.x1; }) : its).map(function (i) { return i.str; }).join(' ');
+  };
+  const flush = function () {
+    if (!cur) return;
+    rows.push([cur.date, cur.docs.join(' '), cur.desc.join(' '), cur.dr, cur.cr, cur.bal]);
+    cur = null;
+  };
+  lines.forEach(function (ln, li) {
+    if (ln.main || ln.open) {
+      flush(); ended = false; pageSeen = ln.page;
+      cur = { date: '', docs: [], desc: [], dr: '', cr: '', bal: '' };
+      const dates = ln.items.filter(function (i) { return i.k === 'date'; });
+      if (dates.length) cur.date = dates[0].str;
+      const text = [];
+      ln.items.forEach(function (it) {
+        if (it.k === 'money') {
+          const c = colOf(it);
+          if (!c) return;
+          if (c === colDr) cur.dr = fmtMoney(it.str); else if (c === colCr) cur.cr = fmtMoney(it.str); else if (c === colBal) cur.bal = it.str;
+        } else if (it.k === 'int') { if (!constant(it.str) && cur.docs.indexOf(it.str) === -1) cur.docs.push(it.str); }
+        else if (it.k === 'text') text.push(it);
+      });
+      if (text.length) cur.desc.push(textOf(text));
+      if (ln.open && !cur.dr && !cur.cr && cur.bal) {
+        const v = parseFloat(cur.bal.replace(/[^\d.\-]/g, ''));
+        if (v >= 0 && colDr) { cur.dr = cur.bal.replace('-', ''); } else if (colCr) cur.cr = cur.bal.replace('-', '');
+      }
+      if (ln.open && !cur.desc.length) cur.desc.push('رصيد افتتاحي');
+      return;
+    }
+    if (!cur || ended || ln.page !== pageSeen) return;
+    if (RC_STOP_TOK.test(ln.text)) { ended = true; return; }
+    const text = [];
+    ln.items.forEach(function (it) {
+      if (it.k === 'int') { if (!constant(it.str) && cur.docs.indexOf(it.str) === -1) cur.docs.push(it.str); }
+      else if (it.k === 'text') text.push(it);
+    });
+    if (text.length) cur.desc.push(textOf(text));
+  });
+  flush();
+  return rows.length > 5 ? rows : null;
+}
+
 async function rcReadSheet(f, ext) {
   await rcLoad('xlsx');
   let wb;
@@ -158,10 +294,16 @@ async function rcReadPdf(f, onStatus) {
     const tc = await page.getTextContent();
     tc.items.forEach(function (it) {
       if (!it.str || !it.str.trim()) return;
-      items.push({ str: it.str.trim(), x0: it.transform[4], x1: it.transform[4] + it.width, y: vp.height - it.transform[5] + p * 10000, h: Math.abs(it.transform[3]) || 10 });
+      let str = it.str.trim();
+      if (/^[٠-٩۰-۹]+$/.test(str)) str = rcLatin(str); /* digits only: keep the order pdf.js gives, matching also tries the reversed number */
+      items.push({ str: str, x0: it.transform[4], x1: it.transform[4] + it.width, y: vp.height - it.transform[5] + p * 10000, h: Math.abs(it.transform[3]) || 10 });
     });
   }
-  if (items.length >= 15) return { rows: rcItemsToRows(items), source: 'pdf', note: pdf.numPages + ' صفحة' };
+  if (items.length >= 15) {
+    const st = rcPdfStatement(items);
+    if (st) return { rows: st, source: 'pdf', note: pdf.numPages + ' صفحة · كشف حساب مُحلَّل: ' + (st.length - 1) + ' حركة' };
+    return { rows: rcItemsToRows(items), source: 'pdf', note: pdf.numPages + ' صفحة' };
+  }
   /* scanned PDF: render each page and read it as an image */
   const all = [];
   for (let p = 1; p <= pdf.numPages; p++) {
