@@ -1,7 +1,10 @@
 import tempfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.db import connection
+from django.test import TestCase, TransactionTestCase, override_settings
 from rest_framework.test import APIClient
 
 from .models import Attachment, User
@@ -167,3 +170,29 @@ class PortalTests(TestCase):
 
 def login_ok(username, pw):
     return APIClient().post('/api/auth/login', {'username': username, 'password': pw}, format='json').status_code == 200
+
+
+class WipeLegacyTests(TransactionTestCase):
+    """Runs on the throwaway test database only."""
+
+    def test_wipes_only_the_old_app_and_only_once(self):
+        with connection.cursor() as c:
+            c.execute('DROP TABLE IF EXISTS portal_attachment')
+        # a database that already belongs to this app is never touched
+        call_command('wipe_legacy_database')
+        self.assertIn('portal_user', connection.introspection.table_names())
+
+    def test_refuses_unrelated_database_and_wipes_old_one(self):
+        with connection.cursor() as c:
+            for t in connection.introspection.table_names():
+                c.execute('DROP TABLE ' + connection.ops.quote_name(t))
+            c.execute('CREATE TABLE somebody_elses_data (id integer primary key)')
+        with self.assertRaises(CommandError):
+            call_command('wipe_legacy_database')
+        self.assertIn('somebody_elses_data', connection.introspection.table_names())
+        with connection.cursor() as c:
+            c.execute('CREATE TABLE accounts_userprofile (id integer primary key)')
+        call_command('wipe_legacy_database')
+        self.assertEqual(connection.introspection.table_names(), [])
+        call_command('migrate', verbosity=0)  # the new schema builds cleanly on the emptied database
+        self.assertIn('portal_user', connection.introspection.table_names())
