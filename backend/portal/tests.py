@@ -1,6 +1,10 @@
 import tempfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+import json
+import os
+from unittest import mock
+
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
@@ -196,3 +200,34 @@ class WipeLegacyTests(TransactionTestCase):
         self.assertEqual(connection.introspection.table_names(), [])
         call_command('migrate', verbosity=0)  # the new schema builds cleanly on the emptied database
         self.assertIn('portal_user', connection.introspection.table_names())
+
+
+class BootstrapUsersTests(TestCase):
+    ENTRIES = [
+        {'username': '1', 'role': 'admin', 'name': 'مدير', 'password': 'Boot1234'},
+        {'username': '4', 'role': 'supplier', 'name': 'مورد', 'org': 'شركة', 'code': 'S-1', 'taxNo': '300000000000003', 'password': 'Boot1234', 'forceChange': False},
+    ]
+
+    def run_cmd(self, entries):
+        with mock.patch.dict(os.environ, {'BOOTSTRAP_USERS': json.dumps(entries)}):
+            call_command('bootstrap_users')
+
+    def test_creates_once_and_never_resets_existing(self):
+        self.run_cmd(self.ENTRIES)
+        admin, sup = User.objects.get(username='1'), User.objects.get(username='4')
+        self.assertTrue(admin.check_password('Boot1234'))
+        self.assertTrue(admin.must_change_password)       # default: choose own password at first login
+        self.assertFalse(sup.must_change_password)
+        self.assertEqual((sup.code, sup.tax_no, sup.org), ('S-1', '300000000000003', 'شركة'))
+        admin.set_password('Changed99')
+        admin.save()
+        self.run_cmd(self.ENTRIES)                          # next deploy: nothing is overwritten
+        self.assertTrue(User.objects.get(username='1').check_password('Changed99'))
+        self.assertEqual(User.objects.count(), 2)
+
+    def test_bad_config_fails_loudly(self):
+        with self.assertRaises(CommandError):
+            self.run_cmd([{'username': '9', 'role': 'wizard', 'password': 'x'}])
+        with mock.patch.dict(os.environ, {'BOOTSTRAP_USERS': 'not json'}):
+            with self.assertRaises(CommandError):
+                call_command('bootstrap_users')
