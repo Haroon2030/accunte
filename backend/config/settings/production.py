@@ -17,6 +17,10 @@ def _csv(value):
 
 
 ALLOWED_HOSTS = _csv(config('ALLOWED_HOSTS', default='localhost,127.0.0.1'))
+# فحص صحة الحاوية الداخلي (HEALTHCHECK) يطلب 127.0.0.1؛ بدونه يُرفض ويُعاد تشغيل الحاوية في حلقة
+for _internal in ('127.0.0.1', 'localhost'):
+    if _internal not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_internal)
 
 # ── قاعدة البيانات (MySQL) ──
 DATABASES = {
