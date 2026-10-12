@@ -1,13 +1,13 @@
-version: "3.8"
-
+# تشغيل محلي/بديل: التطبيق (Django + الواجهة) وقاعدة MySQL. في الإنتاج تُضبط المتغيرات من لوحة الاستضافة.
 services:
   db:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: accounts_db
-      MYSQL_USER: accounts_user
-      MYSQL_PASSWORD: accounts_password
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root}
+      MYSQL_DATABASE: ${DB_NAME:-accunt_db}
+      MYSQL_USER: ${DB_USER:-accuser}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-change_me}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql_data:/var/lib/mysql
     restart: always
@@ -17,23 +17,29 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
+  app:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     ports:
       - "8096:8096"
-    env_file:
-      - ./backend/.env
     environment:
-      - DJANGO_ENV=production
+      DJANGO_ENV: production
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      DB_NAME: ${DB_NAME:-accunt_db}
+      DB_USER: ${DB_USER:-accuser}
+      DB_PASSWORD: ${DB_PASSWORD:-change_me}
+      DB_HOST: db
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     volumes:
-      - media_data:/app/media
+      - private_media:/app/private_media
     depends_on:
       db:
         condition: service_healthy
     restart: always
 
 volumes:
-  media_data:
   mysql_data:
+  private_media:

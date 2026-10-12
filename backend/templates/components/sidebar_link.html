@@ -1,6 +1,0 @@
-<a href="{{ item.url }}" class="sb-link{% if item.active %} is-active{% endif %}" title="{{ item.label }}"
-   data-nav="{{ item.key }}"{% if item.active %} aria-current="page"{% endif %} @click="closeMobile()">
-    <i data-lucide="{{ item.icon }}" class="sb-icon"></i>
-    <span class="sb-label">{{ item.label }}</span>
-    <span class="sb-badge sb-badge--{{ item.badge_tone }}" data-badge="{{ item.key }}"{% if not item.badge_count %} hidden{% endif %}>{% if item.badge_count > 99 %}99+{% else %}{{ item.badge_count }}{% endif %}</span>
-</a>
