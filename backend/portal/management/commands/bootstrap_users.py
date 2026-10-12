@@ -2,7 +2,7 @@
 
 On the very first deploy (the database has no accounts) it creates one admin:
   username  ADMIN_USERNAME, default "1"
-  password  ADMIN_PASSWORD, default "123456"
+  password  ADMIN_PASSWORD, default "526400"
 The admin must choose a new password at first login, then creates everyone else from the users page.
 Later deploys do nothing, so deleting or renaming that account is never undone.
 
@@ -19,7 +19,7 @@ from portal.models import User
 from portal.validators import normalize_digits
 
 ROLES = {r for r, _ in User.ROLES}
-DEFAULT_ADMIN_PASSWORD = '123456'
+DEFAULT_ADMIN_PASSWORD = '526400'
 
 
 class Command(BaseCommand):

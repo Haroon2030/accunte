@@ -238,7 +238,7 @@ class BootstrapUsersTests(TestCase):
             admin = User.objects.get()
             self.assertEqual((admin.username, admin.role), ('1', 'admin'))
             self.assertTrue(admin.must_change_password)
-            self.assertEqual(login_status('1', '123456'), 200)       # signs in, but the API stays locked until a new password
+            self.assertEqual(login_status('1', '526400'), 200)       # signs in, but the API stays locked until a new password
             self.assertEqual(APIClient().get('/api/users/').status_code, 403)
             admin.delete()
             User.objects.create(username='x', name='x')
