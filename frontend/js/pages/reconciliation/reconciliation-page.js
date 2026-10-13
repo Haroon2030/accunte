@@ -121,7 +121,7 @@ function RcSide(props) {
 function RcResult(props) {
   const res = props.res;
   const [showMatched, setShowMatched] = useState(false);
-  const [tab, setTab] = useState('report');
+  const [tab, setTab] = useState('diag');
   const rows = res.items.filter(function (i) { return i.status !== 'matched'; });
   const matched = res.items.filter(function (i) { return i.status === 'matched'; });
   /* same amount and date window but no shared document number: counted as agreed, and shown separately */
@@ -215,10 +215,11 @@ function RcResult(props) {
       dl ? button({ type: 'button', className: 'btn ghost sm', onClick: exportCsv }, h(Icon, { name: 'download', size: 16 }), 'تصدير CSV') : null,
       button({ type: 'button', className: 'btn ghost sm', onClick: function () { try { window.print(); } catch (e) { props.onToast('الطباعة غير متاحة هنا.'); } } }, h(Icon, { name: 'print', size: 16 }), 'طباعة / PDF'))),
     div({ className: 'rc-tabs noprint', role: 'tablist', 'aria-label': 'عرض النتيجة' },
+      button({ type: 'button', role: 'tab', 'aria-selected': tab === 'diag', onClick: function () { setTab('diag'); } }, 'نتيجة المطابقة'),
       button({ type: 'button', role: 'tab', 'aria-selected': tab === 'report', onClick: function () { setTab('report'); } }, 'تقرير المطابقة'),
       button({ type: 'button', role: 'tab', 'aria-selected': tab === 'sheet', onClick: function () { setTab('sheet'); } }, 'التفاصيل', span({ className: 'rc-tabn' }, res.items.length))),
     (Math.abs(res.sumA) > 1e11 || Math.abs(res.sumB) > 1e11 || (res.items.length > 30 && !agreedItems.length)) ? div({ className: 'rc-warn noprint', role: 'alert' }, 'تحذير: النتيجة غير منطقية (أرصدة ضخمة أو لا يوجد بند متطابق). غالباً قُرئت أعمدة الملف خطأ. افتح «الأعمدة ومعاينة البنود المقروءة» لكل كشف وصحّح اختيار الأعمدة قبل الاعتماد.') : null,
-    tab === 'report' ? doc : h(RcSheet, { items: res.items, onToast: props.onToast }),
+    tab === 'diag' ? h(RcDiagnosis, { res: res }) : tab === 'report' ? doc : h(RcSheet, { items: res.items, onToast: props.onToast }),
     div({ className: 'printonly' }, table({ className: 'dt' }, thead(null, tr(null, ['الحالة', 'النوع', 'المستند', 'التاريخ', 'عند المورد', 'عندنا', 'الفرق', 'السبب'].map(function (x) { return th({ key: x }, x); }))),
       tbody(null, rows.map(function (r) {
         return tr({ key: r.id }, td(null, RC_STATUS[r.status].label), td(null, RC_KIND[r.kind]), td(null, r.docA && r.docB && r.docA !== r.docB ? r.docA + ' / ' + r.docB : r.doc), td(null, r.date ? fmtDate(r.date) : ''),

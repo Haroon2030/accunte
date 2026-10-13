@@ -392,6 +392,17 @@ function rcReason(status, kind, diff) {
   if (kind === 'adjustment') return 'تسوية داخلية عندنا (تكاليف أو مخزون) لا تظهر في كشف المورد. قيد داخلي يُراجع ولا يُرسل للمورد.';
   return 'حركة عندنا غير موجودة في كشف المورد.';
 }
+/* the kind of open item an entry is: it decides the wording of its diagnosis and the line it belongs to in the settlement */
+function rcCatOf(it) {
+  if (it.status === 'matched') return 'matched';
+  if (it.kind === 'opening') return 'opening';
+  if (it.status === 'amount_diff') return 'amount_diff';
+  if (it.status === 'matched_amount') return 'matched_amount';
+  if (it.kind === 'payment') return it.status === 'only_supplier' ? 'pay_supplier' : 'pay_company';
+  if (it.kind === 'credit_note' || it.kind === 'credit') return it.status === 'only_supplier' ? 'cn_supplier' : 'cn_company';
+  if (it.kind === 'adjustment') return it.status === 'only_supplier' ? 'adj_supplier' : 'adj_company';
+  return it.status === 'only_supplier' ? 'inv_supplier' : 'inv_company';
+}
 /* A = supplier statement ledger, B = company ledger (both already normalised). */
 function rcReconcile(A, B, opts) {
   const tol = opts && opts.tol != null ? opts.tol : 0.25;
@@ -478,16 +489,7 @@ function rcReconcile(A, B, opts) {
 
   /* statement: supplier balance - explained items = company balance (exact by construction) */
   const sumA = A.sum, sumB = B.sum;
-  const cat = function (it) {
-    if (it.status === 'matched') return 'matched';
-    if (it.kind === 'opening') return 'opening';
-    if (it.status === 'amount_diff') return 'amount_diff';
-    if (it.status === 'matched_amount') return 'matched_amount';
-    if (it.kind === 'payment') return it.status === 'only_supplier' ? 'pay_supplier' : 'pay_company';
-    if (it.kind === 'credit_note' || it.kind === 'credit') return it.status === 'only_supplier' ? 'cn_supplier' : 'cn_company';
-    if (it.kind === 'adjustment') return it.status === 'only_supplier' ? 'adj_supplier' : 'adj_company';
-    return it.status === 'only_supplier' ? 'inv_supplier' : 'inv_company';
-  };
+  const cat = rcCatOf;
   const CATS = [
     ['inv_supplier', 'فواتير في كشف المورد غير مسجّلة عندنا'],
     ['inv_company', 'فواتير عندنا غير ظاهرة في كشف المورد'],
