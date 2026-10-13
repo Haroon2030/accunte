@@ -122,7 +122,7 @@ function RcResult(props) {
   const res = props.res;
   const [showMatched, setShowMatched] = useState(false);
   const [tab, setTab] = useState('diag');
-  const rows = res.items.filter(function (i) { return i.status !== 'matched'; });
+  const rows = res.items.filter(function (i) { return i.status !== 'matched' && i.status !== 'cancelled'; });
   const matched = res.items.filter(function (i) { return i.status === 'matched'; });
   /* same amount and date window but no shared document number: counted as agreed, and shown separately */
   const byAmount = res.items.filter(function (i) { return i.status === 'matched_amount'; });

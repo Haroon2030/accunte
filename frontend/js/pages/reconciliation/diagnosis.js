@@ -50,9 +50,10 @@ const rcBr = function (v) { return Math.abs(v) < 0.005 ? '0.00' : (v < 0 ? '(' +
 
 function RcDiagnosis(props) {
   const res = props.res;
-  const open = res.items.filter(function (i) { return i.status !== 'matched' && i.status !== 'matched_amount'; });
+  const open = res.items.filter(function (i) { return i.status !== 'matched' && i.status !== 'matched_amount' && i.status !== 'cancelled'; });
+  const cancelledN = res.items.filter(function (i) { return i.status === 'cancelled'; }).length;
   const byAmountOnly = res.items.filter(function (i) { return i.status === 'matched_amount'; });
-  const agreed = res.items.length - open.length;
+  const agreed = res.items.length - open.length - cancelledN;
   const ranked = open.concat(byAmountOnly).map(function (i) { return { it: i, cat: rcCatOf(i), v: rcCardAmount(i) }; })
     .sort(function (a, b) { return Math.abs(b.v) - Math.abs(a.v); });
   const [filter, setFilter] = useState('all');
@@ -84,7 +85,7 @@ function RcDiagnosis(props) {
         div(null, span(null, 'رصيد المورد في دفاترنا'), strong({ className: 'mono' }, rcMoney(res.sumB))),
         div(null, span(null, 'رصيدنا في كشفه'), strong({ className: 'mono' }, rcMoney(res.sumA))),
         div(null, span(null, 'الفرق بين الرصيدين'), strong({ className: 'mono big' + (Math.abs(diff) < 0.5 ? '' : ' off') }, rcMoney(diff))),
-        div(null, span(null, 'الحركات المطابقة'), strong({ className: 'mono' }, agreed + ' / ' + res.items.length))),
+        div(null, span(null, 'الحركات المطابقة'), strong({ className: 'mono' }, agreed + ' / ' + (res.items.length - cancelledN)))),
       toYours.length ? p({ className: 'rcd-why' }, strong(null, 'يتكون الفرق من: '),
         toYours.map(function (l, i) { return span({ key: l.key }, (i ? '، ' : '') + l.label + (l.count ? ' (' + l.count + ')' : '') + ' ', span({ className: 'mono rcd-num', dir: 'ltr' }, (l.effect > 0 ? '+' : '-') + rcMoney(Math.abs(l.effect)))); }),
         '.') : null,
@@ -115,7 +116,8 @@ function RcDiagnosis(props) {
       kpi(count('matched_amount'), 'تطابق بالمبلغ فقط'),
       kpi(count('amount_diff'), 'فروق مبالغ', count('amount_diff') ? 'warn' : ''),
       kpi(count('only_supplier'), 'لدى المورد فقط', count('only_supplier') ? 'warn' : ''),
-      kpi(count('only_company'), 'لدينا فقط', count('only_company') ? 'warn' : '')),
+      kpi(count('only_company'), 'لدينا فقط', count('only_company') ? 'warn' : ''),
+      kpi(cancelledN, 'قيود ملغاة (صافيها صفر)')),
 
     ranked.length ? div({ className: 'rcd-list' },
       div({ className: 'rcd-filters noprint', role: 'group', 'aria-label': 'تصفية البنود' },

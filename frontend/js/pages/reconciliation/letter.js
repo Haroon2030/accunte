@@ -10,8 +10,9 @@ function RcLetter(props) {
   const [note, setNote] = useState('');
   const [annex, setAnnex] = useState(false);
   const ref = 'RL-' + res.at.getFullYear() + String(res.at.getMonth() + 1).padStart(2, '0') + String(res.at.getDate()).padStart(2, '0') + '-' + String(res.at.getHours()).padStart(2, '0') + String(res.at.getMinutes()).padStart(2, '0');
-  const open = res.items.filter(function (i) { return i.status !== 'matched' && i.status !== 'matched_amount'; });
-  const agreed = res.items.length - open.length;
+  const open = res.items.filter(function (i) { return i.status !== 'matched' && i.status !== 'matched_amount' && i.status !== 'cancelled'; });
+  const cancelledN = res.items.filter(function (i) { return i.status === 'cancelled'; }).length;
+  const agreed = res.items.length - open.length - cancelledN;
   const balanced = Math.abs(res.diff) < 0.5;
   const byValue = function (list) { return list.slice().sort(function (a, b) { return Math.abs(rcCardAmount(b)) - Math.abs(rcCardAmount(a)); }); };
   const groups = [
@@ -64,7 +65,7 @@ function RcLetter(props) {
           tr(null, td(null, 'رصيدكم حسب كشفكم'), td({ className: 'num' }, span({ className: 'mono', dir: 'ltr' }, rcMoney(res.sumA)))),
           tr(null, td(null, 'رصيدكم حسب دفاترنا'), td({ className: 'num' }, span({ className: 'mono', dir: 'ltr' }, rcMoney(res.sumB)))),
           tr({ className: 'strong' }, td(null, 'الفرق بين الرصيدين'), td({ className: 'num' }, span({ className: 'mono rc-diff' + (balanced ? '' : ' off'), dir: 'ltr' }, balanced ? 'لا يوجد فرق' : rcMoney(res.diff)))),
-          tr(null, td(null, 'الحركات المتطابقة'), td({ className: 'num' }, span({ className: 'mono', dir: 'ltr' }, agreed + ' / ' + res.items.length)))))),
+          tr(null, td(null, 'الحركات المتطابقة'), td({ className: 'num' }, span({ className: 'mono', dir: 'ltr' }, agreed + ' / ' + (res.items.length - cancelledN))))))),
       balanced
         ? p(null, 'وعليه فإن الرصيدين متطابقان، ونأمل التكرم بتأكيد ذلك بتوقيع الإقرار أدناه وإعادته إلينا.')
         : [p({ key: 'p' }, 'وقد تبيّن وجود فروق بين الكشفين، وفيما يلي أبرز البنود التي تحتاج إلى مراجعتكم:'),

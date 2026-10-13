@@ -277,9 +277,12 @@ const RC_SUM = /(اجمالي|الاجمالي|المجموع|مجموع|grand t
 const RC_PAY = /(سداد|دفعه|دفعة|تحويل|شيك|سند\s*صرف|payment|paid|receipt|remit|bank|حواله|حوالة)/i;
 const RC_CN = /(خصم|اشعار\s*دائن|إشعار\s*دائن|مرتجع|مردود|ارجاع|إرجاع|credit\s*note|return|rebate|discount)/i;
 const RC_ADJ = /(تسويه|تسوية|adjust)/i;
+/* a manual journal entry or a balance-closing entry is an internal adjustment, whatever words (discount, return...) its narration contains */
+const RC_JOURNAL = /(قيد\s*يومي|قيد\s*تسوي|اقفال|إقفال|اقفل|journal|closing\s*entry)/i;
 function rcKind(text, amount, isOpening) {
   if (isOpening) return 'opening';
   const t = rcNorm(text);
+  if (RC_JOURNAL.test(t)) return 'adjustment';
   if (RC_PAY.test(t) && amount < 0) return 'payment';
   if (RC_CN.test(t) && amount < 0) return 'credit_note';
   if (RC_ADJ.test(t)) return 'adjustment';
@@ -373,10 +376,12 @@ const RC_STATUS = {
   matched_amount: { label: 'مطابق بالمبلغ فقط', tone: 'work' },
   amount_diff: { label: 'فرق في المبلغ', tone: 'warn' },
   only_supplier: { label: 'عند المورد فقط', tone: 'bad' },
-  only_company: { label: 'عندنا فقط', tone: 'bad' }
+  only_company: { label: 'عندنا فقط', tone: 'bad' },
+  cancelled: { label: 'قيد ملغى', tone: 'idle' }
 };
 function rcReason(status, kind, diff) {
   if (status === 'matched') return '';
+  if (status === 'cancelled') return 'قيد يعاكسه قيد آخر بالمبلغ نفسه في الكشف ذاته، فصافيهما صفر ولا أثر لهما على الرصيد.';
   if (status === 'matched_amount') return 'نفس المبلغ ولكن رقم المستند مختلف أو غائب. أكّد أنهما بند واحد.';
   if (status === 'amount_diff') return diff > 0 ? 'مبلغ المورد أعلى من مبلغنا. تحقق من خصم تجاري أو ضريبة أو فرق تسعير.' : 'مبلغنا أعلى من مبلغ المورد. تحقق من تسجيل المورد للفاتورة.';
   if (status === 'only_supplier') {
@@ -395,6 +400,7 @@ function rcReason(status, kind, diff) {
 /* the kind of open item an entry is: it decides the wording of its diagnosis and the line it belongs to in the settlement */
 function rcCatOf(it) {
   if (it.status === 'matched') return 'matched';
+  if (it.status === 'cancelled') return 'cancelled';
   if (it.kind === 'opening') return 'opening';
   if (it.status === 'amount_diff') return 'amount_diff';
   if (it.status === 'matched_amount') return 'matched_amount';
@@ -483,8 +489,26 @@ function rcReconcile(A, B, opts) {
     const status = pr.how === 'amount' ? 'matched_amount' : (same ? 'matched' : 'amount_diff');
     items.push(mkItem(status, pr.a, pr.b, pr.how));
   });
-  aLeft.forEach(function (a) { if (!usedA[a.i]) items.push(mkItem('only_supplier', a, null)); });
-  bLeft.forEach(function (b) { if (!usedB[b.i]) items.push(mkItem('only_company', null, b)); });
+  /* inside one statement, an entry and its exact opposite (an invoice and the journal entry that closes it, a sale and its reversal) net to zero: they are not differences to chase */
+  const cancelled = function (left, used) {
+    const gone = {};
+    const rest = left.filter(function (l) { return !used[l.i] && l.kind !== 'opening' && Math.abs(l.amount) > tol; });
+    const neg = rest.filter(function (l) { return l.amount < 0; });
+    rest.filter(function (l) { return l.amount > 0; }).forEach(function (p) {
+      let best = null, bd = 1e12;
+      neg.forEach(function (n) {
+        if (gone[n.i] || Math.abs(p.amount + n.amount) > tol) return;
+        const d = dd(p.date, n.date);
+        if (p.date && n.date && d > 45) return;
+        if (d < bd) { bd = d; best = n; }
+      });
+      if (best) { gone[best.i] = true; gone[p.i] = true; }
+    });
+    return gone;
+  };
+  const goneA = cancelled(aLeft, usedA), goneB = cancelled(bLeft, usedB);
+  aLeft.forEach(function (a) { if (!usedA[a.i]) items.push(mkItem(goneA[a.i] ? 'cancelled' : 'only_supplier', a, null)); });
+  bLeft.forEach(function (b) { if (!usedB[b.i]) items.push(mkItem(goneB[b.i] ? 'cancelled' : 'only_company', null, b)); });
   items.sort(function (x, y) { return (x.date ? x.date.getTime() : 0) - (y.date ? y.date.getTime() : 0) || (x.id < y.id ? -1 : 1); });
 
   /* statement: supplier balance - explained items = company balance (exact by construction) */
@@ -514,7 +538,7 @@ function rcReconcile(A, B, opts) {
   items.forEach(function (it) { counts[it.status] = (counts[it.status] || 0) + 1; });
   return {
     items: items, sumA: sumA, sumB: sumB, diff: sumA - sumB, lines: lines, adjusted: adjusted, unexplained: adjusted - sumB, counts: counts,
-    open: items.filter(function (it) { return it.status !== 'matched'; }).length
+    open: items.filter(function (it) { return it.status !== 'matched' && it.status !== 'cancelled'; }).length
   };
 }
 /* sample statements (same shape a parsed Excel sheet would have), used by the demo button */
