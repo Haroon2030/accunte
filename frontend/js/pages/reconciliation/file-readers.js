@@ -89,8 +89,8 @@ function rcItemsToRows(items) {
 const RC_DATE_TOK = /^(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{4}|\d{4}[\/.\-]\d{1,2}[\/.\-]\d{1,2})$/;
 const RC_MONEY_TOK = /^\(?-?\d{1,3}(?:,\d{3})*\.\d{2}\)?-?$|^-?\d+\.\d{2}$/;
 const RC_INT_TOK = /^\d{3,}$/;
-const RC_OPEN_TOK = /فتتاحي|افتتاح|opening/i;
-const RC_STOP_TOK = /إجمالي العمليات|اجمالي العمليات|إجمالي|اجمالي|total|طبع بواسطة|تاريخ التقرير|المدير العام|المحاسب|يعتبر هذا الكشف/i;
+const RC_OPEN_TOK = /فتتاحي|افتتاح|opening|الرصيد السابق|رصيد سابق|رصيد مدور|رصيد مرحل|previous balance|brought forward|b\/f/i;
+const RC_STOP_TOK = /إجمالي العمليات|اجمالي العمليات|إجمالي|اجمالي|total|طبع بواسطة|تاريخ التقرير|المدير العام|المحاسب|يعتبر هذا الكشف|الرصيد الحالي|الرصيد الختامي|prepared by|check by|ملاحظة|مﻼحظة/i;
 function rcPdfStatement(items) {
   if (items.length < 40) return null;
   const hs = items.map(function (i) { return i.h; }).sort(function (a, b) { return a - b; });
@@ -150,6 +150,14 @@ function rcPdfStatement(items) {
     const role = has(DR) ? 'debit' : has(CR) ? 'credit' : has(BAL) ? 'balance' : '';
     return { col: col, role: role };
   });
+  /* a header word can be unreadable (some printers embed the font so the letters come out as symbols): when two of the three money columns are known, the third takes the remaining role */
+  if (cols.length === 3) {
+    const known = rolled.filter(function (q) { return q.role; }), blank = rolled.filter(function (q) { return !q.role; });
+    if (known.length === 2 && blank.length === 1 && known[0].role !== known[1].role) {
+      const left = ['debit', 'credit', 'balance'].filter(function (r) { return known.every(function (q) { return q.role !== r; }); })[0];
+      blank[0].role = left;
+    }
+  }
   const roleOf = function (r) { const x = rolled.filter(function (q) { return q.role === r; }); return x.length === 1 ? x[0].col : null; };
   const colDr = roleOf('debit'), colCr = roleOf('credit'), colBal = roleOf('balance');
   if (!(colDr && colCr) && !colBal) return null;
@@ -199,7 +207,7 @@ function rcPdfStatement(items) {
         const v = parseFloat(cur.bal.replace(/[^\d.\-]/g, ''));
         if (v >= 0 && colDr) { cur.dr = cur.bal.replace('-', ''); } else if (colCr) cur.cr = cur.bal.replace('-', '');
       }
-      if (ln.open && !cur.desc.length) cur.desc.push('رصيد افتتاحي');
+      if (ln.open && !/افتتاح/.test(cur.desc.join(' '))) cur.desc.unshift('رصيد افتتاحي');
       return;
     }
     if (!cur || ended || ln.page !== pageSeen) return;

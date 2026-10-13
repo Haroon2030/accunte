@@ -270,7 +270,7 @@ function rcGuessMap(g, persp) {
   if (persp === 'supplier') { m.debit = inc; m.credit = dec; } else { m.credit = inc; m.debit = dec; }
   return m;
 }
-const RC_OPENING = /(رصيد\s*(افتتاح|سابق|مرحل|اول|أول|بداي)|افتتاحي|opening|brought\s*forward|b\/f)/i;
+const RC_OPENING = /(رصيد\s*(ال)?(افتتاح|سابق|مرحل|مدور|اول|أول|بداي)|افتتاحي|opening|brought\s*forward|b\/f)/i;
 const RC_TOTAL = /^\s*(الاجمالي|الإجمالي|المجموع|اجمالي|إجمالي|total|الرصيد\s*(الختامي|النهائي)|closing|رصيد\s*ختامي)/i;
 /* wording that marks a summary line anywhere in a row (totals, net balance, balance in words ...) */
 const RC_SUM = /(اجمالي|الاجمالي|المجموع|مجموع|grand total|sub ?total|\btotal\b|net receivable|net payable|net balance|صافي|الرصيد (لكم|علينا|المستحق|الختامي|النهائي)|balance due|closing balance)/i;
