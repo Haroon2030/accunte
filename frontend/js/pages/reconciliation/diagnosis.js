@@ -86,12 +86,12 @@ function RcDiagnosis(props) {
         div(null, span(null, 'الفرق بين الرصيدين'), strong({ className: 'mono big' + (Math.abs(diff) < 0.5 ? '' : ' off') }, rcMoney(diff))),
         div(null, span(null, 'الحركات المطابقة'), strong({ className: 'mono' }, agreed + ' / ' + res.items.length))),
       toYours.length ? p({ className: 'rcd-why' }, strong(null, 'يتكون الفرق من: '),
-        toYours.map(function (l, i) { return span({ key: l.key }, (i ? '، ' : '') + l.label + (l.count ? ' (' + l.count + ')' : '') + ' ', span({ className: 'mono' }, (l.effect > 0 ? '+' : '−') + rcMoney(Math.abs(l.effect)))); }),
+        toYours.map(function (l, i) { return span({ key: l.key }, (i ? '، ' : '') + l.label + (l.count ? ' (' + l.count + ')' : '') + ' ', span({ className: 'mono rcd-num', dir: 'ltr' }, (l.effect > 0 ? '+' : '-') + rcMoney(Math.abs(l.effect)))); }),
         '.') : null,
       top.length ? div({ className: 'rcd-todo' }, strong(null, 'المطلوب:'),
         ol(null, top.map(function (x) {
           const c = RC_CARD[x.cat];
-          return li({ key: x.it.id }, strong(null, c.title), ' ', span({ className: 'mono' }, '(' + rcPlain(x.v) + ')'), ': ', c.todo);
+          return li({ key: x.it.id }, strong(null, c.title), ' ', span({ className: 'mono rcd-num', dir: 'ltr' }, rcPlain(x.v)), ': ', c.todo);
         })),
         more ? p({ className: 'muted small' }, 'و' + more + ' بنداً آخر في القائمة أدناه.') : null) : null),
 

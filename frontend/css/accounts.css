@@ -604,3 +604,10 @@ body { -webkit-tap-highlight-color: rgba(47, 111, 235, .18); }
 @media (max-width: 720px) { .rcd-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .rcd .mono { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+
+/* each figure sits right under its title (the isolated number must not drift to the far side) */
+.rcd-grid > div { align-content: start; justify-items: start; text-align: start; }
+.rcd-grid strong { justify-self: start; }
+
+/* figures inside the sentences: red, left-to-right, never split from their sign */
+.rcd .rcd-num { color: var(--bad); font-weight: 700; white-space: nowrap; margin-inline: 3px; }
