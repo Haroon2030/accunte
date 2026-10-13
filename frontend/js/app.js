@@ -132,6 +132,18 @@ function App() {
       setComplaints(function (cs) { return cs.map(function (x) { return x.pk === c.pk ? Object.assign({}, x, { messages: x.messages.concat([API.message(d)]) }) : x; }); });
     }).catch(fail);
   }
+  /* permanent delete: system admin only; the server removes the record with its messages and files */
+  function removeRecord(id) {
+    const isC = String(id).indexOf('SH') === 0;
+    const rec = isC ? compOf(id) : reqOf(id);
+    if (!rec) return;
+    API.del((isC ? '/complaints/' : '/requests/') + rec.pk + '/').then(function () {
+      if (isC) setComplaints(function (cs) { return cs.filter(function (x) { return x.pk !== rec.pk; }); });
+      else setReqs(function (rs) { return rs.filter(function (x) { return x.pk !== rec.pk; }); });
+      setView({ name: 'home' });
+      setToast('حُذف ' + id + ' نهائياً.');
+    }).catch(fail);
+  }
   function createC(data) {
     return API.post('/complaints/', formOf({ category: data.category, subject: data.subject, body: data.body, related: data.related }, 'files', data.files)).then(function (d) {
       const c = API.complaint(d);
@@ -165,6 +177,12 @@ function App() {
       setToast(nu.active ? 'فُعّل حساب ' + nu.name + '.' : 'أُوقف حساب ' + nu.name + '.');
     }).catch(fail);
   }
+  function removeUser(id) {
+    API.del('/users/' + id + '/').then(function () {
+      setUsers(function (us) { return us.filter(function (x) { return x.id !== id; }); });
+      setToast('حُذف الحساب نهائياً.');
+    }).catch(fail);
+  }
   function resetUser(id) {
     return API.post('/users/' + id + '/reset-password').then(function (d) {
       const nu = API.user(d.user);
@@ -188,11 +206,11 @@ function App() {
   else if (view.name === 'newc' && role === 'supplier') body = h(NewComplaint, { supplier: mySupplier, reqs: reqs, onCancel: home, onSubmit: createC });
   else if (currentC && (role === 'supplier' || role === 'manager')) body = h(ComplaintTracking, { key: currentC.id + role, c: currentC, role: role, seenAt: seenAt(seen, currentC.id, role), unread: unreadOf(currentC, role, seen), onSeen: function () { markSeen(currentC.id, role); }, onBack: home, onAdvance: function () { advanceC(currentC.id); }, onSend: function (m) { sendC(currentC.id, m); } });
   else if (current) body = h(Tracking, { key: current.id + role, req: current, role: role, seenAt: seenAt(seen, current.id, role), unread: unreadOf(current, role, seen), onSeen: function () { markSeen(current.id, role); }, onBack: home, userRole: user.role, matchers: matchers, onAdvance: function (extra) { if (current.stage === 2) setToast('فُتحت المراسلة. اكتب رسالتك للمورد في خانة المراسلات.'); advance(current.id, extra); }, onSend: function (m) { send(current.id, m); } });
-  else if (role === 'supplier') body = h(SupplierHome, { supplier: mySupplier, reqs: reqs, complaints: complaints, seen: seen, service: service, onService: setService, onOpen: openReq, onOpenC: openC, onNew: function () { setView({ name: 'new' }); goTop(); }, onNewC: function () { setView({ name: 'newc' }); goTop(); } });
-  else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { users: users, me: user, onSave: saveUser, onToggle: toggleUser, onReset: resetUser, onToast: setToast });
+  else if (role === 'supplier') body = h(SupplierHome, { onDelete: removeRecord, supplier: mySupplier, reqs: reqs, complaints: complaints, seen: seen, service: service, onService: setService, onOpen: openReq, onOpenC: openC, onNew: function () { setView({ name: 'new' }); goTop(); }, onNewC: function () { setView({ name: 'newc' }); goTop(); } });
+  else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { users: users, me: user, onSave: saveUser, onToggle: toggleUser, onDelete: removeUser, onReset: resetUser, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
-  else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq });
-  else body = h(Dashboard, { reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });
+  else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq, onDelete: user.role === 'admin' ? removeRecord : undefined });
+  else body = h(Dashboard, { onDelete: user.role === 'admin' ? removeRecord : undefined, reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });
 
   return div(null,
     header({ className: 'topbar' }, div({ className: 'gutter topin' }, h(Brand),

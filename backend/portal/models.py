@@ -2,7 +2,9 @@ import os
 import uuid
 
 from django.contrib.auth.models import AbstractUser
-from django.db import models
+from django.db import models, transaction
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.utils import timezone
 
 SLA_DAYS = 5
@@ -96,3 +98,11 @@ class Attachment(models.Model):
     message = models.ForeignKey(Message, null=True, blank=True, on_delete=models.CASCADE, related_name='files')
     uploaded_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name='+')
     created_at = models.DateTimeField(default=timezone.now)
+
+
+@receiver(post_delete, sender=Attachment)
+def remove_stored_file(sender, instance, **kwargs):
+    """Deleting a record also removes its files from storage (disk or R2) once the deletion is committed."""
+    name = instance.file.name
+    if name:
+        transaction.on_commit(lambda: instance.file.storage.delete(name))

@@ -182,6 +182,18 @@ class UsersView(APIView):
 class UserDetailView(APIView):
     permission_classes = [IsAdmin]
 
+    def delete(self, request, pk):
+        user = User.objects.filter(pk=pk).first() or self._404()
+        if user.pk == request.user.pk:
+            raise ValidationError({'detail': 'لا يمكنك حذف حسابك الحالي.'})
+        if user.role == User.ADMIN and User.objects.filter(role=User.ADMIN, is_active=True).exclude(pk=user.pk).count() == 0:
+            raise ValidationError({'detail': 'لا يمكن حذف آخر مدير نظام.'})
+        if user.requests.exists() or user.complaints.exists():
+            raise ValidationError({'detail': 'لهذا المورد طلبات أو شكاوى مسجّلة، فلا يمكن حذفه. أوقف الحساب بدلاً من ذلك، أو احذف طلباته أولاً.'})
+        revoke_sessions(user)
+        user.delete()
+        return Response(status=204)
+
     def patch(self, request, pk):
         user = User.objects.filter(pk=pk).first() or self._404()
         fields = clean_user_payload(request.data, user)
@@ -344,6 +356,15 @@ class RequestDetailView(APIView):
                 raise ValidationError({'diff': 'قيمة الفرق غير صحيحة.'})
         req.save()
         return Response(request_out(get_request(request.user, pk)))
+
+    @transaction.atomic
+    def delete(self, request, pk):
+        req = get_request(request.user, pk)
+        # the system admin may delete any request; a supplier only their own request that nobody has received yet
+        if not (request.user.role == User.ADMIN or (request.user.role == User.SUPPLIER and req.stage == 1)):
+            raise PermissionDenied('لا يمكن حذف هذا الطلب. الحذف لمدير النظام، أو للمورد قبل استلام طلبه.')
+        req.delete()                                    # messages and files go with it
+        return Response(status=204)
 
 
 class ChangesView(APIView):
@@ -511,6 +532,14 @@ class ComplaintDetailView(APIView):
 
     def get(self, request, pk):
         return Response(complaint_out(get_complaint(request.user, pk)))
+
+    @transaction.atomic
+    def delete(self, request, pk):
+        c = get_complaint(request.user, pk)
+        if not (request.user.role == User.ADMIN or (request.user.role == User.SUPPLIER and c.stage == 1)):
+            raise PermissionDenied('لا يمكن حذف هذه الشكوى. الحذف لمدير النظام، أو للمورد قبل أن يبدأ المدير المالي مراجعتها.')
+        c.delete()
+        return Response(status=204)
 
 
 class ComplaintAdvanceView(APIView):

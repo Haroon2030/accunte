@@ -10,5 +10,5 @@ function MatcherHome(props) {
   return div({ className: 'stack' },
     div({ className: 'sechead' }, h2(null, 'طابور المطابقة'), span({ className: 'muted small' }, rows.length + ' طلب مفتوح' + (late ? ' · ' + late + ' متأخر' : ''))),
     h(AlertBar, { n: unr, text: newMsgText(unr, 'الموردين') }),
-    h(RequestTable, { rows: rows, role: 'matcher', seen: props.seen, fresh: props.fresh, onOpen: props.onOpen }));
+    h(RequestTable, { rows: rows, role: 'matcher', seen: props.seen, fresh: props.fresh, onOpen: props.onOpen, onDelete: props.onDelete }));
 }

@@ -27,7 +27,7 @@ function UnifiedTable(props) {
     { key: 'due', label: 'الموعد المستهدف', val: function (r) { return isComplaint(r) ? 0 : r.due.getTime(); }, render: function (r) { return isComplaint(r) ? span({ className: 'muted' }, '—') : dueText(r); } },
     { key: 'updated', label: 'آخر تحديث', val: function (r) { return (isComplaint(r) ? r.created : lastTouch(r)).getTime(); }, render: function (r) { return since(isComplaint(r) ? r.created : lastTouch(r)); } },
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (r) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(r), h(Badge, { n: unreadOf(r, role, props.seen) })); } },
-    OPEN_COL
+    openCol(props.onDelete)
   ];
   return h(DataTable, { cols: defs, rows: props.rows, onOpen: props.onOpen, rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
 }
@@ -123,5 +123,5 @@ function Dashboard(props) {
         return button({ key: f[0], className: 'fchip', 'aria-pressed': flt === f[0], onClick: function () { setFlt(f[0]); } }, f[1], h('b', null, counts[f[0]]));
       })),
       null),
-    h(UnifiedTable, { rows: rows, seen: props.seen, fresh: props.fresh, onOpen: function (id) { return isComplaint({ id: id }) ? props.onOpenC(id) : props.onOpen(id); } }));
+    h(UnifiedTable, { onDelete: props.onDelete, rows: rows, seen: props.seen, fresh: props.fresh, onOpen: function (id) { return isComplaint({ id: id }) ? props.onOpenC(id) : props.onOpen(id); } }));
 }

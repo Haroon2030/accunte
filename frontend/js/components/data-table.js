@@ -95,9 +95,19 @@ function DataTable(props) {
 /* light red tint: a message waits for the reader, or the record was never opened by them */
 function rowTone(unread, fresh, rec) { return [unread ? 'unread' : '', fresh && fresh(rec) ? 'fresh' : ''].filter(Boolean).join(' ') || undefined; }
 function colsFor(defs, hide) { return defs.filter(function (c) { return !hide || hide.indexOf(c.key) === -1; }); }
-const OPEN_COL = { key: 'open', label: 'إجراء', render: function (r, open) {
-  return button({ type: 'button', className: 'btn ghost sm', onClick: function (e) { e.stopPropagation(); open(); } }, 'فتح', h(Icon, { name: 'chevL', size: 14 }));
-} };
+/* the action column: open, and (system admin only) delete after a confirmation */
+function openCol(onDelete, canDelete) {
+  return { key: 'open', label: 'إجراء', render: function (r, open) {
+    const openBtn = button({ type: 'button', className: 'btn ghost sm', onClick: function (e) { e.stopPropagation(); open(); } }, 'فتح', h(Icon, { name: 'chevL', size: 14 }));
+    if (!onDelete || (canDelete && !canDelete(r))) return openBtn;
+    return div({ className: 'rowacts' }, openBtn,
+      button({ type: 'button', className: 'abtn stop', title: 'حذف', 'aria-label': 'حذف ' + r.id, onClick: function (e) {
+        e.stopPropagation();
+        if (window.confirm('حذف ' + r.id + ' نهائياً مع كل مراسلاته وملفاته؟ لا يمكن التراجع عن الحذف.')) onDelete(r.id);
+      } }, h(Icon, { name: 'trash', size: 16 }), span({ className: 'abl' }, 'حذف')));
+  } };
+}
+const OPEN_COL = openCol(null);
 
 function ComplaintTable(props) {
   const role = props.role || 'manager';
@@ -109,7 +119,7 @@ function ComplaintTable(props) {
     { key: 'status', label: 'الحالة', filter: 'select', fv: function (c) { return statusC(c, role).label; }, val: function (c) { return c.stage; }, render: function (c) { return h(StatusPill, { st: statusC(c, role) }); } },
     { key: 'created', label: 'وصلت', val: function (c) { return c.created.getTime(); }, render: function (c) { return since(c.created); } },
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (c) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(c), h(Badge, { n: unreadOf(c, role, props.seen) })); } },
-    OPEN_COL
+    openCol(props.onDelete, props.canDelete)
   ];
   return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (c) { return rowTone(unreadOf(c, role, props.seen), props.fresh, c); } });
 }
@@ -127,7 +137,7 @@ function RequestTable(props) {
     { key: 'due', label: 'الموعد المستهدف', val: function (r) { return r.due.getTime(); }, render: dueText },
     { key: 'updated', label: 'آخر تحديث', val: function (r) { return lastTouch(r).getTime(); }, render: function (r) { return since(lastTouch(r)); } },
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (r) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(r), h(Badge, { n: unreadOf(r, role, props.seen) })); } },
-    OPEN_COL
+    openCol(props.onDelete, props.canDelete)
   ];
   return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
 }

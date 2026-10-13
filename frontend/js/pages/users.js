@@ -71,6 +71,7 @@ function UsersPage(props) {
     const x = users.filter(function (u) { return u.id === confirm.id; })[0];
     if (!x) { setConfirm(null); return; }
     if (confirm.type === 'toggle') props.onToggle(x.id);
+    else if (confirm.type === 'delete') props.onDelete(x.id);
     else {
       props.onReset(x.id).then(function (pw) { setTemp({ name: x.name, username: x.username, pw: pw }); }).catch(function (ex) { props.onToast(ex.message); });
     }
@@ -88,7 +89,8 @@ function UsersPage(props) {
     return div({ className: 'rowacts' },
       ab('edit', 'pencil', 'تعديل', function () { openEdit(x); }),
       ab('pw', 'key', 'كلمة مرور جديدة', function () { setFormV(null); setTemp(null); setConfirm({ type: 'reset', id: x.id }); }),
-      x.id === me.id ? null : ab(x.active ? 'stop' : 'go', x.active ? 'ban' : 'check', x.active ? 'إيقاف' : 'تفعيل', function () { setFormV(null); setTemp(null); setConfirm({ type: 'toggle', id: x.id }); }));
+      x.id === me.id ? null : ab(x.active ? 'stop' : 'go', x.active ? 'ban' : 'check', x.active ? 'إيقاف' : 'تفعيل', function () { setFormV(null); setTemp(null); setConfirm({ type: 'toggle', id: x.id }); }),
+      x.id === me.id ? null : ab('stop', 'trash', 'حذف', function () { setFormV(null); setTemp(null); setConfirm({ type: 'delete', id: x.id }); }));
   };
   const samePages = function (a, b) { return (a || []).slice().sort().join() === (b || []).slice().sort().join(); };
   const STAFF_PAGE_KEYS = ['matcher', 'manager', 'recon', 'users'];
@@ -187,7 +189,7 @@ function UsersPage(props) {
       span({ className: 'hint' }, 'تظهر مرة واحدة، وسيُطلب منه تغييرها عند أول دخول.'),
       button({ type: 'button', className: 'btn ghost sm', onClick: function () { setTemp(null); } }, 'إخفاء')) : null,
     cx ? div({ className: 'confirmbar', role: 'alertdialog' },
-      span(null, confirm.type === 'toggle' ? (cx.active ? 'إيقاف حساب ' + cx.name + '؟ لن يستطيع الدخول حتى يُفعَّل.' : 'تفعيل حساب ' + cx.name + '؟') : 'إنشاء كلمة مرور مؤقتة جديدة لـ ' + cx.name + '؟ ستبطل كلمة مروره الحالية.'),
+      span(null, confirm.type === 'delete' ? 'حذف حساب ' + cx.name + ' نهائياً؟ لا يمكن التراجع، وإن كان له طلبات فسيُرفض الحذف.' : confirm.type === 'toggle' ? (cx.active ? 'إيقاف حساب ' + cx.name + '؟ لن يستطيع الدخول حتى يُفعَّل.' : 'تفعيل حساب ' + cx.name + '؟') : 'إنشاء كلمة مرور مؤقتة جديدة لـ ' + cx.name + '؟ ستبطل كلمة مروره الحالية.'),
       button({ type: 'button', className: 'btn primary sm', onClick: doConfirm }, 'تأكيد'),
       button({ type: 'button', className: 'btn ghost sm', onClick: function () { setConfirm(null); } }, 'إلغاء')) : null,
     formV ? form({ className: 'uformwrap', onSubmit: save, noValidate: true },

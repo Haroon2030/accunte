@@ -184,6 +184,19 @@ class PortalTests(TestCase):
         self.assertEqual(m.post(f'/api/requests/{rid}/advance', {'fromStage': 2}, format='json').status_code, 409)   # a stale second click is refused
         done = m.post(f'/api/requests/{rid}/advance', {'fromStage': 3}, format='json').json()
         self.assertEqual(done['stage'], 4)
+        # deleting: admin only, files removed with the request
+        self.assertEqual(self.new_request(sup, 'gone.pdf').status_code, 201)
+        extra = MatchRequest.objects.filter(attachments__original_name='gone.pdf').first()
+        self.assertEqual(login(self.manager).delete(f'/api/requests/{extra.pk}/').status_code, 403)
+        self.assertEqual(login(self.sup2, 'supplier').delete(f'/api/requests/{extra.pk}/').status_code, 404)   # not someone else's
+        self.assertEqual(login(self.admin).delete(f'/api/requests/{extra.pk}/').status_code, 204)
+        self.assertFalse(MatchRequest.objects.filter(pk=extra.pk).exists())
+        self.assertFalse(Attachment.objects.filter(original_name='gone.pdf').exists())
+        # a supplier may delete their own request only while it is still waiting to be received
+        self.assertEqual(self.new_request(sup, 'mine.pdf').status_code, 201)
+        mine = MatchRequest.objects.filter(attachments__original_name='mine.pdf').first()
+        self.assertEqual(sup.delete(f'/api/requests/{mine.pk}/').status_code, 204)
+        self.assertEqual(sup.delete(f'/api/requests/{rid}/').status_code, 403)                    # already received
         # step 6: only the support staff send the reconciliation file, and the file is required
         spv = login(self.supervisor)
         self.assertEqual(m.post(f'/api/requests/{rid}/advance').status_code, 403)

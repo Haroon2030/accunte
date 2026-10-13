@@ -17,14 +17,14 @@ function SupplierHome(props) {
     alert: h(AlertBar, { n: unR, text: newMsgText(unR, 'المطابق') }),
     rows: mine, keyOf: function (r) { return statusOf(r, 'supplier').key; }, text: function (r) { return r.id + ' ' + r.period; },
     options: [['all', 'كل الحالات'], ['reply', 'يحتاج ردك'], ['dialogue', 'بانتظار المطابق'], ['matching', 'قيد المطابقة'], ['queue', 'بانتظار التوزيع'], ['sending', 'بانتظار إرسال الملف'], ['done', 'منجز']],
-    render: function (rows) { return h(RequestTable, { rows: rows, role: 'supplier', seen: props.seen, hide: ['supplier', 'matcher'], onOpen: props.onOpen, defaultSort: { key: 'updated', dir: 'desc' } }); }
+    render: function (rows) { return h(RequestTable, { onDelete: props.onDelete, canDelete: function (r) { return r.stage === 1; }, rows: rows, role: 'supplier', seen: props.seen, hide: ['supplier', 'matcher'], onOpen: props.onOpen, defaultSort: { key: 'updated', dir: 'desc' } }); }
   });
   const complaint = h(ServicePanel, {
     key: 'complaint', id: 'sv-complaint', title: 'شكوى المدير المالي', sub: 'ترفع شكواك مباشرة إلى المدير المالي وتتابع رده.',
     actionLabel: 'شكوى جديدة', onAction: props.onNewC, alert: h(AlertBar, { n: unC, text: newMsgText(unC, 'المدير المالي') }),
     rows: myC, keyOf: function (c) { return statusC(c, 'supplier').key; }, text: function (c) { return c.id + ' ' + c.subject + ' ' + c.category; },
     options: [['all', 'كل الحالات'], ['new', 'وصلت المدير المالي'], ['review', 'قيد المراجعة'], ['closed', 'تم الرد']],
-    render: function (rows) { return h(ComplaintTable, { rows: rows, role: 'supplier', seen: props.seen, hide: ['supplier'], onOpen: props.onOpenC, defaultSort: { key: 'created', dir: 'desc' } }); }
+    render: function (rows) { return h(ComplaintTable, { onDelete: props.onDelete, canDelete: function (c) { return c.stage === 1; }, rows: rows, role: 'supplier', seen: props.seen, hide: ['supplier'], onOpen: props.onOpenC, defaultSort: { key: 'created', dir: 'desc' } }); }
   });
   return div({ className: 'shell' },
     h('nav', { className: 'side', 'aria-label': 'الخدمات' },
