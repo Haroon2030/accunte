@@ -611,3 +611,25 @@ body { -webkit-tap-highlight-color: rgba(47, 111, 235, .18); }
 
 /* figures inside the sentences: red, left-to-right, never split from their sign */
 .rcd .rcd-num { color: var(--bad); font-weight: 700; white-space: nowrap; margin-inline: 3px; }
+
+/* the official letter */
+.rcl { display: grid; gap: 14px; }
+.rcl-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; max-width: 900px; width: 100%; justify-self: center; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.rcl-f { display: grid; gap: 4px; min-width: 0; }
+.rcl-f:first-child, .rcl-f.wide { grid-column: 1 / -1; }
+.rcl-f label { font-size: .82rem; font-weight: 700; }
+.rcl-acts { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rcl-chk { display: inline-flex; align-items: center; gap: 8px; font-size: .88rem; }
+.rcl-doc { line-height: 1.9; font-size: .95rem; }
+.rcl-doc p { margin: 0; }
+.rcl-to p { margin: 0; font-size: 1.02rem; }
+.rcl-subject { font-size: 1.02rem; }
+.rcl-group { display: grid; gap: 6px; }
+.rcl-group h4 { margin: 4px 0 0; font-size: .95rem; }
+.rcl-note { padding: 8px 12px; border-inline-start: 3px solid var(--ink-3); background: var(--surface-2); }
+.rcl-ack { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--ink-2); border-radius: 6px; display: grid; gap: 10px; break-inside: avoid; }
+.rcl-ack h4 { margin: 0; }
+.rcl-blank { display: inline-block; min-width: 140px; border-bottom: 1px solid var(--ink); }
+.rcl-annex { break-before: page; display: grid; gap: 8px; }
+@media (max-width: 720px) { .rcl-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media print { .rcl-form { display: none !important; } .rcl-doc { font-size: 12pt; } .rcl-group, .rc-sign { break-inside: avoid; } }

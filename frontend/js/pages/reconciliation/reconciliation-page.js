@@ -217,14 +217,24 @@ function RcResult(props) {
     div({ className: 'rc-tabs noprint', role: 'tablist', 'aria-label': 'عرض النتيجة' },
       button({ type: 'button', role: 'tab', 'aria-selected': tab === 'diag', onClick: function () { setTab('diag'); } }, 'نتيجة المطابقة'),
       button({ type: 'button', role: 'tab', 'aria-selected': tab === 'report', onClick: function () { setTab('report'); } }, 'تقرير المطابقة'),
+      button({ type: 'button', role: 'tab', 'aria-selected': tab === 'letter', onClick: function () { setTab('letter'); } }, 'خطاب المطابقة'),
       button({ type: 'button', role: 'tab', 'aria-selected': tab === 'sheet', onClick: function () { setTab('sheet'); } }, 'التفاصيل', span({ className: 'rc-tabn' }, res.items.length))),
     (Math.abs(res.sumA) > 1e11 || Math.abs(res.sumB) > 1e11 || (res.items.length > 30 && !agreedItems.length)) ? div({ className: 'rc-warn noprint', role: 'alert' }, 'تحذير: النتيجة غير منطقية (أرصدة ضخمة أو لا يوجد بند متطابق). غالباً قُرئت أعمدة الملف خطأ. افتح «الأعمدة ومعاينة البنود المقروءة» لكل كشف وصحّح اختيار الأعمدة قبل الاعتماد.') : null,
-    tab === 'diag' ? h(RcDiagnosis, { res: res }) : tab === 'report' ? doc : h(RcSheet, { items: res.items, onToast: props.onToast }),
-    div({ className: 'printonly' }, table({ className: 'dt' }, thead(null, tr(null, ['الحالة', 'النوع', 'المستند', 'التاريخ', 'عند المورد', 'عندنا', 'الفرق', 'السبب'].map(function (x) { return th({ key: x }, x); }))),
-      tbody(null, rows.map(function (r) {
-        return tr({ key: r.id }, td(null, RC_STATUS[r.status].label), td(null, RC_KIND[r.kind]), td(null, r.docA && r.docB && r.docA !== r.docB ? r.docA + ' / ' + r.docB : r.doc), td(null, r.date ? fmtDate(r.date) : ''),
-          td(null, rcMoney(r.amtA)), td(null, rcMoney(r.amtB)), td(null, rcSigned(r.diff)), td(null, r.reason));
-      })))));
+    tab === 'diag' ? h(RcDiagnosis, { res: res }) : tab === 'letter' ? h(RcLetter, { res: res, by: props.by, onToast: props.onToast }) : tab === 'report' ? doc : h(RcSheet, { items: res.items, onToast: props.onToast }),
+    (tab === 'report' || tab === 'sheet') && rows.length ? div({ className: 'printonly rc-annex' },
+      div({ className: 'rc-annex-head' }, h3(null, 'ملحق: البنود التي تحتاج إلى معالجة (' + rows.length + ')'), span(null, 'المرجع ' + ref + ' · ' + fmtDate(res.at))),
+      table(null,
+        h('colgroup', null, [4, 17, 15, 9, 12, 12, 11, 20].map(function (w, k) { return h('col', { key: k, style: { width: w + '%' } }); })),
+        thead(null, tr(null, ['#', 'الحالة والنوع', 'المستند', 'التاريخ', 'عند المورد', 'عندنا', 'الفرق', 'السبب'].map(function (x, k) { return th({ key: x, className: k >= 4 && k <= 6 ? 'n' : '' }, x); }))),
+        tbody(null, rows.map(function (r, k) {
+          const doc1 = rcPickDoc(r.docA, r.docB) || rcPickDoc(r.docB, r.docA) || r.doc || '';
+          return tr({ key: r.id },
+            td({ className: 'c' }, k + 1), td(null, strong(null, RC_STATUS[r.status].label), h('br'), span({ className: 'sub' }, RC_KIND[r.kind])), td({ className: 'mono' }, doc1), td({ className: 'c' }, r.date ? fmtDate(r.date) : ''),
+            td({ className: 'n' }, rcMoney(r.amtA)), td({ className: 'n' }, rcMoney(r.amtB)), td({ className: 'n' }, Math.abs(r.diff) < 0.005 ? '' : rcSigned(r.diff)), td({ className: 'why' }, r.reason || ''));
+        })),
+        tfoot(null, tr(null, td({ colSpan: 4 }, 'الإجمالي'),
+          td({ className: 'n' }, rcMoney(rows.reduce(function (t, r) { return t + (r.amtA || 0); }, 0))), td({ className: 'n' }, rcMoney(rows.reduce(function (t, r) { return t + (r.amtB || 0); }, 0))),
+          td({ className: 'n' }, rcSigned(rows.reduce(function (t, r) { return t + (r.diff || 0); }, 0))), td(null, ''))))) : null);
 }
 const i0 = function () { return div({ className: 'rc-line' }); };
 
@@ -247,6 +257,18 @@ function docChips(mine, other) {
   });
   if (!shown) shown = toks.slice().sort(function (a, b) { return b.length - a.length; })[0];
   return span({ className: 'dchip' + (hit ? ' hit' : ''), title: (hit ? 'رقم مشترك بين الكشفين · ' : '') + 'كل الأرقام: ' + toks.join(' / ') }, shown);
+}
+
+/* the one number printed for a document: the number both statements share, otherwise the longest */
+function rcPickDoc(mine, other) {
+  const toks = String(mine || '').split(/\s+/).filter(Boolean);
+  if (!toks.length) return '';
+  const theirs = String(other || '').split(/\s+/).filter(Boolean);
+  for (let a = 0; a < toks.length; a++) for (let b = 0; b < theirs.length; b++) {
+    if (rcSameDoc(toks[a], theirs[b])) return toks[a];
+    if (toks[a].length >= 10 && rcSameDoc(rcRev(toks[a]), theirs[b])) return rcRev(toks[a]);
+  }
+  return toks.slice().sort(function (x, y) { return y.length - x.length; })[0];
 }
 
 /* the details tab: every item in a spreadsheet-style grid */
