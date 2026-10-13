@@ -13,6 +13,7 @@ urlpatterns = [
     path('users/<int:pk>/toggle', v.UserToggleView.as_view()),
     path('users/<int:pk>/reset-password', v.UserResetView.as_view()),
 
+    path('changes/', v.ChangesView.as_view()),
     path('matchers/', v.MatchersView.as_view()),
     path('requests/', v.RequestsView.as_view()),
     path('requests/<int:pk>/', v.RequestDetailView.as_view()),

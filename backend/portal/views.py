@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.sessions.models import Session
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Max, Q, Sum
 from django.http import FileResponse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -322,6 +322,29 @@ class RequestDetailView(APIView):
                 raise ValidationError({'diff': 'قيمة الفرق غير صحيحة.'})
         req.save()
         return Response(request_out(get_request(request.user, pk)))
+
+
+class ChangesView(APIView):
+    """A tiny fingerprint of what the signed-in user can see. The page polls it and reloads the lists only when it changes."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        mine = request.user.role == User.SUPPLIER
+        reqs, comps = MatchRequest.objects.all(), Complaint.objects.all()
+        msgs, files = Message.objects.all(), Attachment.objects.all()
+        if mine:
+            reqs, comps = reqs.filter(supplier=request.user), comps.filter(supplier=request.user)
+            msgs = msgs.filter(Q(request__supplier=request.user) | Q(complaint__supplier=request.user))
+            files = files.filter(Q(request__supplier=request.user) | Q(message__request__supplier=request.user) | Q(message__complaint__supplier=request.user))
+        parts = [
+            reqs.aggregate(n=Count('id'), m=Max('id'), s=Sum('stage'), a=Sum('matcher_id'), d=Sum('diff')),
+            comps.aggregate(n=Count('id'), m=Max('id'), s=Sum('stage')),
+            msgs.aggregate(n=Count('id'), m=Max('id')),
+            files.aggregate(n=Count('id'), m=Max('id')),
+        ]
+        if not mine:
+            parts.append(User.objects.aggregate(n=Count('id'), m=Max('id'), a=Count('id', filter=Q(is_active=True)), p=Max('last_login')))
+        return Response({'v': str(parts)})
 
 
 class MatchersView(APIView):

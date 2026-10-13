@@ -72,8 +72,24 @@ function App() {
   }, []);
   useEffect(function () {
     if (!me) return undefined;
-    const t = setInterval(function () { loadAll(me).catch(function () { /* keep showing the last data */ }); }, 20000);
-    return function () { clearInterval(t); };
+    const lastV = { current: null }, lastFull = { current: Date.now() };
+    /* live refresh: every 2 seconds while the tab is visible, and at once when the user comes back to it */
+    let busy = false;
+    const tick = function () {
+      if (busy || document.hidden) return;
+      busy = true;
+      /* ask for a tiny fingerprint first; the lists are fetched only when something really changed (or every 30 s as a safety net) */
+      API.get('/changes/').then(function (c) {
+        const stale = Date.now() - lastFull.current > 30000;
+        if (c.v === lastV.current && !stale) return null;
+        lastV.current = c.v; lastFull.current = Date.now();
+        return loadAll(me);
+      }).catch(function () { /* keep showing the last data */ }).then(function () { busy = false; });
+    };
+    const t = setInterval(tick, 2000);
+    document.addEventListener('visibilitychange', tick);
+    window.addEventListener('focus', tick);
+    return function () { clearInterval(t); document.removeEventListener('visibilitychange', tick); window.removeEventListener('focus', tick); };
   }, [me]);
 
   const replaceReq = function (r) { setReqs(function (rs) { return rs.map(function (x) { return x.pk === r.pk ? r : x; }); }); };

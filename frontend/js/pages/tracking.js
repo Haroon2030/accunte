@@ -13,7 +13,7 @@ function Stepper(props) {
     return li({ key: s.title, className: 'step ' + state, 'aria-current': state === 'current' ? 'step' : undefined },
       div({ className: 'mark' }, state === 'done' ? h(Icon, { name: 'check', size: 17 }) : String(i + 1)),
       div(null,
-        h4(null, s.title, state === 'current' ? span({ className: 'now' }, 'الخطوة الحالية') : null),
+        h4(null, state === 'done' && s.doneTitle ? s.doneTitle : s.title, state === 'current' ? span({ className: 'now' }, 'الخطوة الحالية') : null),
         state !== 'todo' && r.reached[i] ? span({ className: 'when' }, fmtDT(r.reached[i])) : null,
         div({ className: 'desc' }, state === 'done' && s.doneDesc ? s.doneDesc : s.desc),
         (canAct || (props.onChat && state === 'current')) ? div({ className: 'act' },
