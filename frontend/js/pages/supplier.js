@@ -39,23 +39,31 @@ function SupplierHome(props) {
 }
 
 function NewRequest(props) {
-  const periods = ['سبتمبر 2026', 'الربع الثالث 2026', 'أغسطس 2026', 'من بداية السنة 2026'];
-  const [period, setPeriod] = useState(periods[0]);
+  const today = new Date().toISOString().slice(0, 10);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [notes, setNotes] = useState('');
   const [file, setFile] = useState(null);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   function submit(e) {
     e.preventDefault();
     if (!file) { setError('أرفق كشف الحساب أولاً (PDF أو Excel) ثم أرسل الطلب.'); return; }
-    props.onSubmit({ period: period, notes: notes.trim(), file: file });
+    if (!from || !to) { setError('حدّد تاريخ بداية الكشف ونهايته.'); return; }
+    if (from > to) { setError('تاريخ النهاية يجب أن يكون بعد تاريخ البداية.'); return; }
+    if (busy) return;
+    setBusy(true);
+    const p = props.onSubmit({ dateFrom: from, dateTo: to, notes: notes.trim(), file: file });
+    if (p && p.then) p.then(function () { setBusy(false); }, function () { setBusy(false); });
   }
   return section({ className: 'panel formcard' },
     h3(null, 'طلب مطابقة جديد'),
     form({ onSubmit: submit, noValidate: true },
       div({ className: 'field' },
-        label({ htmlFor: 'nr-period' }, 'الفترة المطلوب مطابقتها'),
-        select({ id: 'nr-period', value: period, onChange: function (e) { setPeriod(e.target.value); } },
-          periods.map(function (x) { return option({ key: x, value: x }, x); }))),
+        span({ className: 'lbl' }, 'الفترة المطلوب مطابقتها'),
+        div({ className: 'daterange' },
+          div(null, label({ htmlFor: 'nr-from' }, 'من تاريخ'), input({ id: 'nr-from', type: 'date', value: from, max: to || today, onChange: function (e) { setFrom(e.target.value); setError(''); } })),
+          div(null, label({ htmlFor: 'nr-to' }, 'إلى تاريخ'), input({ id: 'nr-to', type: 'date', value: to, min: from || undefined, max: today, onChange: function (e) { setTo(e.target.value); setError(''); } })))),
       div({ className: 'field' },
         span({ className: 'lbl' }, 'كشف حساب المورد'),
         div({ className: 'dropzone' },
@@ -71,7 +79,7 @@ function NewRequest(props) {
         label({ htmlFor: 'nr-notes' }, 'ملاحظات للمطابق (اختياري)'),
         textarea({ id: 'nr-notes', rows: 3, value: notes, onChange: function (e) { setNotes(e.target.value); }, placeholder: 'مثال: الفاتورة INV-88213 فيها خصم لم يظهر في كشفكم' })),
       div({ className: 'formactions' },
-        button({ type: 'submit', className: 'btn primary' }, h(Icon, { name: 'send' }), 'إرسال الطلب'),
+        button({ type: 'submit', className: 'btn primary', disabled: busy }, h(Icon, { name: 'send' }), busy ? 'جارٍ الإرسال…' : 'إرسال الطلب'),
         button({ type: 'button', className: 'btn ghost', onClick: props.onCancel }, 'إلغاء'))));
 }
 
@@ -83,10 +91,14 @@ function NewComplaint(props) {
   const [related, setRelated] = useState('');
   const [files, setFiles] = useState([]);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   function submit(e) {
     e.preventDefault();
+    if (busy) return;
     if (!subject.trim() || !body.trim()) { setError('اكتب عنوان الشكوى وتفاصيلها قبل الإرسال.'); return; }
-    props.onSubmit({ category: category, subject: subject.trim(), body: body.trim(), related: related || null, files: files });
+    setBusy(true);
+    const p = props.onSubmit({ category: category, subject: subject.trim(), body: body.trim(), related: related || null, files: files });
+    if (p && p.then) p.then(function () { setBusy(false); }, function () { setBusy(false); });
   }
   return section({ className: 'panel formcard' },
     h3(null, 'شكوى المدير المالي'),
@@ -120,6 +132,6 @@ function NewComplaint(props) {
           })) : span({ className: 'hint' }, 'إشعار تحويل، فاتورة، أو أي مستند يوضح الشكوى')),
         error ? div({ className: 'err', role: 'alert' }, error) : null),
       div({ className: 'formactions' },
-        button({ type: 'submit', className: 'btn primary' }, h(Icon, { name: 'send' }), 'إرسال إلى المدير المالي'),
+        button({ type: 'submit', className: 'btn primary', disabled: busy }, h(Icon, { name: 'send' }), busy ? 'جارٍ الإرسال…' : 'إرسال إلى المدير المالي'),
         button({ type: 'button', className: 'btn ghost', onClick: props.onCancel }, 'إلغاء'))));
 }

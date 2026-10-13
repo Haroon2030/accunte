@@ -1,6 +1,6 @@
 import re
 import secrets
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -273,6 +273,25 @@ def system_message(parent_field, parent, text):
     return Message.objects.create(**{parent_field: parent}, kind=Message.SYSTEM, text=text)
 
 
+def statement_period(data):
+    """The statement period as a from / to date range ("dateFrom", "dateTo"); a plain "period" text is still accepted."""
+    start, end = (data.get('dateFrom') or '').strip(), (data.get('dateTo') or '').strip()
+    if not start and not end:
+        period = (data.get('period') or '').strip()
+        if not period:
+            raise ValidationError({'dateFrom': 'حدّد تاريخ بداية الكشف ونهايته.'})
+        return period[:60]
+    try:
+        d1, d2 = date.fromisoformat(normalize_digits(start)), date.fromisoformat(normalize_digits(end))
+    except ValueError:
+        raise ValidationError({'dateFrom': 'حدّد تاريخ البداية والنهاية بشكل صحيح.'})
+    if d1 > d2:
+        raise ValidationError({'dateTo': 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية.'})
+    if d2 > timezone.localdate() or d1.year < 2000 or (d2 - d1).days > 3660:
+        raise ValidationError({'dateTo': 'الفترة غير صحيحة. اختر تواريخ سابقة لا تتجاوز 10 سنوات.'})
+    return f'من {d1:%d/%m/%Y} إلى {d2:%d/%m/%Y}'
+
+
 class RequestsView(APIView):
     permission_classes = [supplier_or_requests]
 
@@ -286,13 +305,16 @@ class RequestsView(APIView):
     def post(self, request):
         if request.user.role != User.SUPPLIER:
             raise PermissionDenied('رفع الطلبات للمورد فقط.')
-        period = (request.data.get('period') or '').strip()
+        period = statement_period(request.data)
         statement = request.FILES.get('statement')
-        if not period:
-            raise ValidationError({'period': 'اختر فترة الكشف.'})
         if not statement:
             raise ValidationError({'statement': 'أرفق كشف الحساب.'})
         now = timezone.now()
+        # a double click sends the same request twice: answer with the one just created instead of making a copy
+        twin = request_qs().filter(supplier=request.user, period=period, created_at__gte=now - timedelta(seconds=60),
+                                   attachments__kind=Attachment.STATEMENT, attachments__original_name=statement.name[:255], attachments__size=statement.size).first()
+        if twin:
+            return Response(request_out(twin), status=200)
         req = MatchRequest.objects.create(
             supplier=request.user, period=period, notes=(request.data.get('notes') or '').strip(),
             due_at=now + timedelta(days=SLA_DAYS), reached={'1': now.isoformat()}, created_at=now)
@@ -469,6 +491,9 @@ class ComplaintsView(APIView):
         files = request.FILES.getlist('files')
         for f in files:
             validate_upload(f)
+        twin = complaint_qs().filter(supplier=request.user, category=category, subject=subject, created_at__gte=timezone.now() - timedelta(seconds=60)).first()
+        if twin and not errors:
+            return Response(complaint_out(twin), status=200)
         if errors:
             raise ValidationError(errors)
         now = timezone.now()

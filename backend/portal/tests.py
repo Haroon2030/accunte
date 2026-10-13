@@ -12,7 +12,7 @@ from django.db import connection
 from django.test import TestCase, TransactionTestCase, override_settings
 from rest_framework.test import APIClient
 
-from .models import Attachment, User
+from .models import Attachment, MatchRequest, User
 
 PDF = b'%PDF-1.4\n%test\n'
 XLSX = b'PK\x03\x04' + b'0' * 40
@@ -46,7 +46,7 @@ class PortalTests(TestCase):
         self.supervisor = make('7', 'supervisor')
 
     def new_request(self, c, name='kashf.pdf', body=PDF):
-        return c.post('/api/requests/', {'period': 'سبتمبر 2026', 'statement': SimpleUploadedFile(name, body)}, format='multipart')
+        return c.post('/api/requests/', {'dateFrom': '2026-01-01', 'dateTo': '2026-03-31', 'statement': SimpleUploadedFile(name, body)}, format='multipart')
 
     # ---- auth
     def test_one_login_for_every_role(self):
@@ -126,6 +126,12 @@ class PortalTests(TestCase):
     def test_supplier_uploads_pdf_and_isolation(self):
         c = login(self.sup, 'supplier')
         r = self.new_request(c)
+        self.assertEqual(r.json()['period'], 'من 01/01/2026 إلى 31/03/2026')
+        again = self.new_request(c)                                                       # a double click: same request answered, no copy
+        self.assertEqual((again.status_code, again.json()['pk']), (200, r.json()['pk']))
+        self.assertEqual(MatchRequest.objects.filter(supplier=self.sup).count(), 1)
+        for bad in ({'dateFrom': '2026-05-01', 'dateTo': '2026-01-01'}, {'dateFrom': '2026-01-01'}, {'dateFrom': 'x', 'dateTo': 'y'}, {'dateFrom': '2026-01-01', 'dateTo': '2999-01-01'}, {}):
+            self.assertEqual(c.post('/api/requests/', {**bad, 'statement': SimpleUploadedFile('k.pdf', PDF)}, format='multipart').status_code, 400)
         self.assertEqual(r.status_code, 201, r.content)
         data = r.json()
         self.assertTrue(data['id'].startswith('MT-'))
@@ -161,7 +167,7 @@ class PortalTests(TestCase):
         self.assertEqual(spv.post(f'/api/requests/{rid}/advance').status_code, 403)                                               # after receiving, the matcher works
         # the finance manager and the system admin may receive too
         for who in (self.manager, self.admin):
-            rid2 = self.new_request(sup).json()['pk']
+            rid2 = self.new_request(sup, f'k{who.pk}.pdf').json()['pk']
             r2 = login(who).post(f'/api/requests/{rid2}/advance', {'matcherId': self.matcher.pk}, format='json').json()
             self.assertEqual(r2['stage'], 2)
             self.assertTrue(any(dict(User.ROLES)[who.role] in x['text'] for x in r2['messages']))

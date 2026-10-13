@@ -553,3 +553,9 @@ body { -webkit-tap-highlight-color: rgba(47, 111, 235, .18); }
 .assign-row { gap: 6px; }
 .assign-row select { min-height: 38px; padding-block: 5px; font-size: .88rem; }
 .assign-row .btn { min-height: 38px; padding: 4px 12px; font-size: .86rem; gap: 6px; }
+
+/* new request: from / to dates side by side */
+.daterange { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.daterange label { display: block; margin-bottom: 4px; font-size: .84rem; font-weight: 700; }
+.daterange input { width: 100%; }
+@media (max-width: 420px) { .daterange { grid-template-columns: 1fr; } }

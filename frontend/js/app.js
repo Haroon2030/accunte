@@ -114,7 +114,7 @@ function App() {
     }).catch(fail);
   }
   function create(data) {
-    API.post('/requests/', formOf({ period: data.period, notes: data.notes }, 'statement', [data.file])).then(function (d) {
+    return API.post('/requests/', formOf({ dateFrom: data.dateFrom, dateTo: data.dateTo, notes: data.notes }, 'statement', [data.file])).then(function (d) {
       const req = API.request(d);
       setReqs(function (rs) { return [req].concat(rs); });
       setToast('وصل طلبك برقم ' + req.id + '، وأصبح بانتظار التوزيع.');
@@ -133,7 +133,7 @@ function App() {
     }).catch(fail);
   }
   function createC(data) {
-    API.post('/complaints/', formOf({ category: data.category, subject: data.subject, body: data.body, related: data.related }, 'files', data.files)).then(function (d) {
+    return API.post('/complaints/', formOf({ category: data.category, subject: data.subject, body: data.body, related: data.related }, 'files', data.files)).then(function (d) {
       const c = API.complaint(d);
       setComplaints(function (cs) { return [c].concat(cs); });
       setToast('وصلت شكواك إلى المدير المالي برقم ' + c.id + '.');
