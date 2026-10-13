@@ -4,6 +4,7 @@ function App() {
   const [role, setRole] = useState('supplier');
   const [me, setMe] = useState(undefined); // undefined while the session is checked, null when signed out
   const [users, setUsers] = useState([]);
+  const [matchers, setMatchers] = useState([]);
   const [reqs, setReqs] = useState([]);
   const [view, setView] = useState({ name: 'home' });
   const [complaints, setComplaints] = useState([]);
@@ -52,6 +53,7 @@ function App() {
     const jobs = [];
     if (u.role === 'supplier' || has('matcher', 'manager')) jobs.push(API.get('/requests/').then(function (rs) { setReqs(rs.map(API.request)); }));
     if (u.role === 'supplier' || has('manager')) jobs.push(API.get('/complaints/').then(function (cs) { setComplaints(cs.map(API.complaint)); }));
+    if (u.role === 'supervisor') jobs.push(API.get('/matchers/').then(function (ms) { setMatchers(ms); }));
     if (has('users')) jobs.push(API.get('/users/').then(function (us) { setUsers(us.map(API.user)); }));
     return Promise.all(jobs);
   }
@@ -79,9 +81,9 @@ function App() {
   const reqOf = function (id) { return reqs.filter(function (r) { return r.id === id; })[0]; };
   const compOf = function (id) { return complaints.filter(function (c) { return c.id === id; })[0]; };
 
-  function advance(id) {
+  function advance(id, extra) {
     const r = reqOf(id);
-    if (r) API.post('/requests/' + r.pk + '/advance').then(function (d) { replaceReq(API.request(d)); }).catch(fail);
+    if (r) API.post('/requests/' + r.pk + '/advance', extra || {}).then(function (d) { replaceReq(API.request(d)); }).catch(fail);
   }
   function send(id, m) {
     const r = reqOf(id);
@@ -164,11 +166,11 @@ function App() {
   if (view.name === 'new' && role === 'supplier') body = h(NewRequest, { onCancel: home, onSubmit: create });
   else if (view.name === 'newc' && role === 'supplier') body = h(NewComplaint, { supplier: mySupplier, reqs: reqs, onCancel: home, onSubmit: createC });
   else if (currentC && (role === 'supplier' || role === 'manager')) body = h(ComplaintTracking, { key: currentC.id + role, c: currentC, role: role, seenAt: seenAt(seen, currentC.id, role), unread: unreadOf(currentC, role, seen), onSeen: function () { markSeen(currentC.id, role); }, onBack: home, onAdvance: function () { advanceC(currentC.id); }, onSend: function (m) { sendC(currentC.id, m); } });
-  else if (current) body = h(Tracking, { key: current.id + role, req: current, role: role, seenAt: seenAt(seen, current.id, role), unread: unreadOf(current, role, seen), onSeen: function () { markSeen(current.id, role); }, onBack: home, onAdvance: function () { if (current.stage === 2) setToast('فُتحت المراسلة. اكتب رسالتك للمورد في خانة المراسلات.'); advance(current.id); }, onSend: function (m) { send(current.id, m); } });
+  else if (current) body = h(Tracking, { key: current.id + role, req: current, role: role, seenAt: seenAt(seen, current.id, role), unread: unreadOf(current, role, seen), onSeen: function () { markSeen(current.id, role); }, onBack: home, userRole: user.role, matchers: matchers, onAdvance: function (extra) { if (current.stage === 2) setToast('فُتحت المراسلة. اكتب رسالتك للمورد في خانة المراسلات.'); advance(current.id, extra); }, onSend: function (m) { send(current.id, m); } });
   else if (role === 'supplier') body = h(SupplierHome, { supplier: mySupplier, reqs: reqs, complaints: complaints, seen: seen, service: service, onService: setService, onOpen: openReq, onOpenC: openC, onNew: function () { setView({ name: 'new' }); goTop(); }, onNewC: function () { setView({ name: 'newc' }); goTop(); } });
   else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { users: users, me: user, onSave: saveUser, onToggle: toggleUser, onReset: resetUser, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
-  else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, onOpen: openReq });
+  else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq });
   else body = h(Dashboard, { reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });
 
   return div(null,

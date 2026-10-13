@@ -511,3 +511,45 @@ body { -webkit-tap-highlight-color: rgba(47, 111, 235, .18); }
 .dtbox .dt tbody tr.fresh:hover td { background: #FFE2DE; }
 .dtbox .dt tbody tr.fresh td:first-child { box-shadow: inset -4px 0 0 var(--c-bad); }
 @media (max-width: 760px) { .dtbox .dt tbody tr.fresh { background: #FFF1EF; border-color: #F2B8B2; box-shadow: inset -4px 0 0 var(--c-bad); } .dtbox .dt tbody tr.fresh td:first-child { box-shadow: none; } }
+
+/* header filters keep their whole text; the table scrolls sideways instead of squeezing them */
+.dtbox .dt th { min-width: 112px; }
+.dtbox .dt th .thf { min-width: 96px; width: 100%; text-overflow: ellipsis; }
+.dtbox .dt th:first-child { min-width: 140px; }
+.dtbox .dt td .mono { white-space: nowrap; }
+.utable th { min-width: 108px; }
+.utable th .thf { min-width: 92px; }
+@media (max-width: 760px) { .dtbox .dt th, .dtbox .dt th:first-child, .utable th { min-width: 0; } }
+
+/* statement direction: two readable choices instead of a clipped select */
+.persp { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+.persp legend { padding: 0; margin-bottom: 6px; font-size: .84rem; font-weight: 600; color: var(--ink); }
+.radiocard { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid #B7C9E8; border-radius: 10px; background: #fff; font-size: .88rem; line-height: 1.55; cursor: pointer; transition: background-color .15s, border-color .15s; }
+.radiocard input { flex: none; width: 18px; height: 18px; margin-top: 3px; accent-color: var(--accent); }
+.radiocard.on { background: var(--accent-soft); border-color: var(--accent); color: #17306B; font-weight: 600; }
+.radiocard:focus-within { box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* support supervisor role colour + the assignment control on the request path */
+.rolepill.supervisor { background: #DDF3F8; color: #0B6B82; }
+.uav.supervisor, .uchip .av.supervisor { background: #DDF3F8; color: #0B6B82; }
+.step .act { display: flex; flex-wrap: wrap; gap: 8px; }
+.assign { flex: 1 1 100%; width: 100%; display: grid; gap: 12px; margin-top: 6px; padding: 14px; border: 1px solid #B7C9E8; border-inline-start: 4px solid var(--accent); border-radius: 12px; background: #F4F8FF; }
+.assign-head { display: flex; align-items: flex-start; gap: 10px; }
+.assign-ic { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: var(--accent); color: #fff; }
+.assign-head label { display: block; font-size: .92rem; font-weight: 700; color: var(--ink); }
+.assign-head .hint { display: block; margin-top: 1px; line-height: 1.5; }
+.assign-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.assign-row select { background: #fff; border: 1px solid #B7C9E8; min-height: 46px; }
+.assign-row .btn { min-height: 46px; width: 100%; padding-inline: 14px; white-space: normal; line-height: 1.35; }
+.assign-row .btn:disabled { background: #D5DDEC; color: #5A6680; box-shadow: none; opacity: 1; cursor: not-allowed; }
+
+/* assignment panel: compact */
+.assign { flex: 0 1 auto; width: 100%; max-width: 330px; gap: 8px; margin-top: 4px; padding: 10px 12px; border-radius: 10px; border-inline-start-width: 3px; }
+.assign-head { gap: 8px; align-items: center; }
+.assign-ic { width: 26px; height: 26px; border-radius: 8px; }
+.assign-ic .ic { width: 15px; height: 15px; }
+.assign-head label { font-size: .86rem; }
+.assign-head .hint { display: none; }
+.assign-row { gap: 6px; }
+.assign-row select { min-height: 38px; padding-block: 5px; font-size: .88rem; }
+.assign-row .btn { min-height: 38px; padding: 4px 12px; font-size: .86rem; gap: 6px; }

@@ -43,6 +43,7 @@ class PortalTests(TestCase):
         self.matcher = make('3', 'matcher')
         self.sup = make('4', 'supplier', org='شركة النخبة', code='S-1')
         self.sup2 = make('5', 'supplier', org='شركة أخرى', code='S-2')
+        self.supervisor = make('7', 'supervisor')
 
     def new_request(self, c, name='kashf.pdf', body=PDF):
         return c.post('/api/requests/', {'period': 'سبتمبر 2026', 'statement': SimpleUploadedFile(name, body)}, format='multipart')
@@ -84,7 +85,7 @@ class PortalTests(TestCase):
         self.assertEqual(login(self.manager).get('/api/users/').status_code, 403)
         self.assertEqual(login(self.sup, 'supplier').get('/api/users/').status_code, 403)
         c = login(self.admin)
-        self.assertEqual(len(c.get('/api/users/').json()), 5)
+        self.assertEqual(len(c.get('/api/users/').json()), 6)
 
     def test_admin_creates_supplier_with_code_and_tax(self):
         c = login(self.admin)
@@ -149,9 +150,15 @@ class PortalTests(TestCase):
         sup = login(self.sup, 'supplier')
         rid = self.new_request(sup).json()['pk']
         m = login(self.matcher)
+        spv = login(self.supervisor)
         self.assertEqual(sup.post(f'/api/requests/{rid}/advance').status_code, 403)
-        r = m.post(f'/api/requests/{rid}/advance').json()
+        self.assertEqual(m.post(f'/api/requests/{rid}/advance', {'matcherId': self.matcher.pk}, format='json').status_code, 403)   # matchers cannot receive
+        self.assertEqual(spv.post(f'/api/requests/{rid}/advance').status_code, 400)                                               # a matcher must be chosen
+        self.assertEqual(spv.post(f'/api/requests/{rid}/advance', {'matcherId': self.manager.pk}, format='json').status_code, 400)  # only matchers can be chosen
+        r = spv.post(f'/api/requests/{rid}/advance', {'matcherId': self.matcher.pk}, format='json').json()
         self.assertEqual((r['stage'], r['matcher']), (2, '3'))
+        self.assertTrue(any('مشرف الدعم' in x['text'] for x in r['messages']))
+        self.assertEqual(spv.post(f'/api/requests/{rid}/advance').status_code, 403)                                               # after receiving, the matcher works
         other = make('6', 'matcher')
         self.assertEqual(login(other).post(f'/api/requests/{rid}/advance').status_code, 403)
         self.assertEqual(m.post(f'/api/requests/{rid}/messages', {'text': 'مبكر'}, format='json').status_code, 403)

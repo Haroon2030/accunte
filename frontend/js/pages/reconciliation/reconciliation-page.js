@@ -81,10 +81,14 @@ function RcSide(props) {
     ready && led && led.lines.length && led.lines.every(function (l) { return Math.abs(l.amount) < 1e-9; })
       ? div({ className: 'rc-note warn' }, 'كل المبالغ المقروءة صفر.' + (side.diag && side.diag.emptyFormulas ? ' الملف يحتوي ' + side.diag.emptyFormulas + ' معادلة بلا قيمة محفوظة. افتحه في Excel واحفظه ثم أعد رفعه، أو انسخ الجدول كقيم.' : ' راجع اختيار الأعمدة من الأسفل.')) : null,
     ready && !side.detected && !side.guess ? div({ className: 'rc-note warn' }, 'لم أتعرف على رؤوس الأعمدة تلقائياً. حدّدها يدوياً.') : null,
-    div({ className: 'tfield' },
-      label({ htmlFor: 'rc-persp-' + k }, 'اتجاه الكشف'),
-      select({ id: 'rc-persp-' + k, value: side.persp, onChange: function (e) { props.onPatch({ persp: e.target.value }); } },
-        option({ value: 'supplier' }, RC_PERSP.supplier), option({ value: 'company' }, RC_PERSP.company))),
+    /* two choices shown in full (a select clips the long wording on phones) */
+    h('fieldset', { className: 'persp' },
+      h('legend', null, 'اتجاه الكشف'),
+      ['supplier', 'company'].map(function (v) {
+        return label({ key: v, className: 'radiocard' + (side.persp === v ? ' on' : '') },
+          input({ type: 'radio', name: 'rc-persp-' + k, id: 'rc-persp-' + k + '-' + v, value: v, checked: side.persp === v, onChange: function () { props.onPatch({ persp: v }); } }),
+          span(null, RC_PERSP[v]));
+      })),
     ready ? h('details', { className: 'rc-det', open: !side.detected || !(led && led.lines.length) },
       h('summary', null, 'الأعمدة ومعاينة البنود المقروءة'),
       side.diag ? div({ className: 'rc-note' }, 'الورقة: ' + side.diag.sheet + ' · أوراق الملف: ' + side.diag.sheets + ' · معادلات: ' + side.diag.formulas + (side.diag.emptyFormulas ? ' (بلا قيمة محفوظة: ' + side.diag.emptyFormulas + ')' : '')) : null,

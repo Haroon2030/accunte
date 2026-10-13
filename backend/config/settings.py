@@ -122,6 +122,7 @@ REST_FRAMEWORK = {
 }
 
 # ---- security ----
+RATELIMIT_ENABLE = env.bool('RATELIMIT_ENABLE', default=True)   # the login limit; only a local test run switches it off
 SESSION_COOKIE_AGE = 60 * 60 * 12
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'

@@ -324,6 +324,14 @@ class RequestDetailView(APIView):
         return Response(request_out(get_request(request.user, pk)))
 
 
+class MatchersView(APIView):
+    """Active matchers: the list the supervisor picks from when receiving a request."""
+    permission_classes = [IsMatcherPage]
+
+    def get(self, request):
+        return Response([{'id': u.pk, 'name': u.name} for u in User.objects.filter(role=User.MATCHER, is_active=True).order_by('name')])
+
+
 class RequestAdvanceView(APIView):
     permission_classes = [IsMatcherPage]
 
@@ -332,13 +340,24 @@ class RequestAdvanceView(APIView):
         req = get_request(request.user, pk)
         if req.stage >= 4:
             raise ValidationError({'detail': 'الطلب منجز.'})
-        if req.stage == 1 and request.user.role == User.MATCHER:
-            req.matcher = request.user
-        elif request.user.role == User.MATCHER and req.matcher_id != request.user.pk:
-            raise PermissionDenied('هذا الطلب ليس مسنداً إليك.')
-        elif req.matcher is None:
-            req.matcher = request.user
-        system_message('request', req, REQ_NOTE[req.stage])
+        role = request.user.role
+        if req.stage == 1:
+            # receiving a request is the support supervisor's step: they hand it to a matcher
+            if role != User.SUPERVISOR:
+                raise PermissionDenied('استلام الطلبات لمشرف الدعم فقط.')
+            matcher_id = request.data.get('matcherId')
+            matcher = User.objects.filter(pk=matcher_id, role=User.MATCHER, is_active=True).first() if str(matcher_id or '').isdigit() else None
+            if not matcher:
+                raise ValidationError({'matcherId': 'اختر المطابق الذي ستُسند إليه الطلب.'})
+            req.matcher = matcher
+            note = f'استلم مشرف الدعم {request.user.name} الطلب وأسنده إلى المطابق {matcher.name}'
+        else:
+            if role == User.SUPERVISOR:
+                raise PermissionDenied('بعد الاستلام يتابع المطابق الطلب.')
+            if role == User.MATCHER and req.matcher_id != request.user.pk:
+                raise PermissionDenied('هذا الطلب ليس مسنداً إليك.')
+            note = REQ_NOTE[req.stage]
+        system_message('request', req, note)
         req.stage += 1
         stamp(req, req.stage)
         req.save()
@@ -367,7 +386,7 @@ class RequestMessagesView(APIView):
         req = get_request(request.user, pk)
         role = request.user.role
         kind = Message.SUPPLIER if role == User.SUPPLIER else Message.MATCHER
-        ok = req.stage == 3 and (role != User.MATCHER or req.matcher_id == request.user.pk)
+        ok = req.stage == 3 and role != User.SUPERVISOR and (role != User.MATCHER or req.matcher_id == request.user.pk)
         return Response(post_message(request, req, 'request', kind, ok), status=201)
 
 

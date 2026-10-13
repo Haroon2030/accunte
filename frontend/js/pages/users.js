@@ -16,7 +16,7 @@ function UsersPage(props) {
   const baseRef = useRef('');
   const users = props.users;
   const canManage = function (x) { return me.role === 'admin' || x.role !== 'admin'; };
-  const roleOpts = me.role === 'admin' ? ['supplier', 'matcher', 'manager', 'admin'] : ['supplier', 'matcher', 'manager'];
+  const roleOpts = me.role === 'admin' ? ['supplier', 'matcher', 'supervisor', 'manager', 'admin'] : ['supplier', 'matcher', 'supervisor', 'manager'];
   const normDigits = function (v) { return String(v || '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); }).replace(/\s/g, ''); };
   const count = function (f) { return users.filter(f).length; };
   const setF = function (k, v) { setFormV(function (o) { const n = Object.assign({}, o); n[k] = v; return n; }); };
@@ -97,7 +97,7 @@ function UsersPage(props) {
   };
   const hay = function (list) { return list.join(' ').toLowerCase(); };
   const needle = normDigits(q).trim().toLowerCase(), nameN = normDigits(nameF).trim().toLowerCase(), orgN = normDigits(orgF).trim().toLowerCase();
-  const ROLE_ORDER = { admin: 0, manager: 1, matcher: 2, supplier: 3 };
+  const ROLE_ORDER = { admin: 0, manager: 1, supervisor: 2, matcher: 3, supplier: 4 };
   const sorters = {
     name: function (a, b) { return String(a.name).localeCompare(String(b.name), 'ar'); },
     role: function (a, b) { return ROLE_ORDER[a.role] - ROLE_ORDER[b.role]; },

@@ -7,6 +7,7 @@ STAFF_PAGES = ('matcher', 'manager', 'recon', 'users')
 ROLE_PAGES = {
     User.SUPPLIER: ['supplier'],
     User.MATCHER: ['matcher', 'recon'],
+    User.SUPERVISOR: ['matcher', 'recon'],      # the requests queue; only the supervisor receives and assigns
     User.MANAGER: ['matcher', 'manager', 'recon'],
     User.ADMIN: ['matcher', 'manager', 'recon', 'users'],
 }

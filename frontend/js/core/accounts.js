@@ -5,14 +5,15 @@
    Demo only: accounts live in memory. In production the backend stores
    salted password hashes, enforces roles on every request and audits changes.
    ===================================================================== */
-const ROLE_LABEL = { supplier: 'مورد', matcher: 'مطابق', manager: 'مدير مالي', admin: 'مدير النظام' };
+const ROLE_LABEL = { supplier: 'مورد', matcher: 'مطابق', supervisor: 'مشرف الدعم', manager: 'مدير مالي', admin: 'مدير النظام' };
 const ROLE_PAGES = {
   supplier: ['supplier'],
   matcher: ['matcher', 'recon'],
+  supervisor: ['matcher', 'recon'],
   manager: ['matcher', 'manager', 'recon'],
   admin: ['matcher', 'manager', 'recon', 'users']
 };
-const HOME_PAGE = { supplier: 'supplier', matcher: 'matcher', manager: 'manager', admin: 'users' };
+const HOME_PAGE = { supplier: 'supplier', matcher: 'matcher', supervisor: 'matcher', manager: 'manager', admin: 'users' };
 const PAGE_LABEL = { supplier: 'صفحة المورد', matcher: 'صفحة المطابق', manager: 'لوحة المدير المالي', recon: 'مطابقة الكشوف', users: 'إدارة المستخدمين' };
 /* two separate entrances: suppliers use supplier.html, staff use index.html */
 const PORTAL = document.body.getAttribute('data-portal') || 'staff';

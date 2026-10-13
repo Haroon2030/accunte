@@ -9,8 +9,8 @@ SLA_DAYS = 5
 
 
 class User(AbstractUser):
-    SUPPLIER, MATCHER, MANAGER, ADMIN = 'supplier', 'matcher', 'manager', 'admin'
-    ROLES = [(SUPPLIER, 'مورد'), (MATCHER, 'مطابق'), (MANAGER, 'مدير مالي'), (ADMIN, 'مدير النظام')]
+    SUPPLIER, MATCHER, SUPERVISOR, MANAGER, ADMIN = 'supplier', 'matcher', 'supervisor', 'manager', 'admin'
+    ROLES = [(SUPPLIER, 'مورد'), (MATCHER, 'مطابق'), (SUPERVISOR, 'مشرف الدعم'), (MANAGER, 'مدير مالي'), (ADMIN, 'مدير النظام')]
 
     first_name = None
     last_name = None

@@ -3,6 +3,7 @@
 /* ---------- tracking page ---------- */
 function Stepper(props) {
   const r = props.req;
+  const [pick, setPick] = useState('');
   return ol({ className: 'stepper' }, props.stages.map(function (s, i) {
     const state = r.stage === props.stages.length - 1 || i < r.stage ? 'done' : i === r.stage ? 'current' : 'todo';
     const canAct = state === 'current' && props.canAct && !!props.adv[r.stage];
@@ -13,7 +14,14 @@ function Stepper(props) {
         state !== 'todo' && r.reached[i] ? span({ className: 'when' }, fmtDT(r.reached[i])) : null,
         div({ className: 'desc' }, s.desc),
         (canAct || (props.onChat && state === 'current')) ? div({ className: 'act' },
-          canAct ? button({ className: 'btn primary', onClick: props.onAdvance }, props.adv[r.stage].label) : null,
+          canAct && props.assign ? div({ className: 'assign' },
+            div({ className: 'assign-head' }, span({ className: 'assign-ic', 'aria-hidden': 'true' }, h(Icon, { name: 'user', size: 18 })),
+              div(null, label({ htmlFor: 'as-m' }, 'أسند الطلب إلى المطابق'), span({ className: 'hint' }, 'يظهر الطلب في طابور المطابق المختار فور الاستلام.'))),
+            div({ className: 'assign-row' },
+              select({ id: 'as-m', value: pick, onChange: function (e) { setPick(e.target.value); } },
+                option({ value: '' }, props.assign.length ? 'اختر المطابق…' : 'لا يوجد مطابق نشط'), props.assign.map(function (m) { return option({ key: m.id, value: String(m.id) }, m.name); })),
+              button({ className: 'btn primary', disabled: !pick, onClick: function () { props.onAdvance({ matcherId: +pick }); } }, h(Icon, { name: 'check', size: 16 }), props.adv[r.stage].label)))
+            : (canAct ? button({ className: 'btn primary', onClick: function () { props.onAdvance(); } }, props.adv[r.stage].label) : null),
           props.onChat && state === 'current' ? button({ className: 'btn ghost to-chat', onClick: props.onChat }, h(Icon, { name: 'chat' }), 'كتابة رسالة') : null) : null));
   }));
 }
@@ -100,7 +108,10 @@ function Tracking(props) {
   useEffect(function () { if (chatVisible) props.onSeen(); }, [chatVisible, r.messages.length]);
   const writable = r.stage === 3;
   const goChat = function () { setPanel('chat'); };
-  const advance = function () { const toDialogue = r.stage === 2; props.onAdvance(); if (toDialogue) setPanel('chat'); };
+  const advance = function (extra) { const toDialogue = r.stage === 2; props.onAdvance(extra); if (toDialogue) setPanel('chat'); };
+  const supervisor = props.userRole === 'supervisor';
+  /* receiving (step 1) is the supervisor's; every later step belongs to the assigned matcher */
+  const canAdvance = r.stage === 1 ? supervisor : (role === 'matcher' && !supervisor);
   const st = statusOf(r, role);
   const late = isLate(r);
   const allFiles = r.statement ? [{ name: r.statement.name, size: r.statement.size, url: r.statement.url, by: r.supplier, at: r.created }] : [];
@@ -117,7 +128,7 @@ function Tracking(props) {
       button({ role: 'tab', 'aria-selected': panel === 'chat', onClick: function () { setPanel('chat'); } }, 'المراسلات (' + chatCount(r) + ')', props.unread ? h(Badge, { n: props.unread }) : (writable ? span({ className: 'tabdot', 'aria-hidden': 'true' }) : null))),
     div({ className: 'grid-track' },
       div({ className: 'col', 'data-on': panel === 'path' },
-        section({ className: 'panel' }, h3(null, 'مسار الطلب'), h(Stepper, { req: r, stages: STAGES, adv: ADVANCE, canAct: role === 'matcher', onAdvance: advance, onChat: writable ? goChat : undefined })),
+        section({ className: 'panel' }, h3(null, 'مسار الطلب'), h(Stepper, { req: r, stages: STAGES, adv: ADVANCE, canAct: canAdvance, assign: r.stage === 1 && supervisor ? (props.matchers || []) : undefined, onAdvance: advance, onChat: writable ? goChat : undefined })),
         section({ className: 'panel' }, h3(null, 'تفاصيل الطلب'),
           dl({ className: 'dl' },
             dt(null, 'المورد'), dd(null, r.supplier),
