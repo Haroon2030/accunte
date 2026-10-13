@@ -53,7 +53,7 @@ function App() {
     const jobs = [];
     if (u.role === 'supplier' || has('matcher', 'manager')) jobs.push(API.get('/requests/').then(function (rs) { setReqs(rs.map(API.request)); }));
     if (u.role === 'supplier' || has('manager')) jobs.push(API.get('/complaints/').then(function (cs) { setComplaints(cs.map(API.complaint)); }));
-    if (u.role === 'supervisor') jobs.push(API.get('/matchers/').then(function (ms) { setMatchers(ms); }));
+    if (u.role === 'supervisor' || u.role === 'manager' || u.role === 'admin') jobs.push(API.get('/matchers/').then(function (ms) { setMatchers(ms); }));
     if (has('users')) jobs.push(API.get('/users/').then(function (us) { setUsers(us.map(API.user)); }));
     return Promise.all(jobs);
   }

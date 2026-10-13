@@ -159,6 +159,12 @@ class PortalTests(TestCase):
         self.assertEqual((r['stage'], r['matcher']), (2, '3'))
         self.assertTrue(any('مشرف الدعم' in x['text'] for x in r['messages']))
         self.assertEqual(spv.post(f'/api/requests/{rid}/advance').status_code, 403)                                               # after receiving, the matcher works
+        # the finance manager and the system admin may receive too
+        for who in (self.manager, self.admin):
+            rid2 = self.new_request(sup).json()['pk']
+            r2 = login(who).post(f'/api/requests/{rid2}/advance', {'matcherId': self.matcher.pk}, format='json').json()
+            self.assertEqual(r2['stage'], 2)
+            self.assertTrue(any(dict(User.ROLES)[who.role] in x['text'] for x in r2['messages']))
         other = make('6', 'matcher')
         self.assertEqual(login(other).post(f'/api/requests/{rid}/advance').status_code, 403)
         self.assertEqual(m.post(f'/api/requests/{rid}/messages', {'text': 'مبكر'}, format='json').status_code, 403)

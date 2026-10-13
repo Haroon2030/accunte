@@ -109,9 +109,9 @@ function Tracking(props) {
   const writable = r.stage === 3;
   const goChat = function () { setPanel('chat'); };
   const advance = function (extra) { const toDialogue = r.stage === 2; props.onAdvance(extra); if (toDialogue) setPanel('chat'); };
-  const supervisor = props.userRole === 'supervisor';
-  /* receiving (step 1) is the supervisor's; every later step belongs to the assigned matcher */
-  const canAdvance = r.stage === 1 ? supervisor : (role === 'matcher' && !supervisor);
+  const receiver = ['supervisor', 'manager', 'admin'].indexOf(props.userRole) !== -1;
+  /* receiving (step 1) belongs to the supervisor, finance manager and admin; later steps to the assigned matcher */
+  const canAdvance = r.stage === 1 ? receiver : (role === 'matcher' && props.userRole !== 'supervisor');
   const st = statusOf(r, role);
   const late = isLate(r);
   const allFiles = r.statement ? [{ name: r.statement.name, size: r.statement.size, url: r.statement.url, by: r.supplier, at: r.created }] : [];
@@ -128,7 +128,7 @@ function Tracking(props) {
       button({ role: 'tab', 'aria-selected': panel === 'chat', onClick: function () { setPanel('chat'); } }, 'المراسلات (' + chatCount(r) + ')', props.unread ? h(Badge, { n: props.unread }) : (writable ? span({ className: 'tabdot', 'aria-hidden': 'true' }) : null))),
     div({ className: 'grid-track' },
       div({ className: 'col', 'data-on': panel === 'path' },
-        section({ className: 'panel' }, h3(null, 'مسار الطلب'), h(Stepper, { req: r, stages: STAGES, adv: ADVANCE, canAct: canAdvance, assign: r.stage === 1 && supervisor ? (props.matchers || []) : undefined, onAdvance: advance, onChat: writable ? goChat : undefined })),
+        section({ className: 'panel' }, h3(null, 'مسار الطلب'), h(Stepper, { req: r, stages: STAGES, adv: ADVANCE, canAct: canAdvance, assign: r.stage === 1 && receiver ? (props.matchers || []) : undefined, onAdvance: advance, onChat: writable ? goChat : undefined })),
         section({ className: 'panel' }, h3(null, 'تفاصيل الطلب'),
           dl({ className: 'dl' },
             dt(null, 'المورد'), dd(null, r.supplier),

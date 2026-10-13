@@ -342,15 +342,15 @@ class RequestAdvanceView(APIView):
             raise ValidationError({'detail': 'الطلب منجز.'})
         role = request.user.role
         if req.stage == 1:
-            # receiving a request is the support supervisor's step: they hand it to a matcher
-            if role != User.SUPERVISOR:
-                raise PermissionDenied('استلام الطلبات لمشرف الدعم فقط.')
+            # receiving a request is for the support supervisor, the finance manager and the system admin: they hand it to a matcher
+            if role not in (User.SUPERVISOR, User.MANAGER, User.ADMIN):
+                raise PermissionDenied('استلام الطلبات لمشرف الدعم أو المدير المالي أو مدير النظام فقط.')
             matcher_id = request.data.get('matcherId')
             matcher = User.objects.filter(pk=matcher_id, role=User.MATCHER, is_active=True).first() if str(matcher_id or '').isdigit() else None
             if not matcher:
                 raise ValidationError({'matcherId': 'اختر المطابق الذي ستُسند إليه الطلب.'})
             req.matcher = matcher
-            note = f'استلم مشرف الدعم {request.user.name} الطلب وأسنده إلى المطابق {matcher.name}'
+            note = f'استلم {dict(User.ROLES)[role]} {request.user.name} الطلب وأسنده إلى المطابق {matcher.name}'
         else:
             if role == User.SUPERVISOR:
                 raise PermissionDenied('بعد الاستلام يتابع المطابق الطلب.')
