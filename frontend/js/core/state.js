@@ -12,14 +12,16 @@ function lastDialogue(r) {
 function statusOf(r, role) {
   if (r.stage === 1) return { label: 'بانتظار التوزيع', tone: 'idle', key: 'queue' };
   if (r.stage === 2) return { label: 'قيد المطابقة', tone: 'warn', key: 'matching' };
-  if (r.stage === 4) return { label: 'منجز', tone: 'ok', key: 'done' };
+  if (r.stage === 4) return { label: 'بانتظار إرسال الملف', tone: 'work', key: 'sending' };
+  if (r.stage === 5) return { label: 'منجز', tone: 'ok', key: 'done' };
   const last = lastDialogue(r);
   if (last === 'matcher') return { label: role === 'supplier' ? 'يحتاج ردك' : 'بانتظار رد المورد', tone: 'bad', key: 'reply' };
   if (last === 'supplier') return { label: role === 'matcher' ? 'بانتظارك' : 'بانتظار المطابق', tone: 'work', key: 'dialogue' };
   return { label: 'مراسلات واستيضاح', tone: 'work', key: 'dialogue' };
 }
 function dueText(r) {
-  if (r.stage === 4) return 'أُنجز في ' + fmtDate(r.reached[4]);
+  if (r.stage === 5) return 'أُنجز في ' + fmtDate(r.reached[5]);
+  if (r.stage === 4) return 'تمت المطابقة في ' + fmtDate(r.reached[4]);
   if (r.due < NOW) return 'متأخر ' + unit(Math.max(1, Math.ceil((NOW - r.due) / DAY)), 'يوم', 'يومين', 'أيام', 'يوماً');
   return 'متبقي ' + unit(Math.max(1, Math.ceil((r.due - NOW) / DAY)), 'يوم', 'يومين', 'أيام', 'يوماً');
 }

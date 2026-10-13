@@ -3,7 +3,7 @@
 function MatcherHome(props) {
   /* a matcher sees what was assigned to them; the supervisor, manager and admin see every open request */
   const own = props.userRole === 'matcher';
-  const rows = props.reqs.filter(function (r) { return r.stage < 4 && (!own || r.matcher === props.meName); })
+  const rows = props.reqs.filter(function (r) { return (own ? r.stage < 4 : r.stage < 5) && (!own || r.matcher === props.meName); })
     .sort(function (a, b) { return b.created - a.created; });
   const unr = unreadSum(rows.filter(function (r) { return r.matcher === props.meName; }), 'matcher', props.seen);
   const late = rows.filter(isLate).length;

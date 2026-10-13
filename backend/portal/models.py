@@ -39,7 +39,7 @@ class MatchRequest(models.Model):
     supplier = models.ForeignKey(User, on_delete=models.PROTECT, related_name='requests')
     period = models.CharField(max_length=60)
     notes = models.TextField(blank=True)
-    stage = models.PositiveSmallIntegerField(default=1)  # 1 queue, 2 matching, 3 dialogue, 4 done
+    stage = models.PositiveSmallIntegerField(default=1)  # 1 queue, 2 matching, 3 dialogue, 4 matched (awaiting the file), 5 file sent
     matcher = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='assigned')
     diff = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     due_at = models.DateTimeField()
@@ -87,7 +87,7 @@ class Message(models.Model):
 
 
 class Attachment(models.Model):
-    STATEMENT, CHAT = 'statement', 'chat'
+    STATEMENT, CHAT, RESULT = 'statement', 'chat', 'result'
     file = models.FileField(upload_to=upload_path, max_length=300)
     original_name = models.CharField(max_length=255)
     size = models.PositiveIntegerField()

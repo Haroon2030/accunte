@@ -29,6 +29,7 @@ def message_out(m):
 
 def request_out(r, messages=True):
     statement = next((a for a in r.attachments.all() if a.kind == 'statement'), None)
+    result = next((a for a in r.attachments.all() if a.kind == 'result'), None)
     out = {
         'id': r.number, 'pk': r.pk, 'supplier': r.supplier.org or r.supplier.name, 'supplierCode': r.supplier.code or '',
         'supplierId': r.supplier_id, 'period': r.period, 'notes': r.notes, 'stage': r.stage,
@@ -36,6 +37,7 @@ def request_out(r, messages=True):
         'diff': float(r.diff) if r.diff is not None else None,
         'created': iso(r.created_at), 'due': iso(r.due_at), 'reached': r.reached,
         'statement': file_out(statement) if statement else None,
+        'result': file_out(result) if result else None,
     }
     if messages:
         out['messages'] = [message_out(m) for m in r.messages.all()]

@@ -108,8 +108,8 @@ class Command(BaseCommand):
             ('يوليو 2026', 2, 8, True, 10260, False, 'pdf'),        # matching and late
             ('سبتمبر 2026', 3, 3, True, 8070, True, 'xlsx'),        # open dialogue
             ('أغسطس 2026', 3, 6, True, 5150, True, 'png'),          # dialogue and late
-            ('الربع الثاني 2026', 4, 12, True, 0, True, 'pdf'),     # done, no difference
-            ('يونيو 2026', 4, 20, True, 1250.5, True, 'csv'),       # done, with difference
+            ('الربع الثاني 2026', 5, 12, True, 0, True, 'pdf'),     # done and the file was sent, no difference
+            ('يونيو 2026', 4, 20, True, 1250.5, True, 'csv'),       # matched, waiting for the file to be sent
         ]
         reqs = []
         for i, (period, stage, age, has_m, diff, chat, kind) in enumerate(plan):
@@ -126,7 +126,7 @@ class Command(BaseCommand):
             r.reached = {k: v.isoformat() for k, v in reached.items()}
             r.save()
             self.attach(kind, sup, request=r, kind=Attachment.STATEMENT)
-            notes = {2: 'بدأت المطابقة على كشف الحساب', 3: 'فُتحت قناة المراسلة مع المورد', 4: 'أُغلقت المراسلة وأُنجز الطلب'}
+            notes = {2: 'بدأت المطابقة على كشف الحساب', 3: 'فُتحت قناة المراسلة مع المورد', 4: 'أُغلقت المراسلة وأُنجز الطلب', 5: 'أرسل مشرف الدعم ملف المطابقة إلى المورد'}
             for s in range(2, stage + 1):
                 Message.objects.create(request=r, kind=Message.SYSTEM, text=notes[s], created_at=reached[str(s)])
             if chat:
@@ -137,6 +137,8 @@ class Command(BaseCommand):
                 self.say(r, Message.MATCHER, 'استلمنا المستند، سنحدّث القيد ونعود إليك.', t0 + timedelta(hours=9), m)
                 if stage == 3 and i % 2 == 0:
                     self.say(r, Message.SUPPLIER, 'شكراً. هذا إثبات تحويل الدفعة.', t0 + timedelta(hours=20), sup, files=['png'])
+            if stage == 5:
+                self.attach('xlsx', mgr or sup, request=r, kind=Attachment.RESULT)
             reqs.append(r)
 
         # complaints: every stage, every category style, linked and unlinked, with chat and files
@@ -170,5 +172,5 @@ class Command(BaseCommand):
                 Message.objects.create(complaint=c, kind=Message.SYSTEM, text='أُغلقت الشكوى بعد رد المدير المالي', created_at=reached['3'])
 
         self.stdout.write(self.style.SUCCESS(
-            f'Created {len(reqs)} demo requests (stages 1-4, some late), {len(comp_plan)} complaints (stages 1-3), '
+            f'Created {len(reqs)} demo requests (stages 1-5, some late), {len(comp_plan)} complaints (stages 1-3), '
             f'chats and PDF / Excel / CSV / image files, for {len(sups)} supplier account(s). Remove with: --clear'))

@@ -16,7 +16,7 @@ function SupplierHome(props) {
     actionLabel: 'طلب جديد', onAction: props.onNew,
     alert: h(AlertBar, { n: unR, text: newMsgText(unR, 'المطابق') }),
     rows: mine, keyOf: function (r) { return statusOf(r, 'supplier').key; }, text: function (r) { return r.id + ' ' + r.period; },
-    options: [['all', 'كل الحالات'], ['reply', 'يحتاج ردك'], ['dialogue', 'بانتظار المطابق'], ['matching', 'قيد المطابقة'], ['queue', 'بانتظار التوزيع'], ['done', 'منجز']],
+    options: [['all', 'كل الحالات'], ['reply', 'يحتاج ردك'], ['dialogue', 'بانتظار المطابق'], ['matching', 'قيد المطابقة'], ['queue', 'بانتظار التوزيع'], ['sending', 'بانتظار إرسال الملف'], ['done', 'منجز']],
     render: function (rows) { return h(RequestTable, { rows: rows, role: 'supplier', seen: props.seen, hide: ['supplier', 'matcher'], onOpen: props.onOpen, defaultSort: { key: 'updated', dir: 'desc' } }); }
   });
   const complaint = h(ServicePanel, {

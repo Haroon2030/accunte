@@ -6,7 +6,7 @@ function Kpi(props) {
     span({ className: 'k' }, props.label), span({ className: 'v' }, props.value), span({ className: 'n' }, props.note));
 }
 
-const FILTERS = [['all', 'الكل'], ['late', 'متأخرة'], ['reply', 'تنتظر رد المورد'], ['matching', 'قيد المطابقة'], ['queue', 'بانتظار التوزيع'], ['done', 'منجزة'], ['complaints', 'الشكاوى']];
+const FILTERS = [['all', 'الكل'], ['late', 'متأخرة'], ['reply', 'تنتظر رد المورد'], ['matching', 'قيد المطابقة'], ['queue', 'بانتظار التوزيع'], ['sending', 'بانتظار إرسال الملف'], ['done', 'منجزة'], ['complaints', 'الشكاوى']];
 
 const isComplaint = function (r) { return String(r.id).indexOf('SH') === 0; };
 
@@ -47,11 +47,11 @@ function Dashboard(props) {
   }, []);
   const reqs = props.reqs;
   const keyOf = function (r) { return statusOf(r, 'manager').key; };
-  const open = reqs.filter(function (r) { return r.stage < 4; });
+  const open = reqs.filter(function (r) { return r.stage < 5; });
   const late = open.filter(isLate);
-  const doneAll = reqs.filter(function (r) { return r.stage === 4; });
-  const doneMonth = doneAll.filter(function (r) { return r.reached[4].getMonth() === NOW.getMonth() && r.reached[4].getFullYear() === NOW.getFullYear(); });
-  const avg = doneAll.length ? doneAll.reduce(function (s, r) { return s + (r.reached[4] - r.created) / DAY; }, 0) / doneAll.length : 0;
+  const doneAll = reqs.filter(function (r) { return r.stage === 5; });
+  const doneMonth = doneAll.filter(function (r) { return r.reached[5].getMonth() === NOW.getMonth() && r.reached[5].getFullYear() === NOW.getFullYear(); });
+  const avg = doneAll.length ? doneAll.reduce(function (s, r) { return s + (r.reached[5] - r.created) / DAY; }, 0) / doneAll.length : 0;
   const replyN = reqs.filter(function (r) { return keyOf(r) === 'reply'; }).length;
   const newC = props.complaints.filter(function (c) { return c.stage === 1; }).length;
   const unrC = unreadSum(props.complaints, 'manager', props.seen);
@@ -61,6 +61,7 @@ function Dashboard(props) {
     ['بانتظار التوزيع', 'idle', reqs.filter(function (r) { return r.stage === 1; }).length],
     ['قيد المطابقة', 'warn', reqs.filter(function (r) { return r.stage === 2; }).length],
     ['مراسلات واستيضاح', 'work', reqs.filter(function (r) { return r.stage === 3; }).length],
+    ['بانتظار إرسال الملف', 'work', reqs.filter(function (r) { return r.stage === 4; }).length],
     ['منجز', 'ok', doneAll.length]
   ];
   const load = {};
@@ -85,7 +86,7 @@ function Dashboard(props) {
     complaints: props.complaints.length
   };
   const reqRows = flt === 'complaints' ? [] : reqs.filter(function (r) { return flt === 'all' ? true : flt === 'late' ? isLate(r) : keyOf(r) === flt; })
-    .sort(function (a, b) { return (a.stage === 4) - (b.stage === 4) || b.created - a.created; });
+    .sort(function (a, b) { return (a.stage === 5) - (b.stage === 5) || b.created - a.created; });
   const rows = (flt === 'all' || flt === 'complaints' ? cRows : []).concat(reqRows);
 
   return div({ className: 'stack' },

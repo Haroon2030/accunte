@@ -4,17 +4,26 @@
 function Stepper(props) {
   const r = props.req;
   const [pick, setPick] = useState('');
+  const [sendFile, setSendFile] = useState(null);
+  const cur = props.cur != null ? props.cur : r.stage;
   return ol({ className: 'stepper' }, props.stages.map(function (s, i) {
-    const state = r.stage === props.stages.length - 1 || i < r.stage ? 'done' : i === r.stage ? 'current' : 'todo';
+    const state = r.stage === props.stages.length - 1 || i < cur ? 'done' : i === cur ? 'current' : 'todo';
     const canAct = state === 'current' && props.canAct && !!props.adv[r.stage];
+    const sending = canAct && !!props.sendFile;
     return li({ key: s.title, className: 'step ' + state, 'aria-current': state === 'current' ? 'step' : undefined },
       div({ className: 'mark' }, state === 'done' ? h(Icon, { name: 'check', size: 17 }) : String(i + 1)),
       div(null,
         h4(null, s.title, state === 'current' ? span({ className: 'now' }, 'الخطوة الحالية') : null),
         state !== 'todo' && r.reached[i] ? span({ className: 'when' }, fmtDT(r.reached[i])) : null,
-        div({ className: 'desc' }, s.desc),
+        div({ className: 'desc' }, state === 'done' && s.doneDesc ? s.doneDesc : s.desc),
         (canAct || (props.onChat && state === 'current')) ? div({ className: 'act' },
-          canAct && props.assign ? div({ className: 'assign' },
+          sending ? div({ className: 'assign' },
+            div({ className: 'assign-head' }, span({ className: 'assign-ic', 'aria-hidden': 'true' }, h(Icon, { name: 'file', size: 18 })),
+              div(null, label({ htmlFor: 'send-file' }, 'ملف المطابقة'), span({ className: 'hint' }, 'يصل الملف إلى المورد ويظهر له في الطلب. (PDF أو Excel أو CSV أو صورة)'))),
+            div({ className: 'assign-row' },
+              input({ id: 'send-file', type: 'file', accept: '.pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg', onChange: function (e) { setSendFile(e.target.files[0] || null); } }),
+              button({ className: 'btn primary', disabled: !sendFile, onClick: function () { props.onAdvance(formOf({}, 'file', [{ name: sendFile.name, file: sendFile }])); } }, h(Icon, { name: 'send', size: 16 }), props.adv[r.stage].label)))
+          : canAct && props.assign ? div({ className: 'assign' },
             div({ className: 'assign-head' }, span({ className: 'assign-ic', 'aria-hidden': 'true' }, h(Icon, { name: 'user', size: 18 })),
               div(null, label({ htmlFor: 'as-m' }, 'أسند الطلب إلى المطابق'), span({ className: 'hint' }, 'يظهر الطلب في طابور المطابق المختار فور الاستلام.'))),
             div({ className: 'assign-row' },
@@ -31,7 +40,7 @@ function Chat(props) {
   const [text, setText] = useState('');
   const [files, setFiles] = useState([]);
   const observer = !!props.observer;
-  const mode = props.mode || (r.stage < 3 ? 'wait' : r.stage === 4 ? 'closed' : 'open');
+  const mode = props.mode || (r.stage < 3 ? 'wait' : r.stage >= 4 ? 'closed' : 'open');
   const [composerOpen, setComposerOpen] = useState(!observer);
   const listRef = useRef(null);
   const prevMode = useRef(mode);
@@ -111,11 +120,12 @@ function Tracking(props) {
   const advance = function (extra) { const toDialogue = r.stage === 2; props.onAdvance(extra); if (toDialogue) setPanel('chat'); };
   const receiver = ['supervisor', 'manager', 'admin'].indexOf(props.userRole) !== -1;
   /* receiving (step 1) belongs to the supervisor, finance manager and admin; later steps to the assigned matcher */
-  const canAdvance = r.stage === 1 ? receiver : (role === 'matcher' && props.userRole !== 'supervisor');
+  const canAdvance = r.stage === 1 || r.stage === 4 ? receiver : (role === 'matcher' && props.userRole !== 'supervisor');
   const st = statusOf(r, role);
   const late = isLate(r);
   const allFiles = r.statement ? [{ name: r.statement.name, size: r.statement.size, url: r.statement.url, by: r.supplier, at: r.created }] : [];
   r.messages.forEach(function (m) { m.files.forEach(function (f) { allFiles.push({ name: f.name, size: f.size, url: f.url, by: senderName(r, m), at: m.at }); }); });
+  if (r.result) allFiles.push({ name: r.result.name, size: r.result.size, url: r.result.url, by: 'ملف المطابقة', at: r.reached[5] });
   return div({ className: 'stack' },
     div({ className: 'thead' },
       button({ className: 'btn ghost tback', 'aria-label': 'رجوع', onClick: props.onBack }, h(Icon, { name: 'back' }), span({ className: 'tbacktxt' }, 'رجوع')),
@@ -128,7 +138,7 @@ function Tracking(props) {
       button({ role: 'tab', 'aria-selected': panel === 'chat', onClick: function () { setPanel('chat'); } }, 'المراسلات (' + chatCount(r) + ')', props.unread ? h(Badge, { n: props.unread }) : (writable ? span({ className: 'tabdot', 'aria-hidden': 'true' }) : null))),
     div({ className: 'grid-track' },
       div({ className: 'col', 'data-on': panel === 'path' },
-        section({ className: 'panel' }, h3(null, 'مسار الطلب'), h(Stepper, { req: r, stages: STAGES, adv: ADVANCE, canAct: canAdvance, assign: r.stage === 1 && receiver ? (props.matchers || []) : undefined, onAdvance: advance, onChat: writable ? goChat : undefined })),
+        section({ className: 'panel' }, h3(null, 'مسار الطلب'), h(Stepper, { req: r, stages: STAGES, adv: ADVANCE, canAct: canAdvance, cur: r.stage === 4 ? 5 : r.stage, sendFile: r.stage === 4 && receiver, assign: r.stage === 1 && receiver ? (props.matchers || []) : undefined, onAdvance: advance, onChat: writable ? goChat : undefined })),
         section({ className: 'panel' }, h3(null, 'تفاصيل الطلب'),
           dl({ className: 'dl' },
             dt(null, 'المورد'), dd(null, r.supplier),

@@ -338,19 +338,26 @@ class RequestAdvanceView(APIView):
     @transaction.atomic
     def post(self, request, pk):
         req = get_request(request.user, pk)
-        if req.stage >= 4:
+        if req.stage >= 5:
             raise ValidationError({'detail': 'الطلب منجز.'})
         role = request.user.role
+        if req.stage in (1, 4) and role not in (User.SUPERVISOR, User.MANAGER, User.ADMIN):
+            raise PermissionDenied('استلام الطلبات وإرسال ملف المطابقة لموظف الدعم أو المدير المالي أو مدير النظام فقط.')
         if req.stage == 1:
             # receiving a request is for the support supervisor, the finance manager and the system admin: they hand it to a matcher
-            if role not in (User.SUPERVISOR, User.MANAGER, User.ADMIN):
-                raise PermissionDenied('استلام الطلبات لمشرف الدعم أو المدير المالي أو مدير النظام فقط.')
             matcher_id = request.data.get('matcherId')
             matcher = User.objects.filter(pk=matcher_id, role=User.MATCHER, is_active=True).first() if str(matcher_id or '').isdigit() else None
             if not matcher:
                 raise ValidationError({'matcherId': 'اختر المطابق الذي ستُسند إليه الطلب.'})
             req.matcher = matcher
             note = f'استلم {dict(User.ROLES)[role]} {request.user.name} الطلب وأسنده إلى المطابق {matcher.name}'
+        elif req.stage == 4:
+            # the last step: the support employee sends the reconciliation file to the supplier
+            f = request.FILES.get('file')
+            if not f:
+                raise ValidationError({'file': 'أرفق ملف المطابقة لإرساله إلى المورد.'})
+            save_files([f], request.user, request=req, kind=Attachment.RESULT)
+            note = f'أرسل {dict(User.ROLES)[role]} {request.user.name} ملف المطابقة إلى المورد'
         else:
             if role == User.SUPERVISOR:
                 raise PermissionDenied('بعد الاستلام يتابع المطابق الطلب.')

@@ -177,9 +177,21 @@ class PortalTests(TestCase):
         self.assertEqual(login(other).post(f'/api/requests/{rid}/messages', {'text': 'x'}, format='json').status_code, 403)
         done = m.post(f'/api/requests/{rid}/advance').json()
         self.assertEqual(done['stage'], 4)
-        self.assertEqual(m.post(f'/api/requests/{rid}/advance').status_code, 400)
-        kinds = [x['from'] for x in done['messages']]
-        self.assertEqual(kinds.count('system'), 3)
+        # step 6: only the support staff send the reconciliation file, and the file is required
+        spv = login(self.supervisor)
+        self.assertEqual(m.post(f'/api/requests/{rid}/advance').status_code, 403)
+        self.assertEqual(sup.post(f'/api/requests/{rid}/advance').status_code, 403)
+        self.assertEqual(spv.post(f'/api/requests/{rid}/advance').status_code, 400)
+        sent = spv.post(f'/api/requests/{rid}/advance', {'file': SimpleUploadedFile('match.pdf', PDF)}, format='multipart')
+        self.assertEqual(sent.status_code, 200, sent.content)
+        sent = sent.json()
+        self.assertEqual(sent['stage'], 5)
+        self.assertEqual(sent['result']['name'], 'match.pdf')
+        self.assertEqual(sup.get(sent['result']['url']).status_code, 200)       # the supplier can download it
+        self.assertEqual(login(self.sup2, 'supplier').get(sent['result']['url']).status_code, 404)
+        self.assertEqual(spv.post(f'/api/requests/{rid}/advance').status_code, 400)
+        kinds = [x['from'] for x in sent['messages']]
+        self.assertEqual(kinds.count('system'), 4)
 
     # ---- complaints
     def test_complaint_flow(self):
@@ -330,7 +342,7 @@ class SeedDemoTests(TestCase):
                 'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}):
             real = MatchRequest.objects.create(supplier=User.objects.get(username='4'), period='حقيقي', notes='ملاحظة حقيقية', due_at='2030-01-01T00:00:00Z')
             call_command('seed_demo_data')
-            self.assertEqual(sorted(MatchRequest.objects.exclude(pk=real.pk).values_list('stage', flat=True)), [1, 1, 2, 2, 3, 3, 4, 4])
+            self.assertEqual(sorted(MatchRequest.objects.exclude(pk=real.pk).values_list('stage', flat=True)), [1, 1, 2, 2, 3, 3, 4, 5])
             self.assertEqual(sorted(Complaint.objects.values_list('stage', flat=True)), [1, 1, 2, 2, 3, 3])
             self.assertTrue(Attachment.objects.count() >= 15)
             before = MatchRequest.objects.count()
