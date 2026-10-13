@@ -175,7 +175,8 @@ class PortalTests(TestCase):
         r = sup.post(f'/api/requests/{rid}/messages', {'text': 'تم'}, format='json')
         self.assertEqual(r.json()['from'], 'supplier')
         self.assertEqual(login(other).post(f'/api/requests/{rid}/messages', {'text': 'x'}, format='json').status_code, 403)
-        done = m.post(f'/api/requests/{rid}/advance').json()
+        self.assertEqual(m.post(f'/api/requests/{rid}/advance', {'fromStage': 2}, format='json').status_code, 409)   # a stale second click is refused
+        done = m.post(f'/api/requests/{rid}/advance', {'fromStage': 3}, format='json').json()
         self.assertEqual(done['stage'], 4)
         # step 6: only the support staff send the reconciliation file, and the file is required
         spv = login(self.supervisor)

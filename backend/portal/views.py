@@ -360,7 +360,13 @@ class RequestAdvanceView(APIView):
 
     @transaction.atomic
     def post(self, request, pk):
+        # lock the row first: two clicks (or two people) at the same moment must not advance the request twice
+        list(MatchRequest.objects.select_for_update().filter(pk=pk).values_list('pk', flat=True))
         req = get_request(request.user, pk)
+        seen = request.data.get('fromStage')
+        if seen not in (None, '') and str(seen) != str(req.stage):
+            # the page was showing an older step: someone (or a second click) already moved the request
+            return Response({'detail': 'تغيّرت حالة الطلب للتو. حُدّثت الصفحة فتأكد قبل المتابعة.'}, status=409)
         if req.stage >= 5:
             raise ValidationError({'detail': 'الطلب منجز.'})
         role = request.user.role
@@ -487,6 +493,7 @@ class ComplaintAdvanceView(APIView):
 
     @transaction.atomic
     def post(self, request, pk):
+        list(Complaint.objects.select_for_update().filter(pk=pk).values_list('pk', flat=True))
         c = get_complaint(request.user, pk)
         if c.stage >= 3:
             raise ValidationError({'detail': 'الشكوى مغلقة.'})

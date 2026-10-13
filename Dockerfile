@@ -17,4 +17,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8096/healthz', timeout=4).status == 200 else 1)"
 
 # wait for the database, clear the old app's tables once, migrate, create first accounts, then serve
-CMD ["sh", "-c", "until python manage.py wipe_legacy_database && python manage.py migrate --noinput && python manage.py bootstrap_users; do echo 'database not ready, retrying in 30s'; sleep 30; done; exec gunicorn config.wsgi --bind 0.0.0.0:8096 --workers 2 --threads 2 --timeout 120 --access-logfile -"]
+CMD ["sh", "-c", "until python manage.py wipe_legacy_database && python manage.py migrate --noinput && python manage.py bootstrap_users; do echo 'database not ready, retrying in 30s'; sleep 30; done; exec gunicorn config.wsgi --bind 0.0.0.0:8096 --workers 3 --worker-class gthread --threads 8 --timeout 180 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --access-logfile -"]

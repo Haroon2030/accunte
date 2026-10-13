@@ -86,7 +86,7 @@ function App() {
         return loadAll(me);
       }).catch(function () { /* keep showing the last data */ }).then(function () { busy = false; });
     };
-    const t = setInterval(tick, 2000);
+    const t = setInterval(function () { if (Math.random() > 0.15) tick(); }, 2000);     /* a little jitter so many open pages do not hit the server in the same instant */
     document.addEventListener('visibilitychange', tick);
     window.addEventListener('focus', tick);
     return function () { clearInterval(t); document.removeEventListener('visibilitychange', tick); window.removeEventListener('focus', tick); };
@@ -97,9 +97,14 @@ function App() {
   const reqOf = function (id) { return reqs.filter(function (r) { return r.id === id; })[0]; };
   const compOf = function (id) { return complaints.filter(function (c) { return c.id === id; })[0]; };
 
+  /* tell the server which step this page was showing, so a second click or another person's move is rejected instead of skipping a step */
+  function withStage(extra, stage) {
+    if (extra instanceof FormData) { extra.append('fromStage', stage); return extra; }
+    return Object.assign({ fromStage: stage }, extra || {});
+  }
   function advance(id, extra) {
     const r = reqOf(id);
-    if (r) API.post('/requests/' + r.pk + '/advance', extra || {}).then(function (d) { replaceReq(API.request(d)); }).catch(fail);
+    if (r) API.post('/requests/' + r.pk + '/advance', withStage(extra, r.stage)).then(function (d) { replaceReq(API.request(d)); }).catch(function (e) { fail(e); if (e.status === 409 && me) loadAll(me).catch(function () { /* next refresh retries */ }); });
   }
   function send(id, m) {
     const r = reqOf(id);
