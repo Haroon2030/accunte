@@ -1,4 +1,5 @@
 """Plain dict serializers. Field names match what the frontend already uses."""
+from .models import Supplier
 
 
 def iso(dt):
@@ -18,6 +19,7 @@ def user_out(u):
 
 def supplier_out(s, users=None):
     return {'id': s.pk, 'name': s.name, 'code': s.code, 'taxNo': s.tax_no, 'mobile': s.mobile, 'active': s.is_active,
+            'address': {k: getattr(s, k) for k in s.ADDRESS_FIELDS},
             'users': users if users is not None else s.users.count(), 'created': iso(s.created_at)}
 
 
@@ -76,6 +78,7 @@ def notice_out(n):
         'id': n.number, 'pk': n.pk, 'supplier': n.supplier.org or n.supplier.name, 'supplierId': n.supplier_id,
         'supplierTax': n.supplier.tax_no, 'supplierCode': n.supplier.code or '',
         'supplierMobile': n.supplier.supplier.mobile if n.supplier.supplier_id else '', 'buyer': n.buyer or {},
+        'supplierAddress': {k: getattr(n.supplier.supplier, k) for k in Supplier.ADDRESS_FIELDS} if n.supplier.supplier_id else {},
         'issuedAt': iso(n.issued_at), 'dueDate': n.due_date.isoformat() if n.due_date else None,
         'paymentMethod': n.payment_method, 'description': n.description, 'items': items,
         'discount': float(n.discount), 'subtotal': float(n.subtotal), 'vat': float(n.vat), 'vatRate': float(n.vat_rate), 'total': float(n.total),

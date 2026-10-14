@@ -22,7 +22,13 @@ function SupplierInfo(props) {
     dl(null, row('الاسم', s.name), row('الرمز', s.code, true), row('الرقم الضريبي', s.taxNo, true), row('رقم الجوال', s.mobile, true)));
 }
 
-const EMPTY_SUPPLIER = { id: null, name: '', code: '', taxNo: '', mobile: '', active: true };
+/* national address, printed in the buyer box of notices; the keys match the server's Supplier.ADDRESS_FIELDS */
+const ADDR_FIELDS = [['building', 'المبنى'], ['street', 'الشارع'], ['district', 'الحي'], ['city', 'المدينة'], ['country', 'الدولة'], ['postal', 'الرمز البريدي']];
+const addressOf = function (s) {
+  const a = s.address || {};
+  return ADDR_FIELDS.reduce(function (o, f) { o[f[0]] = a[f[0]] || ''; return o; }, {});
+};
+const EMPTY_SUPPLIER = { id: null, name: '', code: '', taxNo: '', mobile: '', building: '', street: '', district: '', city: '', country: '', postal: '', active: true };
 
 function SuppliersPage(props) {
   const list = props.suppliers;
@@ -36,7 +42,7 @@ function SuppliersPage(props) {
   const dirty = !!formV && JSON.stringify(formV) !== baseRef.current;
   function openForm(s) {
     setConfirm(null); setErrs({});
-    const f = s ? { id: s.id, name: s.name, code: s.code, taxNo: s.taxNo || '', mobile: s.mobile || '', active: s.active } : Object.assign({}, EMPTY_SUPPLIER);
+    const f = s ? Object.assign({ id: s.id, name: s.name, code: s.code, taxNo: s.taxNo || '', mobile: s.mobile || '', active: s.active }, addressOf(s)) : Object.assign({}, EMPTY_SUPPLIER);
     baseRef.current = JSON.stringify(f);
     setFormV(f);
     setTimeout(function () { const el = document.getElementById('sf-name'); if (el) el.focus(); }, 0);
@@ -61,13 +67,18 @@ function SuppliersPage(props) {
     else if (list.some(function (x) { return x.code.toLowerCase() === code.toLowerCase() && x.id !== f.id; })) er.code = 'رمز المورد مستخدم لمورد آخر.';
     if (tax && !/^\d{15}$/.test(tax)) er.taxNo = 'الرقم الضريبي 15 رقماً.';
     if (mob && !/^05\d{8}$/.test(mob)) er.mobile = 'رقم الجوال 10 أرقام ويبدأ بـ 05.';
+    const postal = digitsOf(f.postal);
+    if (postal && !/^\d{5}$/.test(postal)) er.postal = 'الرمز البريدي 5 أرقام.';
     setErrs(er);
-    const first = ['name', 'code', 'taxNo', 'mobile'].filter(function (k) { return er[k]; })[0];
+    const first = ['name', 'code', 'taxNo', 'mobile', 'postal'].filter(function (k) { return er[k]; })[0];
     if (first) { const el = document.getElementById('sf-' + first); if (el) el.focus(); return; }
+    const addr = {};
+    ADDR_FIELDS.forEach(function (x) { addr[x[0]] = f[x[0]].trim(); });
+    addr.postal = postal;
     setBusy(true);
-    props.onSave({ id: f.id, name: f.name.trim(), code: code, taxNo: tax, mobile: mob, active: f.active }).then(function () { setBusy(false); setFormV(null); }, function (ex) {
+    props.onSave(Object.assign({ id: f.id, name: f.name.trim(), code: code, taxNo: tax, mobile: mob, active: f.active }, addr)).then(function () { setBusy(false); setFormV(null); }, function (ex) {
       setBusy(false);
-      const d = ex.data, known = { name: 1, code: 1, taxNo: 1, mobile: 1 }, fe = {};
+      const d = ex.data, known = { name: 1, code: 1, taxNo: 1, mobile: 1, postal: 1 }, fe = {};
       if (d && typeof d === 'object' && !d.detail) Object.keys(d).forEach(function (k) { if (known[k]) fe[k] = [].concat(d[k])[0]; });
       if (Object.keys(fe).length) setErrs(fe); else props.onToast(ex.message);
     });
@@ -78,7 +89,7 @@ function SuppliersPage(props) {
     props.onDelete(s.id);
   }
   const fld = function (id, lbl, ctl, k, hint) {
-    return div({ className: 'field' }, label({ htmlFor: id }, lbl), ctl, errs[k] ? span({ className: 'err', role: 'alert' }, errs[k]) : (hint ? span({ className: 'hint' }, hint) : null));
+    return div({ className: 'field', key: k }, label({ htmlFor: id }, lbl), ctl, errs[k] ? span({ className: 'err', role: 'alert' }, errs[k]) : (hint ? span({ className: 'hint' }, hint) : null));
   };
   const txt = function (id, k, cls, extra) {
     return input(Object.assign({ id: id, type: 'text', autoComplete: 'off', className: cls || '', value: formV[k], onChange: function (e) { setF(k, e.target.value); } }, extra || {}));
@@ -122,6 +133,11 @@ function SuppliersPage(props) {
         fld('sf-code', 'رمز المورد', txt('sf-code', 'code', 'ltr'), 'code', 'رمز فريد لكل مورد، مثل S-1001.'),
         fld('sf-taxNo', 'الرقم الضريبي', txt('sf-taxNo', 'taxNo', 'ltr', { inputMode: 'numeric', maxLength: 15 }), 'taxNo', '15 رقماً، ويمكن تركه فارغاً.'),
         fld('sf-mobile', 'رقم الجوال', txt('sf-mobile', 'mobile', 'ltr', { inputMode: 'tel', maxLength: 16, placeholder: '05XXXXXXXX' }), 'mobile', 'جوال سعودي يبدأ بـ 05.'),
+        div({ className: 'addrgrid' }, span({ className: 'addrtitle' }, 'العنوان الوطني'),
+          ADDR_FIELDS.map(function (x) {
+            const isPostal = x[0] === 'postal';
+            return fld('sf-' + x[0], x[1], txt('sf-' + x[0], x[0], isPostal ? 'ltr' : '', isPostal ? { inputMode: 'numeric', maxLength: 5 } : {}), x[0]);
+          })),
         formV.id ? div({ className: 'field wide opts' }, span({ className: 'lbl' }, 'الحالة'),
           div({ className: 'optrow' }, label({ className: 'checkrow' }, input({ type: 'checkbox', checked: formV.active, onChange: function (e) { setF('active', e.target.checked); } }), 'المورد نشط (يمكن ربط حسابات به وإصدار إشعارات له)'))) : null),
       div({ className: 'formactions' },

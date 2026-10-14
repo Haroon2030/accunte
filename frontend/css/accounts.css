@@ -440,6 +440,13 @@ input[type="text"], input[type="search"], input[type="password"], select, textar
 .optrow .checkrow:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .userspage .formactions { justify-content: flex-start; padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--line); }
 @media (max-width: 640px) { .userspage .uform { grid-template-columns: minmax(0, 1fr); } .userspage .formactions .btn { flex: 1 1 0; } }
+/* supplier address: a compact 3-column block inside the supplier form */
+.userspage .addrgrid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 14px; align-items: start; margin-bottom: 14px; padding: 10px 12px 2px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.userspage .addrgrid .addrtitle { grid-column: 1 / -1; font-size: .84rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.userspage .addrgrid .field { margin-bottom: 8px; gap: 4px; }
+.userspage .addrgrid .field > label { font-size: .8rem; }
+.userspage .addrgrid input[type="text"] { min-height: 36px; padding-block: 6px; font-size: .88rem; }
+@media (max-width: 640px) { .userspage .addrgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* password field: keep the text clear of the eye button (the generic password rule was resetting the padding) */
 .pwrow input[type] { padding-inline-end: 52px; }

@@ -37,10 +37,12 @@ function NoticeSheet(props) {
     return div({ className: 'nt-row' }, span({ className: 'nt-a' }, ar), span({ className: 'nt-v' }, val || ''), span({ className: 'nt-l' }, en));
   };
   /* a buyer line: text when printing, a field when editing */
+  /* without a value of its own, the address comes from the supplier data record */
   const brow = function (ar, en, key, fallback) {
-    const shown = b[key] != null && b[key] !== '' ? b[key] : (fallback || '');
+    const fb = fallback || (n.supplierAddress || {})[key] || '';
+    const shown = b[key] != null && b[key] !== '' ? b[key] : fb;
     if (!ed) return row(ar, en, shown);
-    return row(ar, en, input({ className: 'nt-in', 'aria-label': ar.replace(' :', ''), value: ed.d.buyer[key] != null ? ed.d.buyer[key] : (fallback || ''), onChange: function (e) { ed.setBuyer(key, e.target.value); } }));
+    return row(ar, en, input({ className: 'nt-in', 'aria-label': ar.replace(' :', ''), value: ed.d.buyer[key] != null ? ed.d.buyer[key] : fb, onChange: function (e) { ed.setBuyer(key, e.target.value); } }));
   };
   let qr = '';
   try { qr = qrSvg(zatcaPayload(s.name, s.vat, new Date(n.issuedAt).toISOString().replace(/\.\d+Z$/, 'Z'), n.total, n.vat), 150); } catch (e) { qr = ''; }

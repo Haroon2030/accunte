@@ -462,6 +462,22 @@ class SupplierDataTests(TestCase):
         edited = self.m.patch(f'/api/supplier-data/{pk}/', {'name': 'النخبة الجديدة', 'code': 'S-9', 'taxNo': '300000000000003', 'mobile': '0551234567'}, format='json')
         self.assertEqual((edited.status_code, edited.json()['name']), (200, 'النخبة الجديدة'))
 
+    def test_address_is_stored_validated_and_printed_in_notices(self):
+        addr = {'building': '5502', 'street': 'الأمير سعد', 'district': 'الروابي', 'city': 'الرياض', 'country': 'المملكة العربية السعودية', 'postal': '١٢٣٤٥'}
+        made = self.m.post('/api/supplier-data/', {'name': 'مورد', 'code': 'A-1', **addr}, format='json')
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()['address'], {**addr, 'postal': '12345'})
+        pk = made.json()['id']
+        bad = self.m.patch(f'/api/supplier-data/{pk}/', {'name': 'مورد', 'code': 'A-1', 'postal': '123'}, format='json')
+        self.assertEqual(set(bad.json()), {'postal'})
+        # a PATCH without address keys keeps the stored address
+        self.m.patch(f'/api/supplier-data/{pk}/', {'name': 'مورد جديد', 'code': 'A-1'}, format='json')
+        self.assertEqual(self.m.get('/api/supplier-data/').json()[0]['address']['city'], 'الرياض')
+        user = make('4', 'supplier', org='مورد', code='A-1', supplier=Supplier.objects.get(pk=pk))
+        notice = self.m.post('/api/notices/', {'supplierId': user.pk, 'items': [{'name': 'إيجار', 'qty': 1, 'price': '100', 'discount': 0}]}, format='json')
+        self.assertEqual(notice.status_code, 201, notice.content)
+        self.assertEqual(notice.json()['supplierAddress']['street'], 'الأمير سعد')
+
     def test_matcher_cannot_open_the_screen_but_reads_nothing(self):
         mt = login(self.matcher)
         self.assertEqual(mt.get('/api/supplier-data/').status_code, 403)

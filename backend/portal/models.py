@@ -16,8 +16,17 @@ class Supplier(models.Model):
     code = models.CharField('رمز المورد', max_length=30, unique=True)
     tax_no = models.CharField('الرقم الضريبي', max_length=15, blank=True)
     mobile = models.CharField('رقم الجوال', max_length=15, blank=True)
+    # national address, printed in the buyer box of notices
+    building = models.CharField('المبنى', max_length=120, blank=True)
+    street = models.CharField('الشارع', max_length=120, blank=True)
+    district = models.CharField('الحي', max_length=120, blank=True)
+    city = models.CharField('المدينة', max_length=120, blank=True)
+    country = models.CharField('الدولة', max_length=120, blank=True)
+    postal = models.CharField('الرمز البريدي', max_length=10, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
+
+    ADDRESS_FIELDS = ('building', 'street', 'district', 'city', 'country', 'postal')
 
     class Meta:
         ordering = ['name']

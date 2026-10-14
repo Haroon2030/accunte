@@ -706,9 +706,16 @@ def clean_supplier_payload(data, instance=None):
         errors['taxNo'] = 'الرقم الضريبي 15 رقماً.'
     if mobile and not MOBILE_RE.match(mobile):
         errors['mobile'] = 'رقم الجوال 10 أرقام ويبدأ بـ 05.'
+    # the address is optional: a field the client did not send keeps its stored value
+    address = {k: str(data.get(k) or '').strip()[:120] for k in Supplier.ADDRESS_FIELDS if k in data and k != 'postal'}
+    if 'postal' in data:
+        postal = normalize_digits(data.get('postal')).strip()
+        if postal and not re.fullmatch(r'\d{5}', postal):
+            errors['postal'] = 'الرمز البريدي 5 أرقام.'
+        address['postal'] = postal
     if errors:
         raise ValidationError(errors)
-    return {'name': name[:200], 'code': code[:30], 'tax_no': tax, 'mobile': mobile}
+    return {'name': name[:200], 'code': code[:30], 'tax_no': tax, 'mobile': mobile, **address}
 
 
 class SupplierDataView(APIView):

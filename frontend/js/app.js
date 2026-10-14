@@ -207,7 +207,7 @@ function App() {
   }
   /* supplier master data; accounts and notices carry a copy of the company details, so reload them after a change */
   function saveSupplier(d) {
-    const body = { name: d.name, code: d.code, taxNo: d.taxNo, mobile: d.mobile, active: d.active };
+    const body = { name: d.name, code: d.code, taxNo: d.taxNo, mobile: d.mobile, active: d.active, building: d.building, street: d.street, district: d.district, city: d.city, country: d.country, postal: d.postal };
     const call = d.id ? API.patch('/supplier-data/' + d.id + '/', body) : API.post('/supplier-data/', body);
     return call.then(function (s) {
       setSupplierData(function (ss) { return (d.id ? ss.map(function (x) { return x.id === s.id ? s : x; }) : ss.concat([s])).sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); }); });
