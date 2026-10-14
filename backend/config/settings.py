@@ -134,3 +134,18 @@ X_FRAME_OPTIONS = 'DENY'
 if PRODUCTION:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     USE_X_FORWARDED_HOST = True
+
+# ---- the company printed as the seller on supplier notices ----
+COMPANY_PROFILE = {
+    'name': env('COMPANY_NAME', default='شركة محمد رشيد الرشيد للتجارة - سكاي مول'),
+    'building': env('COMPANY_BUILDING', default='5502'),
+    'street': env('COMPANY_STREET', default='الامير سعد بن عبدالرحمن الفرعي'),
+    'district': env('COMPANY_DISTRICT', default='حي الروابي'),
+    'city': env('COMPANY_CITY', default='الرياض'),
+    'country': env('COMPANY_COUNTRY', default='المملكة العربية السعودية'),
+    'postal': env('COMPANY_POSTAL', default='14216'),
+    'additional': env('COMPANY_ADDITIONAL', default='7535'),
+    'vat': env('COMPANY_VAT', default='310792238500003'),
+    'crn': env('COMPANY_CRN', default='1010055714'),
+}
+VAT_RATE = 15

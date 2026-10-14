@@ -25,5 +25,9 @@ urlpatterns = [
     path('complaints/<int:pk>/advance', v.ComplaintAdvanceView.as_view()),
     path('complaints/<int:pk>/messages', v.ComplaintMessagesView.as_view()),
 
+    path('suppliers/', v.SuppliersView.as_view()),
+    path('notices/', v.NoticesView.as_view()),
+    path('notices/<int:pk>/', v.NoticeDetailView.as_view()),
+
     path('attachments/<int:pk>/download/', v.AttachmentDownloadView.as_view()),
 ]

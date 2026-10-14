@@ -213,6 +213,41 @@ class PortalTests(TestCase):
         kinds = [x['from'] for x in sent['messages']]
         self.assertEqual(kinds.count('system'), 4)
 
+    # ---- supplier notices (simple tax invoices)
+    def test_notices(self):
+        sup = login(self.sup, 'supplier')
+        mgr = login(self.manager)
+        body = {'supplierId': self.sup.pk, 'description': 'إيجار', 'dueDate': '2026-11-01',
+                'items': [{'code': '666999', 'name': 'ايجار التعاقدات', 'qty': 1, 'price': '3000', 'discount': 0}]}
+        self.assertEqual(sup.post('/api/notices/', body, format='json').status_code, 403)           # suppliers cannot issue
+        self.assertEqual(login(self.matcher).post('/api/notices/', body, format='json').status_code, 403)
+        r = mgr.post('/api/notices/', body, format='json')
+        self.assertEqual(r.status_code, 201, r.content)
+        n = r.json()
+        self.assertEqual((n['subtotal'], n['vat'], n['total']), (3000.0, 450.0, 3450.0))            # 15 % VAT
+        self.assertTrue(n['id'].startswith('NT-'))
+        self.assertEqual(n['seller']['vat'], '310792238500003')
+        bad = dict(body, items=[{'name': 'x', 'qty': 1, 'price': 10, 'discount': 50}])
+        self.assertEqual(mgr.post('/api/notices/', bad, format='json').status_code, 400)           # discount above the line
+        self.assertEqual(mgr.post('/api/notices/', dict(body, items=[]), format='json').status_code, 400)
+        self.assertEqual(mgr.post('/api/notices/', dict(body, supplierId=self.matcher.pk), format='json').status_code, 400)
+        two = mgr.post('/api/notices/', dict(body, items=[{'name': 'a', 'qty': 2, 'price': '100.50', 'discount': '1'}, {'name': 'b', 'qty': 1, 'price': 10}]), format='json').json()
+        self.assertEqual((two['subtotal'], two['discount'], two['vat'], two['total']), (210.0, 1.0, 31.5, 241.5))
+        edited = mgr.patch(f"/api/notices/{two['pk']}/", {'items': [{'name': 'a', 'qty': 3, 'price': '100', 'discount': 0}], 'buyer': {'street': 'شارع الملك', 'city': 'الرياض', 'junk': 'x'}}, format='json')
+        self.assertEqual(edited.status_code, 200, edited.content)
+        e = edited.json()
+        self.assertEqual((e['subtotal'], e['vat'], e['total']), (300.0, 45.0, 345.0))               # totals follow the edited lines
+        self.assertEqual(e['buyer'], {'street': 'شارع الملك', 'city': 'الرياض'})
+        self.assertEqual(sup.patch(f"/api/notices/{two['pk']}/", {'description': 'x'}, format='json').status_code, 403)
+        self.assertEqual(len(sup.get('/api/notices/').json()), 2)                                   # the supplier sees only theirs
+        self.assertEqual(len(login(self.sup2, 'supplier').get('/api/notices/').json()), 0)
+        self.assertEqual(login(self.sup2, 'supplier').get(f"/api/notices/{n['pk']}/").status_code, 404)
+        self.assertEqual(sup.get(f"/api/notices/{n['pk']}/").status_code, 200)
+        self.assertEqual(sup.get('/api/suppliers/').status_code, 403)
+        self.assertEqual(len(mgr.get('/api/suppliers/').json()), 2)
+        self.assertEqual(mgr.delete(f"/api/notices/{n['pk']}/").status_code, 403)                 # only the system admin deletes
+        self.assertEqual(login(self.admin).delete(f"/api/notices/{n['pk']}/").status_code, 204)
+
     # ---- complaints
     def test_complaint_flow(self):
         sup = login(self.sup, 'supplier')
@@ -405,4 +440,4 @@ class PagePermissionTests(TestCase):
         created = a.post('/api/users/', {'name': 'جديد', 'username': '8', 'role': 'matcher', 'password': '1234', 'pages': ['manager', 'users']}, format='json')
         self.assertEqual((created.status_code, created.json()['pages']), (201, ['manager', 'users']))
         role_change = a.patch(f'/api/users/{self.matcher.pk}/', {'name': 'x', 'username': '3', 'role': 'manager'}, format='json')
-        self.assertEqual(role_change.json()['pages'], ['matcher', 'manager', 'recon'])   # new role, its own defaults
+        self.assertEqual(role_change.json()['pages'], ['matcher', 'manager', 'recon', 'notices'])   # new role, its own defaults

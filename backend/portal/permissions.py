@@ -2,14 +2,14 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 
 from .models import User
 
-PAGE_KEYS = ('supplier', 'matcher', 'manager', 'recon', 'users')
-STAFF_PAGES = ('matcher', 'manager', 'recon', 'users')
+PAGE_KEYS = ('supplier', 'matcher', 'manager', 'recon', 'notices', 'users')
+STAFF_PAGES = ('matcher', 'manager', 'recon', 'notices', 'users')
 ROLE_PAGES = {
     User.SUPPLIER: ['supplier'],
     User.MATCHER: ['matcher', 'recon'],
     User.SUPERVISOR: ['matcher', 'recon'],      # the requests queue; only the supervisor receives and assigns
-    User.MANAGER: ['matcher', 'manager', 'recon'],
-    User.ADMIN: ['matcher', 'manager', 'recon', 'users'],
+    User.MANAGER: ['matcher', 'manager', 'recon', 'notices'],
+    User.ADMIN: ['matcher', 'manager', 'recon', 'notices', 'users'],
 }
 
 
@@ -68,6 +68,8 @@ IsMatcherPage = has_page('matcher')
 IsManagerPage = has_page('manager')
 SupplierOrManagerPage = supplier_or_page('manager')
 IsSupplier = roles(User.SUPPLIER)
+IsNoticesPage = has_page('notices')
+SupplierOrNotices = supplier_or_page('notices')
 
 
 def can_view_request(user, req):

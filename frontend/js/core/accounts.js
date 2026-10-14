@@ -10,11 +10,11 @@ const ROLE_PAGES = {
   supplier: ['supplier'],
   matcher: ['matcher', 'recon'],
   supervisor: ['matcher', 'recon'],
-  manager: ['matcher', 'manager', 'recon'],
-  admin: ['matcher', 'manager', 'recon', 'users']
+  manager: ['matcher', 'manager', 'recon', 'notices'],
+  admin: ['matcher', 'manager', 'recon', 'notices', 'users']
 };
 const HOME_PAGE = { supplier: 'supplier', matcher: 'matcher', supervisor: 'matcher', manager: 'manager', admin: 'manager' };
-const PAGE_LABEL = { supplier: 'صفحة المورد', matcher: 'صفحة المطابق', manager: 'لوحة المدير المالي', recon: 'مطابقة الكشوف', users: 'إدارة المستخدمين' };
+const PAGE_LABEL = { supplier: 'صفحة المورد', matcher: 'صفحة المطابق', manager: 'لوحة المدير المالي', recon: 'مطابقة الكشوف', notices: 'إشعارات الموردين', users: 'إدارة المستخدمين' };
 /* two separate entrances: suppliers use supplier.html, staff use index.html */
 const PORTAL = document.body.getAttribute('data-portal') || 'staff';
 const inPortal = function (u) { return (u.role === 'supplier') === (PORTAL === 'supplier'); };

@@ -1,8 +1,9 @@
 import re
 import secrets
 from datetime import date, timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.sessions.models import Session
 from django.db import transaction
@@ -18,10 +19,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import SLA_DAYS, Attachment, Complaint, Message, MatchRequest, User
-from .permissions import (supplier_or_page, IsAdmin, IsManagerPage, IsMatcherPage, IsStaff, IsSupplier, STAFF_PAGES, SupplierOrManagerPage, allowed_pages,
+from .models import SLA_DAYS, Attachment, Complaint, Message, MatchRequest, Notice, User
+from .permissions import (supplier_or_page, IsAdmin, IsManagerPage, IsMatcherPage, IsStaff, IsSupplier, STAFF_PAGES, SupplierOrManagerPage, IsNoticesPage, SupplierOrNotices, allowed_pages,
                           can_view_complaint, can_view_request, roles)
-from .serializers import complaint_out, message_out, request_out, user_out
+from .serializers import complaint_out, message_out, notice_out, request_out, user_out
 from .validators import INLINE_TYPES, TAX_RE, check_password_rule, extension_of, normalize_digits, validate_upload
 
 USERNAME_RE = re.compile(r'^[a-z0-9._-]{1,30}$')
@@ -379,7 +380,9 @@ class ChangesView(APIView):
             reqs, comps = reqs.filter(supplier=request.user), comps.filter(supplier=request.user)
             msgs = msgs.filter(Q(request__supplier=request.user) | Q(complaint__supplier=request.user))
             files = files.filter(Q(request__supplier=request.user) | Q(message__request__supplier=request.user) | Q(message__complaint__supplier=request.user))
+        notices = Notice.objects.filter(supplier=request.user) if mine else Notice.objects.all()
         parts = [
+            notices.aggregate(n=Count('id'), m=Max('id')),
             reqs.aggregate(n=Count('id'), m=Max('id'), s=Sum('stage'), a=Sum('matcher_id'), d=Sum('diff')),
             comps.aggregate(n=Count('id'), m=Max('id'), s=Sum('stage')),
             msgs.aggregate(n=Count('id'), m=Max('id')),
@@ -585,3 +588,143 @@ class AttachmentDownloadView(APIView):
         resp['X-Content-Type-Options'] = 'nosniff'
         resp['Cache-Control'] = 'private, max-age=0'
         return resp
+
+
+# ------------------------------------------------------------------ supplier notices (simple tax invoices)
+def notice_qs():
+    return Notice.objects.select_related('supplier', 'issued_by')
+
+
+def get_notice(user, pk):
+    n = notice_qs().filter(pk=pk).first()
+    if not n or (user.role == User.SUPPLIER and n.supplier_id != user.pk):
+        raise NotFound('الإشعار غير موجود.')
+    return n
+
+
+def money(v, field, allow_zero=True):
+    try:
+        d = Decimal(str(v if v not in (None, '') else 0))
+    except InvalidOperation:
+        raise ValidationError({'items': f'قيمة غير صحيحة في {field}.'})
+    if not d.is_finite() or d < 0 or d > Decimal('99999999') or (not allow_zero and d == 0):
+        raise ValidationError({'items': f'قيمة غير صحيحة في {field}.'})
+    return d.quantize(Decimal('0.01'))
+
+
+def clean_notice_items(raw):
+    if not isinstance(raw, list) or not raw:
+        raise ValidationError({'items': 'أضف بنداً واحداً على الأقل.'})
+    if len(raw) > 60:
+        raise ValidationError({'items': 'الحد الأقصى 60 بنداً.'})
+    out = []
+    for it in raw:
+        name = str((it or {}).get('name') or '').strip()
+        if not name:
+            raise ValidationError({'items': 'اكتب اسم كل بند.'})
+        qty = money(it.get('qty'), 'الكمية', allow_zero=False)
+        price = money(it.get('price'), 'السعر')
+        disc = money(it.get('discount'), 'الخصم')
+        if disc > qty * price:
+            raise ValidationError({'items': 'الخصم أكبر من قيمة البند.'})
+        out.append({'code': str(it.get('code') or '').strip()[:30], 'name': name[:200], 'qty': str(qty), 'price': str(price), 'discount': str(disc)})
+    return out
+
+
+BUYER_FIELDS = ('name', 'building', 'street', 'district', 'city', 'country', 'postal', 'additional', 'vat', 'crn', 'otherId')
+
+
+def clean_buyer(raw):
+    raw = raw if isinstance(raw, dict) else {}
+    return {k: str(raw.get(k) or '').strip()[:120] for k in BUYER_FIELDS if str(raw.get(k) or '').strip()}
+
+
+def notice_totals(items):
+    rate = Decimal(str(settings.VAT_RATE))
+    sub = disc = vat = Decimal('0')
+    for it in items:
+        net = (Decimal(it['qty']) * Decimal(it['price'])).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) - Decimal(it['discount'])
+        sub += net
+        disc += Decimal(it['discount'])
+        vat += (net * rate / 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    return sub.quantize(Decimal('0.01')), disc.quantize(Decimal('0.01')), vat, rate
+
+
+def clean_due(raw):
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(str(raw))
+    except ValueError:
+        raise ValidationError({'dueDate': 'تاريخ الاستحقاق غير صحيح.'})
+
+
+class SuppliersView(APIView):
+    """The supplier accounts a notice can be issued to."""
+    permission_classes = [IsNoticesPage]
+
+    def get(self, request):
+        return Response([{'id': u.pk, 'name': u.org or u.name, 'taxNo': u.tax_no, 'code': u.code or ''}
+                         for u in User.objects.filter(role=User.SUPPLIER, is_active=True).order_by('org', 'name')])
+
+
+class NoticesView(APIView):
+    permission_classes = [SupplierOrNotices]
+
+    def get(self, request):
+        qs = notice_qs()
+        if request.user.role == User.SUPPLIER:
+            qs = qs.filter(supplier=request.user)
+        return Response([notice_out(n) for n in qs[:500]])
+
+    @transaction.atomic
+    def post(self, request):
+        if request.user.role == User.SUPPLIER:
+            raise PermissionDenied('إصدار الإشعارات للفريق المالي فقط.')
+        supplier = User.objects.filter(pk=request.data.get('supplierId'), role=User.SUPPLIER, is_active=True).first() if str(request.data.get('supplierId') or '').isdigit() else None
+        if not supplier:
+            raise ValidationError({'supplierId': 'اختر المورد.'})
+        items = clean_notice_items(request.data.get('items'))
+        sub, disc, vat, rate = notice_totals(items)
+        due = clean_due(request.data.get('dueDate'))
+        n = Notice.objects.create(
+            supplier=supplier, issued_by=request.user, due_date=due, items=items, buyer=clean_buyer(request.data.get('buyer')),
+            payment_method=(request.data.get('paymentMethod') or 'من حساب').strip()[:40],
+            description=(request.data.get('description') or '').strip()[:1000],
+            subtotal=sub, discount=disc, vat=vat, total=sub + vat, vat_rate=rate)
+        n.number = f'NT-{n.issued_at:%y%m}-{n.pk:04d}'
+        n.save(update_fields=['number'])
+        return Response(notice_out(notice_qs().get(pk=n.pk)), status=201)
+
+
+class NoticeDetailView(APIView):
+    permission_classes = [SupplierOrNotices]
+
+    def get(self, request, pk):
+        return Response(notice_out(get_notice(request.user, pk)))
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        if request.user.role == User.SUPPLIER:
+            raise PermissionDenied('تعديل الإشعارات للفريق المالي فقط.')
+        n = get_notice(request.user, pk)
+        if 'items' in request.data:
+            n.items = clean_notice_items(request.data.get('items'))
+            n.subtotal, n.discount, n.vat, n.vat_rate = notice_totals(n.items)
+            n.total = n.subtotal + n.vat
+        if 'description' in request.data:
+            n.description = (request.data.get('description') or '').strip()[:1000]
+        if 'dueDate' in request.data:
+            n.due_date = clean_due(request.data.get('dueDate'))
+        if 'paymentMethod' in request.data:
+            n.payment_method = (request.data.get('paymentMethod') or 'من حساب').strip()[:40]
+        if 'buyer' in request.data:
+            n.buyer = clean_buyer(request.data.get('buyer'))
+        n.save()
+        return Response(notice_out(notice_qs().get(pk=n.pk)))
+
+    def delete(self, request, pk):
+        if request.user.role != User.ADMIN:
+            raise PermissionDenied('حذف الإشعارات لمدير النظام فقط.')
+        get_notice(request.user, pk).delete()
+        return Response(status=204)

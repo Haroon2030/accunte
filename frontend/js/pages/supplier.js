@@ -9,7 +9,8 @@ function SupplierHome(props) {
   const unC = unreadSum(myC, 'supplier', props.seen);
   const items = [
     { key: 'recon', icon: 'file', title: 'مطابقة كشف الحساب', sub: 'طلبات المطابقة', count: mine.length, unread: unR },
-    { key: 'complaint', icon: 'alert', title: 'شكوى المدير المالي', sub: 'شكاوى مرفوعة', count: myC.length, unread: unC }
+    { key: 'complaint', icon: 'alert', title: 'شكوى المدير المالي', sub: 'شكاوى مرفوعة', count: myC.length, unread: unC },
+    { key: 'notices', icon: 'file', title: 'إشعارات الموردين', sub: 'إشعارات صادرة لك', count: (props.notices || []).length, unread: 0 }
   ];
   const recon = h(ServicePanel, {
     key: 'recon', id: 'sv-recon', title: 'مطابقة كشف الحساب', sub: 'قدّم طلب مطابقة لكشف حسابك وتابع كل خطوة فيه.',
@@ -35,7 +36,7 @@ function SupplierHome(props) {
           span({ className: 'navtxt' }, strong(null, it.title), h('small', null, it.sub)),
           span({ className: 'navend' }, h(Badge, { n: it.unread }), span({ className: 'navcount' }, it.count)));
       })),
-    div({ className: 'work' }, svc === 'complaint' ? complaint : recon));
+    div({ className: 'work' }, svc === 'complaint' ? complaint : svc === 'notices' ? h(NoticesPage, { key: 'notices', notices: props.notices || [], suppliers: [], canIssue: false, onToast: props.onToast }) : recon));
 }
 
 function NewRequest(props) {

@@ -100,6 +100,31 @@ class Attachment(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
 
 
+class Notice(models.Model):
+    """A simple tax invoice / notice the company issues to a supplier (rent, fees, deductions...)."""
+    number = models.CharField(max_length=30, unique=True, blank=True, default='')
+    supplier = models.ForeignKey(User, on_delete=models.PROTECT, related_name='notices')
+    issued_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    issued_at = models.DateTimeField(default=timezone.now)
+    due_date = models.DateField(null=True, blank=True)
+    payment_method = models.CharField(max_length=40, default='من حساب')
+    description = models.TextField(blank=True)
+    items = models.JSONField(default=list)          # [{code, name, qty, price, discount}]
+    buyer = models.JSONField(default=dict, blank=True)   # details printed for the supplier that its account does not hold
+    subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=0)    # before VAT, after discount
+    discount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    vat = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=15)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-id']
+
+    def __str__(self):
+        return self.number or f'#{self.pk}'
+
+
 @receiver(post_delete, sender=Attachment)
 def remove_stored_file(sender, instance, **kwargs):
     """Deleting a record also removes its files from storage (disk or R2) once the deletion is committed."""
