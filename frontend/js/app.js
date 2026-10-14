@@ -41,9 +41,10 @@ function App() {
       return n;
     });
   };
-  /* the notice supplier list comes from the supplier data screen; each entry issues to its active account */
-  const noticeSuppliers = supplierData.filter(function (s) { return s.active && s.accountId; })
-    .map(function (s) { return { id: s.accountId, name: s.name, code: s.code, taxNo: s.taxNo, mobile: s.mobile }; });
+  /* the notice supplier list comes from the supplier data screen. A notice is issued to the supplier's active account,
+     so a supplier without one is listed but cannot be picked (id is null until an account is linked) */
+  const noticeSuppliers = supplierData.filter(function (s) { return s.active; })
+    .map(function (s) { return { key: 's' + s.id, id: s.accountId, linked: !!s.accountId, name: s.name, code: s.code, taxNo: s.taxNo, mobile: s.mobile }; });
   const mySupplier = me && me.role === 'supplier' ? me.org : '';
   const goTop = function () { try { window.scrollTo(0, 0); } catch (e) { /* ignore */ } };
   const openReq = function (id) { markOpened(id); setService('recon'); setView({ name: 'track', id: id }); goTop(); };

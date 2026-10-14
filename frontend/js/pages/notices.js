@@ -171,7 +171,10 @@ function NoticeForm(props) {
     form({ onSubmit: submit, noValidate: true },
       div({ className: 'nt-grid2' },
         f('nt-sup', 'المورد', select({ id: 'nt-sup', value: supplierId, onChange: function (e) { setSupplierId(e.target.value); } },
-          option({ value: '' }, 'اختر المورد…'), props.suppliers.map(function (s) { return option({ key: s.id, value: String(s.id) }, s.name + (s.code ? ' · ' + s.code : '')); }))),
+          option({ value: '' }, 'اختر المورد…'), props.suppliers.map(function (s) {
+            return option({ key: s.key || s.id, value: s.linked === false ? '' : String(s.id), disabled: s.linked === false },
+              s.name + (s.code ? ' · ' + s.code : '') + (s.linked === false ? ' — بلا حساب مستخدم' : ''));
+          }))),
         f('nt-due', 'تاريخ الاستحقاق (اختياري)', input({ id: 'nt-due', type: 'date', value: due, onChange: function (e) { setDue(e.target.value); } })),
         f('nt-pm', 'طريقة الدفع', select({ id: 'nt-pm', value: method, onChange: function (e) { setMethod(e.target.value); } }, NT_METHODS.map(function (m) { return option({ key: m, value: m }, m); })))),
       pickedS ? h(SupplierInfo, { s: pickedS }) : null,
