@@ -217,7 +217,7 @@ class PortalTests(TestCase):
     def test_notices(self):
         sup = login(self.sup, 'supplier')
         mgr = login(self.manager)
-        body = {'supplierId': self.sup.pk, 'description': 'إيجار', 'dueDate': '2026-11-01',
+        body = {'supplierId': self.sup.supplier_id, 'description': 'إيجار', 'dueDate': '2026-11-01',
                 'items': [{'code': '666999', 'name': 'ايجار التعاقدات', 'qty': 1, 'price': '3000', 'discount': 0}]}
         self.assertEqual(sup.post('/api/notices/', body, format='json').status_code, 403)           # suppliers cannot issue
         self.assertEqual(login(self.matcher).post('/api/notices/', body, format='json').status_code, 403)
@@ -230,7 +230,9 @@ class PortalTests(TestCase):
         bad = dict(body, items=[{'name': 'x', 'qty': 1, 'price': 10, 'discount': 50}])
         self.assertEqual(mgr.post('/api/notices/', bad, format='json').status_code, 400)           # discount above the line
         self.assertEqual(mgr.post('/api/notices/', dict(body, items=[]), format='json').status_code, 400)
-        self.assertEqual(mgr.post('/api/notices/', dict(body, supplierId=self.matcher.pk), format='json').status_code, 400)
+        self.assertEqual(mgr.post('/api/notices/', dict(body, supplierId=999999), format='json').status_code, 400)   # no such supplier
+        inactive = Supplier.objects.create(name='موقوف', code='X-1', is_active=False)
+        self.assertEqual(mgr.post('/api/notices/', dict(body, supplierId=inactive.pk), format='json').status_code, 400)
         two = mgr.post('/api/notices/', dict(body, items=[{'name': 'a', 'qty': 2, 'price': '100.50', 'discount': '1'}, {'name': 'b', 'qty': 1, 'price': 10}]), format='json').json()
         self.assertEqual((two['subtotal'], two['discount'], two['vat'], two['total']), (210.0, 1.0, 31.5, 241.5))
         edited = mgr.patch(f"/api/notices/{two['pk']}/", {'items': [{'name': 'a', 'qty': 3, 'price': '100', 'discount': 0}], 'buyer': {'street': 'شارع الملك', 'city': 'الرياض', 'junk': 'x'}}, format='json')
@@ -473,19 +475,9 @@ class SupplierDataTests(TestCase):
         # a PATCH without address keys keeps the stored address
         self.m.patch(f'/api/supplier-data/{pk}/', {'name': 'مورد جديد', 'code': 'A-1'}, format='json')
         self.assertEqual(self.m.get('/api/supplier-data/').json()[0]['address']['city'], 'الرياض')
-        user = make('4', 'supplier', org='مورد', code='A-1', supplier=Supplier.objects.get(pk=pk))
-        notice = self.m.post('/api/notices/', {'supplierId': user.pk, 'items': [{'name': 'إيجار', 'qty': 1, 'price': '100', 'discount': 0}]}, format='json')
+        notice = self.m.post('/api/notices/', {'supplierId': pk, 'items': [{'name': 'إيجار', 'qty': 1, 'price': '100', 'discount': 0}]}, format='json')
         self.assertEqual(notice.status_code, 201, notice.content)
         self.assertEqual(notice.json()['supplierAddress']['street'], 'الأمير سعد')
-
-    def test_supplier_record_exposes_its_active_account_for_notices(self):
-        self.m.post('/api/supplier-data/', {'name': 'بلا حساب', 'code': 'N-1'}, format='json')
-        made = self.m.post('/api/supplier-data/', {'name': 'بحساب', 'code': 'N-2'}, format='json').json()
-        self.assertIsNone(made['accountId'])
-        acct = make('5', 'supplier', org='بحساب', code='N-2', supplier=Supplier.objects.get(pk=made['id']))
-        listed = {x['code']: x for x in self.m.get('/api/supplier-data/').json()}
-        self.assertEqual(listed['N-2']['accountId'], acct.pk)
-        self.assertIsNone(listed['N-1']['accountId'])
 
     def test_matcher_cannot_open_the_screen_but_reads_nothing(self):
         mt = login(self.matcher)
@@ -509,9 +501,21 @@ class SupplierDataTests(TestCase):
         make('10', 'supplier', supplier=s)
         row = next(x for x in self.m.get('/api/suppliers/').json() if x['code'] == 'S-5')
         self.assertEqual((row['name'], row['taxNo'], row['mobile']), ('شركة الأفق', '300000000000003', '0551234567'))
-        n = self.m.post('/api/notices/', {'supplierId': row['id'], 'items': [{'name': 'إيجار', 'qty': 1, 'price': 100}]}, format='json')
+        n = self.m.post('/api/notices/', {'supplierId': s.pk, 'items': [{'name': 'إيجار', 'qty': 1, 'price': 100}]}, format='json')
         self.assertEqual(n.status_code, 201, n.content)
         self.assertEqual(n.json()['supplierMobile'], '0551234567')
+
+    def test_notice_goes_to_a_supplier_without_an_account_and_its_visibility_follows_the_record(self):
+        s = Supplier.objects.create(name='بلا حساب', code='NA-1')
+        n = self.m.post('/api/notices/', {'supplierId': s.pk, 'items': [{'name': 'إيجار', 'qty': 1, 'price': 100}]}, format='json')
+        self.assertEqual(n.status_code, 201, n.content)
+        self.assertEqual(n.json()['supplier'], 'بلا حساب')
+        self.assertEqual(self.m.delete(f'/api/supplier-data/{s.pk}/').status_code, 400)   # notices block deletion
+        # an account linked to that record sees its notices, another account does not
+        acct = make('11', 'supplier', org='بلا حساب', code='NA-1', supplier=s)
+        self.assertEqual(len(login(acct, 'supplier').get('/api/notices/').json()), 1)
+        other = make('12', 'supplier', org='آخر', code='NA-2')
+        self.assertEqual(login(other, 'supplier').get('/api/notices/').json(), [])
 
     def test_granting_the_suppliers_page_to_a_user_opens_it(self):
         mt = login(self.matcher)

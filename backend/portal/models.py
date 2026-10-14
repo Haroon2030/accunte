@@ -144,7 +144,8 @@ class Attachment(models.Model):
 class Notice(models.Model):
     """A simple tax invoice / notice the company issues to a supplier (rent, fees, deductions...)."""
     number = models.CharField(max_length=30, unique=True, blank=True, default='')
-    supplier = models.ForeignKey(User, on_delete=models.PROTECT, related_name='notices')
+    # the supplier record (not an account): a notice can be issued to a supplier that has no account yet
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name='notices')
     issued_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     issued_at = models.DateTimeField(default=timezone.now)
     due_date = models.DateField(null=True, blank=True)

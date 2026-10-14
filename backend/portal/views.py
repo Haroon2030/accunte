@@ -401,7 +401,7 @@ class ChangesView(APIView):
             reqs, comps = reqs.filter(supplier=request.user), comps.filter(supplier=request.user)
             msgs = msgs.filter(Q(request__supplier=request.user) | Q(complaint__supplier=request.user))
             files = files.filter(Q(request__supplier=request.user) | Q(message__request__supplier=request.user) | Q(message__complaint__supplier=request.user))
-        notices = Notice.objects.filter(supplier=request.user) if mine else Notice.objects.all()
+        notices = Notice.objects.filter(supplier_id=request.user.supplier_id) if mine else Notice.objects.all()
         parts = [
             notices.aggregate(n=Count('id'), m=Max('id')),
             reqs.aggregate(n=Count('id'), m=Max('id'), s=Sum('stage'), a=Sum('matcher_id'), d=Sum('diff')),
@@ -613,12 +613,12 @@ class AttachmentDownloadView(APIView):
 
 # ------------------------------------------------------------------ supplier notices (simple tax invoices)
 def notice_qs():
-    return Notice.objects.select_related('supplier__supplier', 'issued_by')
+    return Notice.objects.select_related('supplier', 'issued_by')
 
 
 def get_notice(user, pk):
     n = notice_qs().filter(pk=pk).first()
-    if not n or (user.role == User.SUPPLIER and n.supplier_id != user.pk):
+    if not n or (user.role == User.SUPPLIER and (user.supplier_id is None or n.supplier_id != user.supplier_id)):
         raise NotFound('الإشعار غير موجود.')
     return n
 
@@ -758,6 +758,8 @@ class SupplierDataDetailView(APIView):
         s = self._get(pk)
         if s.users.exists():
             raise ValidationError({'detail': 'هذا المورد مرتبط بحسابات مستخدمين، فلا يمكن حذفه. أوقفه بدلاً من ذلك، أو افصل حساباته أولاً.'})
+        if s.notices.exists():
+            raise ValidationError({'detail': 'صدرت لهذا المورد إشعارات، فلا يمكن حذفه. أوقفه بدلاً من ذلك.'})
         s.delete()
         return Response(status=204)
 
@@ -768,14 +770,14 @@ class NoticesView(APIView):
     def get(self, request):
         qs = notice_qs()
         if request.user.role == User.SUPPLIER:
-            qs = qs.filter(supplier=request.user)
+            qs = qs.filter(supplier_id=request.user.supplier_id)   # an account without a supplier record sees nothing
         return Response([notice_out(n) for n in qs[:500]])
 
     @transaction.atomic
     def post(self, request):
         if request.user.role == User.SUPPLIER:
             raise PermissionDenied('إصدار الإشعارات للفريق المالي فقط.')
-        supplier = User.objects.filter(pk=request.data.get('supplierId'), role=User.SUPPLIER, is_active=True).first() if str(request.data.get('supplierId') or '').isdigit() else None
+        supplier = Supplier.objects.filter(pk=request.data.get('supplierId'), is_active=True).first() if str(request.data.get('supplierId') or '').isdigit() else None
         if not supplier:
             raise ValidationError({'supplierId': 'اختر المورد.'})
         items = clean_notice_items(request.data.get('items'))
