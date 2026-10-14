@@ -90,7 +90,7 @@ function UsersPage(props) {
       x.id === me.id ? null : ab('stop', 'trash', 'حذف', function () { setFormV(null); setTemp(null); setConfirm({ type: 'delete', id: x.id }); }));
   };
   const samePages = function (a, b) { return (a || []).slice().sort().join() === (b || []).slice().sort().join(); };
-  const STAFF_PAGE_KEYS = ['matcher', 'manager', 'recon', 'notices', 'users'];
+  const STAFF_PAGE_KEYS = ['matcher', 'manager', 'recon', 'notices', 'suppliers', 'users'];
   const togglePage = function (k, on) {
     setFormV(function (o) { const set = (o.pages || []).filter(function (p) { return p !== k; }); if (on) set.push(k); return Object.assign({}, o, { pages: STAFF_PAGE_KEYS.filter(function (p) { return set.indexOf(p) !== -1; }) }); });
   };

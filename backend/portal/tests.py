@@ -487,3 +487,12 @@ class SupplierDataTests(TestCase):
         n = self.m.post('/api/notices/', {'supplierId': row['id'], 'items': [{'name': 'إيجار', 'qty': 1, 'price': 100}]}, format='json')
         self.assertEqual(n.status_code, 201, n.content)
         self.assertEqual(n.json()['supplierMobile'], '0551234567')
+
+    def test_granting_the_suppliers_page_to_a_user_opens_it(self):
+        mt = login(self.matcher)
+        self.assertEqual(mt.get('/api/supplier-data/').status_code, 403)
+        r = self.a.patch(f'/api/users/{self.matcher.pk}/', {'name': 'م', 'username': '3', 'role': 'matcher', 'pages': ['matcher', 'suppliers']}, format='json')
+        self.assertEqual((r.status_code, r.json()['pages']), (200, ['matcher', 'suppliers']))
+        mt = login(self.matcher)
+        self.assertEqual(mt.get('/api/supplier-data/').status_code, 200)
+        self.assertEqual(mt.post('/api/supplier-data/', {'name': 'مورد', 'code': 'G-1'}, format='json').status_code, 201)
