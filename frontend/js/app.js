@@ -183,6 +183,8 @@ function App() {
   const user = me || null;
   const isFresh = function (rec) { return !!(user && user.role !== 'supplier' && opened && rec.created && rec.created.getTime() > opened.since && !opened.ids[rec.id]); };
   const allowed = user ? (user.pages || ROLE_PAGES[user.role] || []) : [];
+  /* the dashboard (finance manager's page) is always the first item in the side navigation */
+  const navOrder = function (pages) { return pages.slice().sort(function (a, b) { return (b === 'manager') - (a === 'manager'); }); };
   function changeRole(r) { if (allowed.indexOf(r) === -1) return; setRole(r); home(); }
   function logout() {
     API.post('/auth/logout').catch(function () { /* already signed out */ }).then(function () {
@@ -261,7 +263,7 @@ function App() {
   /* the navigation sits in a column beside the content (the right side in RTL); on narrow screens it stacks above */
   return div({ className: 'appshell' },
     header({ className: 'appside' }, h(Brand),
-      allowed.length > 1 ? div({ className: 'seg sidenav', role: 'group', 'aria-label': 'صفحات النظام' }, allowed.map(function (k) {
+      allowed.length > 1 ? div({ className: 'seg sidenav', role: 'group', 'aria-label': 'صفحات النظام' }, navOrder(allowed).map(function (k) {
         return button({ key: k, 'aria-pressed': role === k, onClick: function () { changeRole(k); } }, ROLE_NAV[k] || ROLE_NAME[k], h(Badge, { n: roleUnread[k] || 0 }));
       })) : null,
       div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
