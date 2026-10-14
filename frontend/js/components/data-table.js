@@ -13,6 +13,7 @@ function DataTable(props) {
   const [flt, setFlt] = useState({});
   const [page, setPage] = useState(1);
   const [fopen, setFopen] = useState(false);
+  const [q, setQ] = useState('');
   const cols = props.cols;
   const fvOf = function (c) { return c.fv || function (r) { return String(c.val ? c.val(r) : ''); }; };
   const activeCols = cols.filter(function (c) { return c.filter && flt[c.key]; });
@@ -22,6 +23,8 @@ function DataTable(props) {
       return c.filter === 'select' ? got === want : got.indexOf(want.trim()) !== -1;
     });
   });
+  const needle = q.trim().toLowerCase();
+  if (needle) rows = rows.filter(function (r) { return cols.some(function (c) { return fvOf(c)(r).toLowerCase().indexOf(needle) !== -1; }); });
   if (sort) {
     const sc = cols.filter(function (c) { return c.key === sort.key; })[0];
     if (sc && sc.val) rows.sort(function (a, b) {
@@ -34,6 +37,9 @@ function DataTable(props) {
   const cur = Math.min(page, pages);
   const shown = rows.slice((cur - 1) * PAGE, cur * PAGE);
   const firstN = rows.length ? (cur - 1) * PAGE + 1 : 0, lastN = Math.min(rows.length, cur * PAGE);
+  /* the first column numbers the rows across pages (1, 2, … 8 per page) */
+  const numCol = { key: 'num', label: '#', render: function (r) { return span({ className: 'rownum-n' }, (cur - 1) * PAGE + shown.indexOf(r) + 1); } };
+  const allCols = [numCol].concat(cols);
   function toggle(c) {
     setSort(function (s0) { return s0 && s0.key === c.key ? { key: c.key, dir: s0.dir === 'asc' ? 'desc' : 'asc' } : { key: c.key, dir: 'asc' }; });
   }
@@ -66,10 +72,12 @@ function DataTable(props) {
         }))) : null,
       cols.filter(function (c) { return c.filter; }).map(function (c) { return div({ key: c.key, className: 'tfield' }, label(null, c.label), filterCell(c)); })) : null) : null;
   return div({ className: 'dtbox' },
+    div({ className: 'dtsearch' }, input({ type: 'search', className: 'dtq', 'aria-label': 'بحث في الجدول', placeholder: 'بحث في الجدول…', value: q,
+      onChange: function (e) { setQ(e.target.value); setPage(1); } })),
     phoneTools,
     div({ className: 'tablewrap' },
       table({ className: 'dt' },
-        thead(null, tr(null, cols.map(function (c) {
+        thead(null, tr(null, allCols.map(function (c) {
           const on = sort && sort.key === c.key;
           return th({ key: c.key, scope: 'col', 'aria-sort': c.val ? (on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined },
             div({ className: 'thcell' },
@@ -79,8 +87,8 @@ function DataTable(props) {
         tbody(null, shown.length ? shown.map(function (r) {
           const open = function () { if (props.onOpen) props.onOpen(r.id); };
           return tr(Object.assign({ key: r.id, className: props.rowClass ? props.rowClass(r) : undefined }, props.onOpen ? { tabIndex: 0, onClick: open, onKeyDown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } } : {}),
-            cols.map(function (c) { return td({ key: c.key, 'data-label': c.label, 'data-col': c.key }, c.render(r, open)); }));
-        }) : tr(null, td({ colSpan: cols.length, className: 'empty' }, props.empty || 'لا توجد نتائج مطابقة للتصفية'))))),
+            allCols.map(function (c) { return td({ key: c.key, 'data-label': c.label, 'data-col': c.key, className: c.key === 'num' ? 'rownum' : undefined }, c.render(r, open)); }));
+        }) : tr(null, td({ colSpan: allCols.length, className: 'empty' }, props.empty || 'لا توجد نتائج مطابقة للتصفية'))))),
     div({ className: 'pager' },
       span({ className: 'muted small' }, rows.length ? 'عرض ' + firstN + '–' + lastN + ' من ' + rows.length + (rows.length !== props.rows.length ? ' (من أصل ' + props.rows.length + ')' : '') : '0 نتيجة'),
       activeCols.length ? button({ type: 'button', className: 'btn ghost sm', onClick: function () { setFlt({}); setPage(1); } }, 'مسح الفلاتر') : null,
@@ -98,7 +106,8 @@ function colsFor(defs, hide) { return defs.filter(function (c) { return !hide ||
 /* the action column: open, and (system admin only) delete after a confirmation */
 function openCol(onDelete, canDelete) {
   return { key: 'open', label: 'إجراء', render: function (r, open) {
-    const openBtn = button({ type: 'button', className: 'btn ghost sm', onClick: function (e) { e.stopPropagation(); open(); } }, 'فتح', h(Icon, { name: 'chevL', size: 14 }));
+    /* the labels are hidden in the tables (icons with a title), so the action column stays narrow */
+    const openBtn = button({ type: 'button', className: 'btn ghost sm', title: 'فتح', 'aria-label': 'فتح ' + r.id, onClick: function (e) { e.stopPropagation(); open(); } }, span({ className: 'abl' }, 'فتح'), h(Icon, { name: 'chevL', size: 14 }));
     if (!onDelete || (canDelete && !canDelete(r))) return openBtn;
     return div({ className: 'rowacts' }, openBtn,
       button({ type: 'button', className: 'abtn stop', title: 'حذف', 'aria-label': 'حذف ' + r.id, onClick: function (e) {

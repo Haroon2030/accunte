@@ -45,6 +45,7 @@ p { margin: 0; }
 .gutter { width: 100%; max-width: 1180px; margin-inline: auto; padding-inline: 16px; }
 /* app shell: the navigation is a column beside the content (the right side in RTL); on narrow screens it stacks above */
 .appshell { display: grid; grid-template-columns: 250px minmax(0, 1fr); align-items: start; min-height: 100vh; }
+@media (max-width: 1180px) { .appshell { grid-template-columns: 200px minmax(0, 1fr); } .appside { padding-inline: 10px; } }
 .appshell > main { min-width: 0; }
 .appside { position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 18px 14px; background: #FFFFFF; color: var(--ink); border-inline-start: 1px solid var(--line); box-shadow: 0 2px 12px rgba(62, 116, 224, .08); }
 .appside .brand { padding-inline: 6px; }

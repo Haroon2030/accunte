@@ -175,6 +175,27 @@ input.ltr { direction: ltr; text-align: start; }
 .dtbox .dt tbody tr:hover td { background: var(--accent-soft); }
 .dtbox .dt tbody tr.unread td { background: color-mix(in srgb, var(--c-bad) 7%, var(--surface)); }
 .dtbox .thf { background: var(--surface) !important; border: 1px solid #CBD5E6 !important; }
+/* desktop tables: every column fits the content width, compact cells, the action column is never clipped */
+.dtbox .dt { width: 100%; table-layout: auto; }
+.dtbox .dt th { padding: 8px 6px; font-size: .78rem; line-height: 1.35; vertical-align: middle; }
+.dtbox .dt .thbtn, .dtbox .dt .thlabel { white-space: normal; text-align: start; line-height: 1.3; }
+.dtbox .dt td { padding: 8px 6px; font-size: .84rem; line-height: 1.4; vertical-align: middle; }
+@media (max-width: 1280px) { .dtbox .dt td { font-size: .8rem; padding-inline: 5px; } .dtbox .dt th { padding-inline: 5px; font-size: .74rem; } }
+@media (max-width: 1180px) { .dtbox .dt td, .dtbox .dt th { padding-inline: 4px; } .dtbox .thf { padding-inline: 4px !important; } }
+/* narrower screens: the search box above the table does the filtering, so the header filter cells are hidden to keep every column in view */
+@media (max-width: 1280px) { .dtbox .thslot { display: none; } }
+.dtbox .dt td:first-child, .dtbox .dt td:last-child { white-space: nowrap; }
+.dtbox .dt td .rowacts { gap: 4px; }
+.dtbox .dt td .btn.sm, .dtbox .dt td .abtn { min-height: 32px; padding-inline: 8px; }
+.dtbox .dt td .abl { display: none; }
+.dtbox .thslot { min-width: 0; width: 100%; }
+.dtsearch { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.dtq { width: min(320px, 100%); min-height: 36px; padding: 6px 12px; border: 1px solid #B7C9E8; border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: .88rem; }
+.dtq:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.dtbox .dt td.rownum, .dtbox .dt th:first-child { width: 34px; min-width: 0; padding-inline: 2px; text-align: center; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.dtbox .dt td.rownum { font-size: .78rem; }
+/* the filter takes the width of its column: a 1px base keeps its own width out of the column sizing */
+.dtbox .thf { width: 1px; min-width: 100%; padding: 4px 6px; font-size: .8rem; }
 @media (max-width: 760px) {
   .dtm { display: grid; gap: 10px; }
   .dtm-toggle { justify-self: start; gap: 8px; }
@@ -195,6 +216,7 @@ input.ltr { direction: ltr; text-align: start; }
   .dtbox .dt td[data-col="open"] { padding-top: 10px; margin-top: 2px; border-top: 1px solid var(--line); }
   .dtbox .dt td[data-col="open"]::before { content: none; }
   .dtbox .dt td[data-col="open"] .btn { width: 100%; }
+  .dtbox .dt td .abl { display: inline; }
   .dtbox .dt td.empty { display: block; text-align: center; padding: 20px 0; }
   .dtbox .pager { justify-content: space-between; }
 }
@@ -514,9 +536,9 @@ body { -webkit-tap-highlight-color: rgba(47, 111, 235, .18); }
 @media (max-width: 760px) { .dtbox .dt tbody tr.fresh { background: #FFF1EF; border-color: #F2B8B2; box-shadow: inset -4px 0 0 var(--c-bad); } .dtbox .dt tbody tr.fresh td:first-child { box-shadow: none; } }
 
 /* header filters keep their whole text; the table scrolls sideways instead of squeezing them */
-.dtbox .dt th { min-width: 112px; }
-.dtbox .dt th .thf { min-width: 96px; width: 100%; text-overflow: ellipsis; }
-.dtbox .dt th:first-child { min-width: 140px; }
+.dtbox .dt th { min-width: 0; }
+.dtbox .dt th .thf { min-width: 100%; width: 1px; text-overflow: ellipsis; }
+
 .dtbox .dt td .mono { white-space: nowrap; }
 .utable th { min-width: 108px; }
 .utable th .thf { min-width: 92px; }

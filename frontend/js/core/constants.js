@@ -5,6 +5,8 @@ const DAY = 864e5;
 const NOW = new Date();
 const SLA_DAYS = 5;
 const ROLE_NAME = { supplier: 'المورد', matcher: 'المطابق', manager: 'المدير المالي', recon: 'مطابقة الكشوف', notices: 'إشعارات الموردين', suppliers: 'بيانات الموردين', users: 'المستخدمون' };
+/* labels in the side navigation where they differ from the page's name */
+const ROLE_NAV = { manager: 'لوحة التحكم' };
 const ME = { supplier: 'شركة النخبة للتوريدات', matcher: 'خالد العتيبي', manager: 'سلمان القحطاني' };
 const STAGES = [
   { title: 'تقديم الطلب', desc: 'تم رفع طلبك بنجاح.' },

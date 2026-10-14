@@ -262,7 +262,7 @@ function App() {
   return div({ className: 'appshell' },
     header({ className: 'appside' }, h(Brand),
       allowed.length > 1 ? div({ className: 'seg sidenav', role: 'group', 'aria-label': 'صفحات النظام' }, allowed.map(function (k) {
-        return button({ key: k, 'aria-pressed': role === k, onClick: function () { changeRole(k); } }, ROLE_NAME[k], h(Badge, { n: roleUnread[k] || 0 }));
+        return button({ key: k, 'aria-pressed': role === k, onClick: function () { changeRole(k); } }, ROLE_NAV[k] || ROLE_NAME[k], h(Badge, { n: roleUnread[k] || 0 }));
       })) : null,
       div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
         button({ type: 'button', onClick: logout }, 'خروج'))),
