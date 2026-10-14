@@ -20,6 +20,8 @@ def user_out(u):
 def supplier_out(s, users=None):
     return {'id': s.pk, 'name': s.name, 'code': s.code, 'taxNo': s.tax_no, 'mobile': s.mobile, 'active': s.is_active,
             'address': {k: getattr(s, k) for k in s.ADDRESS_FIELDS},
+            # the account a notice is issued to (None when the supplier has no active account yet)
+            'accountId': next((u.pk for u in s.users.all() if u.is_active), None),
             'users': users if users is not None else s.users.count(), 'created': iso(s.created_at)}
 
 

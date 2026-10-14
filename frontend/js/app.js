@@ -5,7 +5,6 @@ function App() {
   const [me, setMe] = useState(undefined); // undefined while the session is checked, null when signed out
   const [users, setUsers] = useState([]);
   const [notices, setNotices] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
   const [supplierData, setSupplierData] = useState([]);
   const [matchers, setMatchers] = useState([]);
   const [reqs, setReqs] = useState([]);
@@ -42,6 +41,9 @@ function App() {
       return n;
     });
   };
+  /* the notice supplier list comes from the supplier data screen; each entry issues to its active account */
+  const noticeSuppliers = supplierData.filter(function (s) { return s.active && s.accountId; })
+    .map(function (s) { return { id: s.accountId, name: s.name, code: s.code, taxNo: s.taxNo, mobile: s.mobile }; });
   const mySupplier = me && me.role === 'supplier' ? me.org : '';
   const goTop = function () { try { window.scrollTo(0, 0); } catch (e) { /* ignore */ } };
   const openReq = function (id) { markOpened(id); setService('recon'); setView({ name: 'track', id: id }); goTop(); };
@@ -57,7 +59,6 @@ function App() {
     if (u.role === 'supplier' || has('matcher', 'manager')) jobs.push(API.get('/requests/').then(function (rs) { setReqs(rs.map(API.request)); }));
     if (u.role === 'supplier' || has('manager')) jobs.push(API.get('/complaints/').then(function (cs) { setComplaints(cs.map(API.complaint)); }));
     if (u.role === 'supplier' || has('notices')) jobs.push(API.get('/notices/').then(function (ns) { setNotices(ns); }));
-    if (u.role !== 'supplier' && has('notices')) jobs.push(API.get('/suppliers/').then(function (ss) { setSuppliers(ss); }));
     if (u.role === 'supervisor' || u.role === 'manager' || u.role === 'admin') jobs.push(API.get('/matchers/').then(function (ms) { setMatchers(ms); }));
     if (u.role !== 'supplier' && has('suppliers', 'users', 'notices')) jobs.push(API.get('/supplier-data/').then(function (ss) { setSupplierData(ss); }));
     if (has('users')) jobs.push(API.get('/users/').then(function (us) { setUsers(us.map(API.user)); }));
@@ -253,7 +254,7 @@ function App() {
   else if (role === 'supplier') body = h(SupplierHome, { notices: notices, onToast: setToast, onDelete: removeRecord, supplier: mySupplier, reqs: reqs, complaints: complaints, seen: seen, service: service, onService: setService, onOpen: openReq, onOpenC: openC, onNew: function () { setView({ name: 'new' }); goTop(); }, onNewC: function () { setView({ name: 'newc' }); goTop(); } });
   else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { suppliers: supplierData, users: users, me: user, onSave: saveUser, onToggle: toggleUser, onDelete: removeUser, onReset: resetUser, onToast: setToast });
   else if (role === 'suppliers' && allowed.indexOf('suppliers') !== -1) body = h(SuppliersPage, { suppliers: supplierData, canEdit: true, canDelete: user.role === 'admin', onSave: saveSupplier, onDelete: removeSupplier, onToast: setToast });
-  else if (role === 'notices' && allowed.indexOf('notices') !== -1) body = h(NoticesPage, { notices: notices, suppliers: suppliers, canIssue: true, onCreate: createNotice, onUpdate: updateNotice, onDelete: user.role === 'admin' ? removeNotice : undefined, onToast: setToast });
+  else if (role === 'notices' && allowed.indexOf('notices') !== -1) body = h(NoticesPage, { notices: notices, suppliers: noticeSuppliers, canIssue: true, onCreate: createNotice, onUpdate: updateNotice, onDelete: user.role === 'admin' ? removeNotice : undefined, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
   else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq, onDelete: user.role === 'admin' ? removeRecord : undefined });
   else body = h(Dashboard, { onDelete: user.role === 'admin' ? removeRecord : undefined, reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });

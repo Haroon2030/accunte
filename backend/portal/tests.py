@@ -478,6 +478,15 @@ class SupplierDataTests(TestCase):
         self.assertEqual(notice.status_code, 201, notice.content)
         self.assertEqual(notice.json()['supplierAddress']['street'], 'الأمير سعد')
 
+    def test_supplier_record_exposes_its_active_account_for_notices(self):
+        self.m.post('/api/supplier-data/', {'name': 'بلا حساب', 'code': 'N-1'}, format='json')
+        made = self.m.post('/api/supplier-data/', {'name': 'بحساب', 'code': 'N-2'}, format='json').json()
+        self.assertIsNone(made['accountId'])
+        acct = make('5', 'supplier', org='بحساب', code='N-2', supplier=Supplier.objects.get(pk=made['id']))
+        listed = {x['code']: x for x in self.m.get('/api/supplier-data/').json()}
+        self.assertEqual(listed['N-2']['accountId'], acct.pk)
+        self.assertIsNone(listed['N-1']['accountId'])
+
     def test_matcher_cannot_open_the_screen_but_reads_nothing(self):
         mt = login(self.matcher)
         self.assertEqual(mt.get('/api/supplier-data/').status_code, 403)
