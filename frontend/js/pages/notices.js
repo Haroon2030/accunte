@@ -25,7 +25,7 @@ const ntDraftOf = function (n) {
   return {
     items: n.items.map(function (i) { return { code: i.code, name: i.name, qty: String(i.qty), price: String(i.price), discount: String(i.discount || '') }; }),
     description: n.description || '', dueDate: n.dueDate || '', paymentMethod: n.paymentMethod,
-    buyer: Object.assign({ name: n.supplier, vat: n.supplierTax || '', otherId: n.supplierCode || '' }, n.buyer || {})
+    buyer: Object.assign({ name: n.supplier, vat: n.supplierTax || '', otherId: n.supplierCode || '', mobile: n.supplierMobile || '' }, n.buyer || {})
   };
 };
 
@@ -75,7 +75,7 @@ function NoticeSheet(props) {
         div({ className: 'nt-bh' }, span(null, 'العميل :'), span(null, 'Buyer :')),
         brow('الإسم :', 'Name :', 'name', n.supplier), brow('المبنى :', 'Bulding :', 'building'), brow('الشارع :', 'Street :', 'street'), brow('الحي :', 'District :', 'district'),
         brow('المدينة :', 'City :', 'city'), brow('الدولة :', 'Country :', 'country'), brow('الرمز البريدي :', 'Postal Code :', 'postal'),
-        brow('الرقم الإضافي :', 'Additional No', 'additional'), brow('الرقم الضريبي :', 'Vat No :', 'vat', n.supplierTax), brow('السجل التجاري :', 'CRN :', 'crn'), brow('معرف آخر :', 'Other ID :', 'otherId', n.supplierCode))),
+        brow('الرقم الإضافي :', 'Additional No', 'additional'), brow('الرقم الضريبي :', 'Vat No :', 'vat', n.supplierTax), brow('السجل التجاري :', 'CRN :', 'crn'), brow('معرف آخر :', 'Other ID :', 'otherId', n.supplierCode), brow('رقم الجوال :', 'Mobile :', 'mobile', n.supplierMobile))),
     div({ className: 'nt-desc' }, span({ className: 'nt-dk' }, 'البيان / Description'),
       ed ? textarea({ className: 'nt-in', rows: 2, 'aria-label': 'البيان', value: ed.d.description, onChange: function (e) { ed.set('description', e.target.value); } }) : span({ className: 'nt-dv' }, n.description || '')),
     table({ className: 'nt-items' },
@@ -163,6 +163,7 @@ function NoticeForm(props) {
     props.onCreate({ supplierId: +supplierId, dueDate: due || null, paymentMethod: method, description: desc, items: items }).then(function () { setBusy(false); }, function (ex) { setBusy(false); setError(ex.message); });
   }
   const f = function (id, lab, control) { return div({ className: 'field' }, label({ htmlFor: id }, lab), control); };
+  const pickedS = supplierId ? props.suppliers.filter(function (s) { return String(s.id) === supplierId; })[0] : null;
   return section({ className: 'panel formcard nt-form' },
     h3(null, 'إشعار جديد لمورد'),
     form({ onSubmit: submit, noValidate: true },
@@ -171,6 +172,7 @@ function NoticeForm(props) {
           option({ value: '' }, 'اختر المورد…'), props.suppliers.map(function (s) { return option({ key: s.id, value: String(s.id) }, s.name + (s.code ? ' · ' + s.code : '')); }))),
         f('nt-due', 'تاريخ الاستحقاق (اختياري)', input({ id: 'nt-due', type: 'date', value: due, onChange: function (e) { setDue(e.target.value); } })),
         f('nt-pm', 'طريقة الدفع', select({ id: 'nt-pm', value: method, onChange: function (e) { setMethod(e.target.value); } }, NT_METHODS.map(function (m) { return option({ key: m, value: m }, m); })))),
+      pickedS ? h(SupplierInfo, { s: pickedS }) : null,
       f('nt-desc', 'البيان', textarea({ id: 'nt-desc', rows: 2, value: desc, onChange: function (e) { setDesc(e.target.value); }, placeholder: 'مثال: فاتورة إيجار مساحة حسب العقد رقم… عن الفترة من… إلى…' })),
       div({ className: 'nt-items-ed' },
         span({ className: 'lbl' }, 'البنود'),

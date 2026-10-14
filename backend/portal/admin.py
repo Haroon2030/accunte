@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Attachment, Complaint, MatchRequest, Message, User
+from .models import Attachment, Complaint, MatchRequest, Message, Supplier, User
 
 
 @admin.register(User)
@@ -17,4 +17,4 @@ class PortalUserAdmin(UserAdmin):
     add_fieldsets = ((None, {'classes': ('wide',), 'fields': ('username', 'name', 'role', 'password1', 'password2')}),)
 
 
-admin.site.register([MatchRequest, Complaint, Message, Attachment])
+admin.site.register([MatchRequest, Complaint, Message, Attachment, Supplier])

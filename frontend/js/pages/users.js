@@ -1,6 +1,6 @@
 'use strict';
 
-const EMPTY_FORM = { id: null, name: '', username: '', role: 'supplier', org: '', taxNo: '', code: '', password: '', active: true, pages: ROLE_PAGES.supplier.slice() };
+const EMPTY_FORM = { id: null, name: '', username: '', role: 'supplier', supplierId: '', org: '', taxNo: '', code: '', password: '', active: true, pages: ROLE_PAGES.supplier.slice() };
 function UsersPage(props) {
   const me = props.me;
   const [formV, setFormV] = useState(null);
@@ -21,7 +21,10 @@ function UsersPage(props) {
   const count = function (f) { return users.filter(f).length; };
   const setF = function (k, v) { setFormV(function (o) { const n = Object.assign({}, o); n[k] = v; return n; }); };
   function openNew() { setTemp(null); setConfirm(null); setErrs({}); const f = Object.assign({}, EMPTY_FORM, { password: genPass() }); baseRef.current = JSON.stringify(f); setFormV(f); }
-  function openEdit(x) { setTemp(null); setConfirm(null); setErrs({}); const f = { id: x.id, name: x.name, username: x.username, role: x.role, org: x.org, taxNo: x.taxNo || '', code: x.code || '', password: '', mustChange: false, active: x.active, pages: (x.pages || ROLE_PAGES[x.role] || []).slice() }; baseRef.current = JSON.stringify(f); setFormV(f); }
+  function openEdit(x) { setTemp(null); setConfirm(null); setErrs({}); const f = { id: x.id, name: x.name, username: x.username, role: x.role, supplierId: x.supplierId ? String(x.supplierId) : '', org: x.org, taxNo: x.taxNo || '', code: x.code || '', password: '', mustChange: false, active: x.active, pages: (x.pages || ROLE_PAGES[x.role] || []).slice() }; baseRef.current = JSON.stringify(f); setFormV(f); }
+  const supplierList = props.suppliers || [];
+  const supplierChoices = supplierList.filter(function (x) { return x.active || (formV && String(x.id) === String(formV.supplierId)); });
+  const pickedSupplier = formV && formV.supplierId ? supplierList.filter(function (x) { return String(x.id) === String(formV.supplierId); })[0] : null;
   const dirty = !!formV && JSON.stringify(formV) !== baseRef.current;
   function closeForm() {
     if (dirty && !window.confirm('عندك تعديلات لم تُحفظ. تُغلق النموذج وتفقدها؟')) return;
@@ -34,8 +37,8 @@ function UsersPage(props) {
     return function () { window.removeEventListener('beforeunload', warn); };
   }, [dirty]);
   function focusFirst(er) {
-    const ids = { name: 'uf-name', username: 'uf-user', role: 'uf-role', org: 'uf-org', code: 'uf-code', taxNo: 'uf-tax', password: formV.id ? 'uf-pw2' : 'uf-pw' };
-    const k = ['name', 'username', 'role', 'org', 'code', 'taxNo', 'password'].filter(function (x) { return er[x]; })[0];
+    const ids = { name: 'uf-name', username: 'uf-user', role: 'uf-role', supplierId: 'uf-sup', org: 'uf-org', code: 'uf-code', taxNo: 'uf-tax', password: formV.id ? 'uf-pw2' : 'uf-pw' };
+    const k = ['name', 'username', 'role', 'supplierId', 'org', 'code', 'taxNo', 'password'].filter(function (x) { return er[x]; })[0];
     const el = k ? document.getElementById(ids[k]) : (er.pages ? document.querySelector('.uform .opts input') : null);
     if (el) setTimeout(function () { el.focus(); }, 0);
   }
@@ -46,20 +49,14 @@ function UsersPage(props) {
     if (!f.name.trim()) er.name = 'أدخل الاسم الكامل.';
     if (!/^[a-z0-9._-]{1,30}$/.test(un)) er.username = 'أرقام أو حروف إنجليزية صغيرة، حتى 30 خانة.';
     else if (users.some(function (x) { return x.username === un && x.id !== f.id; })) er.username = 'رقم المستخدم مستخدم لحساب آخر.';
-    if (f.role === 'supplier' && !f.org.trim()) er.org = 'أدخل اسم المورد التابع له الحساب.';
-    if (f.role === 'supplier') {
-      const tx = normDigits(f.taxNo), cd = f.code.trim();
-      if (!cd) er.code = 'أدخل رمز المورد.';
-      else if (users.some(function (x) { return x.role === 'supplier' && (x.code || '').toLowerCase() === cd.toLowerCase() && x.id !== f.id; })) er.code = 'رمز المورد مستخدم لمورد آخر.';
-      if (tx && !/^\d{15}$/.test(tx)) er.taxNo = 'الرقم الضريبي 15 رقماً.';
-    }
+    if (f.role === 'supplier' && !f.supplierId) er.supplierId = 'اختر المورد من بيانات الموردين.';
     if (!f.id || f.password) { const m = passErr(f.password); if (m) er.password = m; }
     if (f.role !== 'supplier' && !(f.pages || []).length) er.pages = 'اختر صفحة واحدة على الأقل.';
     if (f.id && f.id === me.id && f.pages.indexOf('users') === -1) er.pages = 'لا يمكنك سحب صلاحية إدارة المستخدمين من حسابك الحالي.';
     if (f.id === me.id && f.role !== me.role) er.role = 'لا يمكنك تغيير دور حسابك الحالي.';
     setErrs(er);
     if (Object.keys(er).length) { focusFirst(er); return; }
-    props.onSave({ id: f.id, name: f.name.trim(), username: un, role: f.role, org: f.role === 'supplier' ? f.org.trim() : (f.org.trim() || 'أسواق الرشيد'), taxNo: f.role === 'supplier' ? normDigits(f.taxNo) : '', code: f.role === 'supplier' ? f.code.trim() : '', password: f.password, mustChange: !!f.mustChange, active: f.active, pages: f.role === 'supplier' || samePages(f.pages, ROLE_PAGES[f.role]) ? null : f.pages })
+    props.onSave({ id: f.id, name: f.name.trim(), username: un, role: f.role, supplierId: f.role === 'supplier' ? f.supplierId : '', org: f.role === 'supplier' ? '' : (f.org.trim() || 'أسواق الرشيد'), taxNo: '', code: '', password: f.password, mustChange: !!f.mustChange, active: f.active, pages: f.role === 'supplier' || samePages(f.pages, ROLE_PAGES[f.role]) ? null : f.pages })
       .then(function () { setFormV(null); })
       .catch(function (ex) {
         const d = ex.data, known = { name: 1, username: 1, role: 1, org: 1, code: 1, taxNo: 1, password: 1, pages: 1 }, fe = {};
@@ -111,8 +108,8 @@ function UsersPage(props) {
     if (roleF && x.role !== roleF) return false;
     if (statF && (statF === 'active') !== !!x.active) return false;
     if (nameN && hay([x.name, x.username]).indexOf(nameN) === -1) return false;
-    if (orgN && hay([x.org, x.code, x.taxNo]).indexOf(orgN) === -1) return false;
-    return !needle || hay([x.name, x.username, x.org, x.code, x.taxNo]).indexOf(needle) !== -1;
+    if (orgN && hay([x.org, x.code, x.taxNo, x.mobile]).indexOf(orgN) === -1) return false;
+    return !needle || hay([x.name, x.username, x.org, x.code, x.taxNo, x.mobile]).indexOf(needle) !== -1;
   }).sort(function (a, b) { const r = (sorters[sort.key] || sorters.name)(a, b); return sort.dir === 'asc' ? r : -r; });
   const anyFilter = !!(q || roleF || statF || nameF || orgF);
   const clearFilters = function () { setQ(''); setRoleF(''); setStatF(''); setNameF(''); setOrgF(''); };
@@ -150,7 +147,8 @@ function UsersPage(props) {
         x.role === 'supplier' && (x.code || x.taxNo) ? span({ className: 'usub' },
           x.code ? span(null, 'رمز ', span({ className: 'mono' }, x.code)) : null,
           x.code && x.taxNo ? ' · ' : null,
-          x.taxNo ? span(null, 'ضريبي ', span({ className: 'mono' }, x.taxNo)) : null) : null)),
+          x.taxNo ? span(null, 'ضريبي ', span({ className: 'mono' }, x.taxNo)) : null,
+          x.mobile ? span(null, ' · جوال ', span({ className: 'mono' }, x.mobile)) : null) : null)),
       td({ 'data-label': 'الحالة' }, statusPill(x)),
       td({ 'data-label': 'آخر دخول' }, x.last ? since(x.last) : span({ className: 'muted' }, 'لم يدخل بعد')),
       td({ 'data-label': 'إجراءات', className: 'actcell' }, actions(x)));
@@ -200,9 +198,10 @@ function UsersPage(props) {
         fld('uf-user', 'رقم المستخدم', input({ id: 'uf-user', name: 'user-number', autoComplete: 'off', type: 'text', className: 'ltr', autoCapitalize: 'none', value: formV.username, onChange: function (e) { setF('username', e.target.value); } }), 'username', 'يكفي رقم، مثل 1 أو 2025.'),
         fld('uf-role', 'الدور', select({ id: 'uf-role', value: formV.role, disabled: formV.id === me.id, onChange: function (e) { const r = e.target.value; setFormV(function (o) { return Object.assign({}, o, { role: r, pages: ROLE_PAGES[r].slice() }); }); } },
           roleOpts.map(function (r) { return option({ key: r, value: r }, ROLE_LABEL[r]); })), 'role', 'يصل إلى: ' + ROLE_PAGES[formV.role].map(function (k) { return PAGE_LABEL[k]; }).join('، ')),
-        fld('uf-org', formV.role === 'supplier' ? 'اسم المورد' : 'الجهة / القسم', input({ id: 'uf-org', name: 'organisation', autoComplete: 'off', type: 'text', value: formV.org, onChange: function (e) { setF('org', e.target.value); } }), 'org'),
-        formV.role === 'supplier' ? fld('uf-code', 'رمز المورد', input({ id: 'uf-code', name: 'supplier-code', autoComplete: 'off', type: 'text', className: 'ltr', value: formV.code, onChange: function (e) { setF('code', e.target.value); } }), 'code') : null,
-        formV.role === 'supplier' ? fld('uf-tax', 'الرقم الضريبي', input({ id: 'uf-tax', name: 'tax-number', autoComplete: 'off', type: 'text', className: 'ltr', inputMode: 'numeric', maxLength: 15, value: formV.taxNo, onChange: function (e) { setF('taxNo', e.target.value); } }), 'taxNo', '15 رقماً، اختياري.') : null,
+        formV.role === 'supplier' ? fld('uf-sup', 'المورد', select({ id: 'uf-sup', value: formV.supplierId, onChange: function (e) { setF('supplierId', e.target.value); } },
+          option({ value: '' }, 'اختر المورد…'), supplierChoices.map(function (x) { return option({ key: x.id, value: String(x.id) }, x.name + ' · ' + x.code + (x.active ? '' : ' (موقوف)')); })),
+          'supplierId', supplierChoices.length ? 'من بيانات الموردين. يأخذ الحساب اسم المورد ورمزه ورقمه الضريبي منها.' : 'لا يوجد موردون بعد. أضف المورد أولاً من صفحة «بيانات الموردين».', 'wide') : fld('uf-org', 'الجهة / القسم', input({ id: 'uf-org', name: 'organisation', autoComplete: 'off', type: 'text', value: formV.org, onChange: function (e) { setF('org', e.target.value); } }), 'org'),
+        formV.role === 'supplier' && pickedSupplier ? h(SupplierInfo, { s: pickedSupplier, className: 'wide' }) : null,
         !formV.id ? fld('uf-pw', 'كلمة المرور المؤقتة', div({ className: 'pwgen' }, h(PwInput, { id: 'uf-pw', value: formV.password, onChange: function (v) { setF('password', v); }, autoComplete: 'new-password' }),
           button({ type: 'button', className: 'btn ghost', onClick: function () { setF('password', genPass()); } }, 'توليد')), 'password', 'سيُطلب من المستخدم تغييرها عند أول دخول.', 'wide') : null,
         formV.id ? fld('uf-pw2', 'كلمة مرور جديدة', div({ className: 'pwgen' }, h(PwInput, { id: 'uf-pw2', value: formV.password, onChange: function (v) { setF('password', v); }, autoComplete: 'new-password', placeholder: 'اتركها فارغة بدون تغيير' }),

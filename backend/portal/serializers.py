@@ -11,8 +11,14 @@ def user_out(u):
         'pages': allowed_pages(u), 'customPages': u.pages is not None,
         'id': u.pk, 'name': u.name, 'username': u.username, 'role': u.role, 'org': u.org,
         'code': u.code or '', 'taxNo': u.tax_no, 'active': u.is_active,
+        'supplierId': u.supplier_id, 'mobile': u.supplier.mobile if u.supplier_id else '',
         'mustChange': u.must_change_password, 'last': iso(u.last_login), 'created': iso(u.created_at),
     }
+
+
+def supplier_out(s, users=None):
+    return {'id': s.pk, 'name': s.name, 'code': s.code, 'taxNo': s.tax_no, 'mobile': s.mobile, 'active': s.is_active,
+            'users': users if users is not None else s.users.count(), 'created': iso(s.created_at)}
 
 
 def file_out(a):
@@ -68,7 +74,8 @@ def notice_out(n):
                       'amount': float(gross), 'tax': float(tax), 'total': float(net + tax)})
     return {
         'id': n.number, 'pk': n.pk, 'supplier': n.supplier.org or n.supplier.name, 'supplierId': n.supplier_id,
-        'supplierTax': n.supplier.tax_no, 'supplierCode': n.supplier.code or '', 'buyer': n.buyer or {},
+        'supplierTax': n.supplier.tax_no, 'supplierCode': n.supplier.code or '',
+        'supplierMobile': n.supplier.supplier.mobile if n.supplier.supplier_id else '', 'buyer': n.buyer or {},
         'issuedAt': iso(n.issued_at), 'dueDate': n.due_date.isoformat() if n.due_date else None,
         'paymentMethod': n.payment_method, 'description': n.description, 'items': items,
         'discount': float(n.discount), 'subtotal': float(n.subtotal), 'vat': float(n.vat), 'vatRate': float(n.vat_rate), 'total': float(n.total),

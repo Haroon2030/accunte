@@ -6,6 +6,7 @@ function App() {
   const [users, setUsers] = useState([]);
   const [notices, setNotices] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [supplierData, setSupplierData] = useState([]);
   const [matchers, setMatchers] = useState([]);
   const [reqs, setReqs] = useState([]);
   const [view, setView] = useState({ name: 'home' });
@@ -58,6 +59,7 @@ function App() {
     if (u.role === 'supplier' || has('notices')) jobs.push(API.get('/notices/').then(function (ns) { setNotices(ns); }));
     if (u.role !== 'supplier' && has('notices')) jobs.push(API.get('/suppliers/').then(function (ss) { setSuppliers(ss); }));
     if (u.role === 'supervisor' || u.role === 'manager' || u.role === 'admin') jobs.push(API.get('/matchers/').then(function (ms) { setMatchers(ms); }));
+    if (u.role !== 'supplier' && has('suppliers', 'users', 'notices')) jobs.push(API.get('/supplier-data/').then(function (ss) { setSupplierData(ss); }));
     if (has('users')) jobs.push(API.get('/users/').then(function (us) { setUsers(us.map(API.user)); }));
     return Promise.all(jobs);
   }
@@ -184,11 +186,11 @@ function App() {
   function changeRole(r) { if (allowed.indexOf(r) === -1) return; setRole(r); home(); }
   function logout() {
     API.post('/auth/logout').catch(function () { /* already signed out */ }).then(function () {
-      setMe(null); setReqs([]); setComplaints([]); setUsers([]); setView({ name: 'home' }); setToast(''); goTop();
+      setMe(null); setReqs([]); setComplaints([]); setUsers([]); setSupplierData([]); setView({ name: 'home' }); setToast(''); goTop();
     });
   }
   function saveUser(d) {
-    const body = { name: d.name, username: d.username, role: d.role, org: d.org, code: d.code, taxNo: d.taxNo, active: d.active, password: d.password, mustChange: d.mustChange, pages: d.pages };
+    const body = { name: d.name, username: d.username, role: d.role, org: d.org, code: d.code, taxNo: d.taxNo, supplierId: d.supplierId, active: d.active, password: d.password, mustChange: d.mustChange, pages: d.pages };
     const call = d.id ? API.patch('/users/' + d.id + '/', body) : API.post('/users/', body);
     return call.then(function (u) {
       const nu = API.user(u);
@@ -201,6 +203,22 @@ function App() {
       const nu = API.user(u);
       setUsers(function (us) { return us.map(function (x) { return x.id === nu.id ? nu : x; }); });
       setToast(nu.active ? 'فُعّل حساب ' + nu.name + '.' : 'أُوقف حساب ' + nu.name + '.');
+    }).catch(fail);
+  }
+  /* supplier master data; accounts and notices carry a copy of the company details, so reload them after a change */
+  function saveSupplier(d) {
+    const body = { name: d.name, code: d.code, taxNo: d.taxNo, mobile: d.mobile, active: d.active };
+    const call = d.id ? API.patch('/supplier-data/' + d.id + '/', body) : API.post('/supplier-data/', body);
+    return call.then(function (s) {
+      setSupplierData(function (ss) { return (d.id ? ss.map(function (x) { return x.id === s.id ? s : x; }) : ss.concat([s])).sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); }); });
+      setToast(d.id ? 'حُفظت بيانات ' + s.name + '.' : 'أُضيف المورد ' + s.name + '.');
+      if (me) loadAll(me).catch(function () { /* the next refresh will catch up */ });
+    });
+  }
+  function removeSupplier(id) {
+    API.del('/supplier-data/' + id + '/').then(function () {
+      setSupplierData(function (ss) { return ss.filter(function (x) { return x.id !== id; }); });
+      setToast('حُذف المورد نهائياً.');
     }).catch(fail);
   }
   function removeUser(id) {
@@ -233,7 +251,8 @@ function App() {
   else if (currentC && (role === 'supplier' || role === 'manager')) body = h(ComplaintTracking, { key: currentC.id + role, c: currentC, role: role, seenAt: seenAt(seen, currentC.id, role), unread: unreadOf(currentC, role, seen), onSeen: function () { markSeen(currentC.id, role); }, onBack: home, onAdvance: function () { advanceC(currentC.id); }, onSend: function (m) { sendC(currentC.id, m); } });
   else if (current) body = h(Tracking, { key: current.id + role, req: current, role: role, seenAt: seenAt(seen, current.id, role), unread: unreadOf(current, role, seen), onSeen: function () { markSeen(current.id, role); }, onBack: home, userRole: user.role, matchers: matchers, onAdvance: function (extra) { if (current.stage === 2) setToast('فُتحت المراسلة. اكتب رسالتك للمورد في خانة المراسلات.'); advance(current.id, extra); }, onSend: function (m) { send(current.id, m); } });
   else if (role === 'supplier') body = h(SupplierHome, { notices: notices, onToast: setToast, onDelete: removeRecord, supplier: mySupplier, reqs: reqs, complaints: complaints, seen: seen, service: service, onService: setService, onOpen: openReq, onOpenC: openC, onNew: function () { setView({ name: 'new' }); goTop(); }, onNewC: function () { setView({ name: 'newc' }); goTop(); } });
-  else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { users: users, me: user, onSave: saveUser, onToggle: toggleUser, onDelete: removeUser, onReset: resetUser, onToast: setToast });
+  else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { suppliers: supplierData, users: users, me: user, onSave: saveUser, onToggle: toggleUser, onDelete: removeUser, onReset: resetUser, onToast: setToast });
+  else if (role === 'suppliers' && allowed.indexOf('suppliers') !== -1) body = h(SuppliersPage, { suppliers: supplierData, canEdit: true, canDelete: user.role === 'admin', onSave: saveSupplier, onDelete: removeSupplier, onToast: setToast });
   else if (role === 'notices' && allowed.indexOf('notices') !== -1) body = h(NoticesPage, { notices: notices, suppliers: suppliers, canIssue: true, onCreate: createNotice, onUpdate: updateNotice, onDelete: user.role === 'admin' ? removeNotice : undefined, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
   else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq, onDelete: user.role === 'admin' ? removeRecord : undefined });
@@ -247,6 +266,6 @@ function App() {
         })) : null,
         div({ className: 'uchip' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
           button({ type: 'button', onClick: logout }, 'خروج'))))),
-    main({ className: 'gutter page', id: 'main', tabIndex: -1 }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'notices' ? 'إصدار الإشعارات الضريبية للموردين وتعديلها وطباعتها' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role]))))), body),
+    main({ className: 'gutter page', id: 'main', tabIndex: -1 }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'notices' ? 'إصدار الإشعارات الضريبية للموردين وتعديلها وطباعتها' : (role === 'suppliers' ? 'التهيئة الأساسية لبيانات الموردين' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))))), body),
     toast ? div({ className: 'toast', role: 'status' }, toast) : null);
 }

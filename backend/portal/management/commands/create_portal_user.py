@@ -21,6 +21,7 @@ class Command(BaseCommand):
         p.add_argument('--org', default='')
         p.add_argument('--code', default='')
         p.add_argument('--tax-no', default='')
+        p.add_argument('--mobile', default='', help='supplier mobile number (05XXXXXXXX)')
         p.add_argument('--force-change', action='store_true', help='ask for a new password at first login')
 
     def handle(self, *a, **o):
@@ -35,4 +36,7 @@ class Command(BaseCommand):
         u.is_active = True
         u.set_password(pw)
         u.save()
+        if o['mobile'] and u.supplier_id:
+            u.supplier.mobile = o['mobile']
+            u.supplier.save()
         self.stdout.write(('created ' if created else 'updated ') + f"{u.username} ({u.role})")

@@ -12,7 +12,7 @@ from django.db import connection
 from django.test import TestCase, TransactionTestCase, override_settings
 from rest_framework.test import APIClient
 
-from .models import Attachment, MatchRequest, User
+from .models import Attachment, MatchRequest, Supplier, User
 
 PDF = b'%PDF-1.4\n%test\n'
 XLSX = b'PK\x03\x04' + b'0' * 40
@@ -440,4 +440,50 @@ class PagePermissionTests(TestCase):
         created = a.post('/api/users/', {'name': 'جديد', 'username': '8', 'role': 'matcher', 'password': '1234', 'pages': ['manager', 'users']}, format='json')
         self.assertEqual((created.status_code, created.json()['pages']), (201, ['manager', 'users']))
         role_change = a.patch(f'/api/users/{self.matcher.pk}/', {'name': 'x', 'username': '3', 'role': 'manager'}, format='json')
-        self.assertEqual(role_change.json()['pages'], ['matcher', 'manager', 'recon', 'notices'])   # new role, its own defaults
+        self.assertEqual(role_change.json()['pages'], ['matcher', 'manager', 'recon', 'notices', 'suppliers'])   # new role, its own defaults
+
+
+class SupplierDataTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.admin = make('1', 'admin')
+        self.manager = make('2', 'manager')
+        self.matcher = make('3', 'matcher')
+        self.a, self.m = login(self.admin), login(self.manager)
+
+    def test_crud_validation_and_unique_code(self):
+        ok = self.m.post('/api/supplier-data/', {'name': 'شركة النخبة', 'code': 'S-9', 'taxNo': '٣٠٠٠٠٠٠٠٠٠٠٠٠٠٣', 'mobile': '+966 55 123 4567'}, format='json')
+        self.assertEqual(ok.status_code, 201, ok.content)
+        self.assertEqual((ok.json()['taxNo'], ok.json()['mobile']), ('300000000000003', '0551234567'))
+        bad = self.m.post('/api/supplier-data/', {'name': 'x', 'code': 's-9', 'taxNo': '12', 'mobile': '123'}, format='json')
+        self.assertEqual(bad.status_code, 400)
+        self.assertEqual(set(bad.json()), {'code', 'taxNo', 'mobile'})
+        pk = ok.json()['id']
+        edited = self.m.patch(f'/api/supplier-data/{pk}/', {'name': 'النخبة الجديدة', 'code': 'S-9', 'taxNo': '300000000000003', 'mobile': '0551234567'}, format='json')
+        self.assertEqual((edited.status_code, edited.json()['name']), (200, 'النخبة الجديدة'))
+
+    def test_matcher_cannot_open_the_screen_but_reads_nothing(self):
+        mt = login(self.matcher)
+        self.assertEqual(mt.get('/api/supplier-data/').status_code, 403)
+        self.assertEqual(mt.post('/api/supplier-data/', {'name': 'x', 'code': 'C'}, format='json').status_code, 403)
+
+    def test_linking_a_user_copies_the_company_details_and_edits_follow(self):
+        s = Supplier.objects.create(name='شركة الأفق', code='S-5', tax_no='300000000000003', mobile='0551234567')
+        r = self.a.post('/api/users/', {'name': 'مسؤول', 'username': '10', 'role': 'supplier', 'supplierId': s.pk, 'password': '1234'}, format='json')
+        self.assertEqual(r.status_code, 201, r.content)
+        out = r.json()
+        self.assertEqual((out['org'], out['code'], out['taxNo'], out['mobile'], out['supplierId']), ('شركة الأفق', 'S-5', '300000000000003', '0551234567', s.pk))
+        self.a.patch(f'/api/supplier-data/{s.pk}/', {'name': 'الأفق للتجارة', 'code': 'S-5', 'taxNo': '300000000000003', 'mobile': '0509999999'}, format='json')
+        u = next(x for x in self.a.get('/api/users/').json() if x['username'] == '10')
+        self.assertEqual((u['org'], u['mobile']), ('الأفق للتجارة', '0509999999'))
+        self.assertEqual(self.a.delete(f'/api/supplier-data/{s.pk}/').status_code, 400)   # linked to an account
+        self.assertEqual(self.a.post('/api/users/', {'name': 'م', 'username': '11', 'role': 'supplier', 'supplierId': 9999, 'password': '1234'}, format='json').status_code, 400)
+
+    def test_notice_lists_and_prints_the_supplier_mobile(self):
+        s = Supplier.objects.create(name='شركة الأفق', code='S-5', tax_no='300000000000003', mobile='0551234567')
+        make('10', 'supplier', supplier=s)
+        row = next(x for x in self.m.get('/api/suppliers/').json() if x['code'] == 'S-5')
+        self.assertEqual((row['name'], row['taxNo'], row['mobile']), ('شركة الأفق', '300000000000003', '0551234567'))
+        n = self.m.post('/api/notices/', {'supplierId': row['id'], 'items': [{'name': 'إيجار', 'qty': 1, 'price': 100}]}, format='json')
+        self.assertEqual(n.status_code, 201, n.content)
+        self.assertEqual(n.json()['supplierMobile'], '0551234567')

@@ -10,6 +10,27 @@ from django.utils import timezone
 SLA_DAYS = 5
 
 
+class Supplier(models.Model):
+    """Supplier master data: one record per company. Accounts and notices read the company details from here."""
+    name = models.CharField('اسم المورد', max_length=200)
+    code = models.CharField('رمز المورد', max_length=30, unique=True)
+    tax_no = models.CharField('الرقم الضريبي', max_length=15, blank=True)
+    mobile = models.CharField('رقم الجوال', max_length=15, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f'{self.name} ({self.code})'
+
+    def save(self, *a, **kw):
+        super().save(*a, **kw)
+        # accounts keep a copy of the company details, so editing the supplier updates all of them
+        self.users.update(org=self.name, code=self.code, tax_no=self.tax_no)
+
+
 class User(AbstractUser):
     SUPPLIER, MATCHER, SUPERVISOR, MANAGER, ADMIN = 'supplier', 'matcher', 'supervisor', 'manager', 'admin'
     ROLES = [(SUPPLIER, 'مورد'), (MATCHER, 'مطابق'), (SUPERVISOR, 'مشرف الدعم'), (MANAGER, 'مدير مالي'), (ADMIN, 'مدير النظام')]
@@ -19,8 +40,9 @@ class User(AbstractUser):
     name = models.CharField('الاسم الكامل', max_length=150)
     role = models.CharField(max_length=10, choices=ROLES, default=SUPPLIER)
     org = models.CharField('الجهة / اسم المورد', max_length=200, blank=True)
-    code = models.CharField('رمز المورد', max_length=30, unique=True, null=True, blank=True)
-    tax_no = models.CharField('الرقم الضريبي', max_length=15, blank=True)
+    supplier = models.ForeignKey(Supplier, null=True, blank=True, on_delete=models.PROTECT, related_name='users')
+    code = models.CharField('رمز المورد', max_length=30, null=True, blank=True)   # copy of supplier.code
+    tax_no = models.CharField('الرقم الضريبي', max_length=15, blank=True)          # copy of supplier.tax_no
     must_change_password = models.BooleanField(default=False)
     pages = models.JSONField('الصفحات المسموحة', null=True, blank=True)  # None = the role's default pages
     created_at = models.DateTimeField(default=timezone.now)
@@ -29,6 +51,16 @@ class User(AbstractUser):
 
     def __str__(self):
         return f'{self.name} ({self.username})'
+
+    def save(self, *a, **kw):
+        if self.role == self.SUPPLIER and kw.get('update_fields') is None:
+            if self.supplier_id is None and self.code:
+                # an account created with a code but no supplier record (commands, imports): find or create the record
+                self.supplier, _ = Supplier.objects.get_or_create(
+                    code__iexact=self.code, defaults={'name': self.org or self.name, 'code': self.code, 'tax_no': self.tax_no})
+            if self.supplier_id is not None:
+                self.org, self.code, self.tax_no = self.supplier.name, self.supplier.code, self.supplier.tax_no
+        super().save(*a, **kw)
 
 
 def upload_path(instance, filename):

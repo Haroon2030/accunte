@@ -19,11 +19,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import SLA_DAYS, Attachment, Complaint, Message, MatchRequest, Notice, User
-from .permissions import (supplier_or_page, IsAdmin, IsManagerPage, IsMatcherPage, IsStaff, IsSupplier, STAFF_PAGES, SupplierOrManagerPage, IsNoticesPage, SupplierOrNotices, allowed_pages,
+from .models import SLA_DAYS, Attachment, Complaint, Message, MatchRequest, Notice, Supplier, User
+from .permissions import (supplier_or_page, IsAdmin, IsManagerPage, IsMatcherPage, IsStaff, IsSupplier, IsSuppliersPage, CanReadSuppliers, STAFF_PAGES, SupplierOrManagerPage, IsNoticesPage, SupplierOrNotices, allowed_pages,
                           can_view_complaint, can_view_request, roles)
-from .serializers import complaint_out, message_out, notice_out, request_out, user_out
-from .validators import INLINE_TYPES, TAX_RE, check_password_rule, extension_of, normalize_digits, validate_upload
+from .serializers import complaint_out, message_out, notice_out, request_out, supplier_out, user_out
+from .validators import INLINE_TYPES, TAX_RE, MOBILE_RE, check_password_rule, extension_of, normalize_digits, normalize_mobile, validate_upload
 
 USERNAME_RE = re.compile(r'^[a-z0-9._-]{1,30}$')
 REQ_NOTE = {1: 'بدأت المطابقة على كشف الحساب', 2: 'فُتحت قناة المراسلة مع المورد', 3: 'أُغلقت المراسلة وأُنجز الطلب'}
@@ -129,20 +129,41 @@ def clean_user_payload(data, instance=None):
         errors['username'] = 'رقم المستخدم مستخدم لحساب آخر.'
     if role not in dict(User.ROLES):
         errors['role'] = 'دور غير صحيح.'
+    supplier = None
     if role == User.SUPPLIER:
-        if not org:
-            errors['org'] = 'أدخل اسم المورد.'
-        if not code:
-            errors['code'] = 'أدخل رمز المورد.'
-        elif User.objects.filter(code__iexact=code).exclude(pk=getattr(instance, 'pk', None)).exists():
-            errors['code'] = 'رمز المورد مستخدم لمورد آخر.'
-        if tax and not TAX_RE.match(tax):
-            errors['taxNo'] = 'الرقم الضريبي 15 رقماً.'
+        sid = str(data.get('supplierId') or '')
+        if sid:
+            # the normal path: the account is linked to a supplier from the supplier data screen
+            supplier = Supplier.objects.filter(pk=sid, is_active=True).first() if sid.isdigit() else None
+            if not supplier and instance and sid.isdigit() and instance.supplier_id == int(sid):
+                supplier = instance.supplier
+            if not supplier:
+                errors['supplierId'] = 'اختر مورداً من بيانات الموردين.'
+        else:
+            # direct entry of the company details (commands and older clients): find or create the supplier record
+            if not org:
+                errors['org'] = 'أدخل اسم المورد.'
+            if not code:
+                errors['code'] = 'أدخل رمز المورد.'
+            elif Supplier.objects.filter(code__iexact=code).exclude(pk=getattr(instance, 'supplier_id', None)).exists():
+                errors['code'] = 'رمز المورد مستخدم لمورد آخر.'
+            if tax and not TAX_RE.match(tax):
+                errors['taxNo'] = 'الرقم الضريبي 15 رقماً.'
+            if not errors:
+                if instance and instance.supplier_id:
+                    supplier = instance.supplier
+                    supplier.name, supplier.code, supplier.tax_no = org, code, tax
+                else:
+                    supplier = Supplier(name=org, code=code, tax_no=tax)
+                supplier.save()
     else:
         org, code, tax = org or 'أسواق الرشيد', '', ''
     if errors:
         raise ValidationError(errors)
-    return {'name': name, 'username': username, 'role': role, 'org': org, 'code': code or None, 'tax_no': tax}
+    out = {'name': name, 'username': username, 'role': role, 'org': org, 'code': code or None, 'tax_no': tax, 'supplier': supplier}
+    if supplier:
+        out.update(org=supplier.name, code=supplier.code, tax_no=supplier.tax_no)
+    return out
 
 
 def clean_pages(data, role, current, editing_self):
@@ -168,7 +189,7 @@ class UsersView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        return Response([user_out(u) for u in User.objects.order_by('name')])
+        return Response([user_out(u) for u in User.objects.select_related('supplier').order_by('name')])
 
     def post(self, request):
         fields = clean_user_payload(request.data)
@@ -592,7 +613,7 @@ class AttachmentDownloadView(APIView):
 
 # ------------------------------------------------------------------ supplier notices (simple tax invoices)
 def notice_qs():
-    return Notice.objects.select_related('supplier', 'issued_by')
+    return Notice.objects.select_related('supplier__supplier', 'issued_by')
 
 
 def get_notice(user, pk):
@@ -631,7 +652,7 @@ def clean_notice_items(raw):
     return out
 
 
-BUYER_FIELDS = ('name', 'building', 'street', 'district', 'city', 'country', 'postal', 'additional', 'vat', 'crn', 'otherId')
+BUYER_FIELDS = ('name', 'building', 'street', 'district', 'city', 'country', 'postal', 'additional', 'vat', 'crn', 'otherId', 'mobile')
 
 
 def clean_buyer(raw):
@@ -664,8 +685,74 @@ class SuppliersView(APIView):
     permission_classes = [IsNoticesPage]
 
     def get(self, request):
-        return Response([{'id': u.pk, 'name': u.org or u.name, 'taxNo': u.tax_no, 'code': u.code or ''}
-                         for u in User.objects.filter(role=User.SUPPLIER, is_active=True).order_by('org', 'name')])
+        return Response([{'id': u.pk, 'name': u.org or u.name, 'taxNo': u.tax_no, 'code': u.code or '',
+                          'mobile': u.supplier.mobile if u.supplier_id else '', 'account': u.name}
+                         for u in User.objects.filter(role=User.SUPPLIER, is_active=True).select_related('supplier').order_by('org', 'name')])
+
+
+def clean_supplier_payload(data, instance=None):
+    errors = {}
+    name = (data.get('name') or '').strip()
+    code = (data.get('code') or '').strip()
+    tax = normalize_digits(data.get('taxNo'))
+    mobile = normalize_mobile(data.get('mobile'))
+    if not name:
+        errors['name'] = 'أدخل اسم المورد.'
+    if not code:
+        errors['code'] = 'أدخل رمز المورد.'
+    elif Supplier.objects.filter(code__iexact=code).exclude(pk=getattr(instance, 'pk', None)).exists():
+        errors['code'] = 'رمز المورد مستخدم لمورد آخر.'
+    if tax and not TAX_RE.match(tax):
+        errors['taxNo'] = 'الرقم الضريبي 15 رقماً.'
+    if mobile and not MOBILE_RE.match(mobile):
+        errors['mobile'] = 'رقم الجوال 10 أرقام ويبدأ بـ 05.'
+    if errors:
+        raise ValidationError(errors)
+    return {'name': name[:200], 'code': code[:30], 'tax_no': tax, 'mobile': mobile}
+
+
+class SupplierDataView(APIView):
+    """Supplier master data. Everyone who needs to pick a supplier can read it; only the suppliers page edits it."""
+    permission_classes = [CanReadSuppliers]
+
+    def get(self, request):
+        qs = Supplier.objects.annotate(n_users=Count('users')).order_by('name')
+        return Response([supplier_out(s, s.n_users) for s in qs])
+
+    @transaction.atomic
+    def post(self, request):
+        if 'suppliers' not in allowed_pages(request.user):
+            raise PermissionDenied('ليست لديك صلاحية لهذه الصفحة.')
+        s = Supplier.objects.create(**clean_supplier_payload(request.data))
+        return Response(supplier_out(s, 0), status=201)
+
+
+class SupplierDataDetailView(APIView):
+    permission_classes = [IsSuppliersPage]
+
+    @staticmethod
+    def _get(pk):
+        s = Supplier.objects.filter(pk=pk).first()
+        if not s:
+            raise NotFound('المورد غير موجود.')
+        return s
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        s = self._get(pk)
+        for k, v in clean_supplier_payload(request.data, s).items():
+            setattr(s, k, v)
+        if 'active' in request.data:
+            s.is_active = bool(request.data.get('active'))
+        s.save()                         # also refreshes the company details copied into its accounts
+        return Response(supplier_out(s))
+
+    def delete(self, request, pk):
+        s = self._get(pk)
+        if s.users.exists():
+            raise ValidationError({'detail': 'هذا المورد مرتبط بحسابات مستخدمين، فلا يمكن حذفه. أوقفه بدلاً من ذلك، أو افصل حساباته أولاً.'})
+        s.delete()
+        return Response(status=204)
 
 
 class NoticesView(APIView):

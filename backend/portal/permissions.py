@@ -2,14 +2,14 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 
 from .models import User
 
-PAGE_KEYS = ('supplier', 'matcher', 'manager', 'recon', 'notices', 'users')
-STAFF_PAGES = ('matcher', 'manager', 'recon', 'notices', 'users')
+PAGE_KEYS = ('supplier', 'matcher', 'manager', 'recon', 'notices', 'suppliers', 'users')
+STAFF_PAGES = ('matcher', 'manager', 'recon', 'notices', 'suppliers', 'users')
 ROLE_PAGES = {
     User.SUPPLIER: ['supplier'],
     User.MATCHER: ['matcher', 'recon'],
     User.SUPERVISOR: ['matcher', 'recon'],      # the requests queue; only the supervisor receives and assigns
-    User.MANAGER: ['matcher', 'manager', 'recon', 'notices'],
-    User.ADMIN: ['matcher', 'manager', 'recon', 'notices', 'users'],
+    User.MANAGER: ['matcher', 'manager', 'recon', 'notices', 'suppliers'],
+    User.ADMIN: ['matcher', 'manager', 'recon', 'notices', 'suppliers', 'users'],
 }
 
 
@@ -69,6 +69,8 @@ IsManagerPage = has_page('manager')
 SupplierOrManagerPage = supplier_or_page('manager')
 IsSupplier = roles(User.SUPPLIER)
 IsNoticesPage = has_page('notices')
+IsSuppliersPage = has_page('suppliers')
+CanReadSuppliers = has_page('suppliers', 'users', 'notices')   # the supplier list feeds the users form and the notices form
 SupplierOrNotices = supplier_or_page('notices')
 
 
