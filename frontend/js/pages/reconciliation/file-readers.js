@@ -34,6 +34,43 @@ function rcWithTimeout(promise, ms, msg) {
   return Promise.race([promise, new Promise(function (_, rej) { setTimeout(function () { rej(new Error(msg)); }, ms); })]);
 }
 
+/* text items from pdf.js often come one glyph at a time (Arabic presentation forms, split runs). Join the pieces that touch
+   on the same line into words, normalise the forms (NFKC) and split a side label off an amount ("58,650.00 مدين") */
+const RC_SIDE_RE = /^(مدين|دائن)$/;
+function rcMergeRuns(items) {
+  const sorted = items.map(function (it) { return Object.assign({}, it, { str: it.str.normalize('NFKC') }); })
+    .filter(function (it) { return it.str.trim(); })
+    .sort(function (a, b) { return a.y - b.y || a.x0 - b.x0; });
+  const runs = [];
+  sorted.forEach(function (it) {
+    const run = runs[runs.length - 1];
+    if (run && Math.abs(it.y - run.y) <= Math.max(it.h, 6) * 0.5) run.items.push(it);
+    else runs.push({ y: it.y, items: [it] });
+  });
+  const arabic = /[؀-ۿ]/;
+  const out = [];
+  runs.forEach(function (run) {
+    /* a run is only ever one word: pieces that touch are glued, and a gap wider than a space starts a new word */
+    const groups = [];
+    /* only pieces of one word glue: same script, no digits, touching (a column edge or a number always starts a new cell) */
+    const scriptOf = function (t) { return /\d/.test(t) ? 'dg' : arabic.test(t) ? 'ar' : /[A-Za-z]/.test(t) ? 'la' : 'ot'; };
+    run.items.forEach(function (it) {
+      const g = groups[groups.length - 1];
+      const sc = scriptOf(it.str);
+      if (g && (sc === 'ar' || sc === 'la') && g.sc === sc && it.x0 - g.x1 <= Math.max(it.h, 6) * 0.12) g.items.push(it), g.x1 = Math.max(g.x1, it.x1);
+      else groups.push({ items: [it], x0: it.x0, x1: it.x1, sc: sc });
+    });
+    groups.forEach(function (g) {
+      const parts = g.items.slice().sort(function (a, b) { return g.sc === 'ar' ? b.x1 - a.x1 : a.x0 - b.x0; });
+      let str = parts.map(function (i) { return i.str; }).join('').replace(/\s+/g, ' ').trim();
+      str = str.replace(/^(-?[\d,]+\.\d{2})\s*(مدين|دائن)$/, '$1');
+      if (!str) return;
+      out.push({ str: str, x0: g.x0, x1: g.x1, y: run.y, h: Math.max.apply(null, g.items.map(function (i) { return i.h; })) });
+    });
+  });
+  return out;
+}
+
 /* text items {str,x0,x1,y,h} (from a PDF page or OCR) -> table rows aligned to the header columns */
 function rcItemsToRows(items) {
   if (!items.length) return [];
@@ -106,6 +143,7 @@ function rcPdfStatement(items) {
     if (RC_DATE_TOK.test(it.str)) return 'date';
     if (RC_MONEY_TOK.test(it.str)) return 'money';
     if (RC_INT_TOK.test(it.str)) return 'int';
+    if (RC_SIDE_RE.test(it.str)) return 'side';
     return 'text';
   };
   lines.forEach(function (ln) {
@@ -295,7 +333,7 @@ async function rcReadPdf(f, onStatus) {
   const lib = window.pdfjsLib;
   lib.GlobalWorkerOptions.workerSrc = RC_LIBS.pdf.replace('pdf.min.js', 'pdf.worker.min.js');
   const pdf = await lib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
-  const items = [];
+  let items = [];
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     const vp = page.getViewport({ scale: 1 });
@@ -307,6 +345,7 @@ async function rcReadPdf(f, onStatus) {
       items.push({ str: str, x0: it.transform[4], x1: it.transform[4] + it.width, y: vp.height - it.transform[5] + p * 10000, h: Math.abs(it.transform[3]) || 10 });
     });
   }
+  items = rcMergeRuns(items);
   if (items.length >= 15) {
     const st = rcPdfStatement(items);
     if (st) return { rows: st, source: 'pdf', note: pdf.numPages + ' صفحة · كشف حساب مُحلَّل: ' + (st.length - 1) + ' حركة' };
