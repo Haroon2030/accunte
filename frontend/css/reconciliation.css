@@ -67,3 +67,8 @@
 
 @media print { .rc-annex td .sub { color: #444; font-size: 7.5pt; } .rc-annex table { font-size: 8pt; } }
 @media print { .rc-result, .rc-result.stack { display: block !important; } .rc-result > * { margin-bottom: 12px; } .rc-annex { break-before: page; page-break-before: always; } }
+
+/* the statement preview inside a side card: one line per row, so the 8 rows stay compact */
+.rc-side .dtbox .dt td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 96px; padding: 5px 4px; font-size: .76rem; }
+.rc-side .dtbox .dt th { padding: 6px 4px; font-size: .72rem; }
+.rc-side .dtbox .dt th .thbtn, .rc-side .dtbox .dt th .thlabel { white-space: nowrap; }
