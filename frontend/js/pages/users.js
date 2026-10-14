@@ -218,15 +218,5 @@ function UsersPage(props) {
       div({ className: 'formactions' },
         button({ type: 'submit', className: 'btn primary' }, formV.id ? 'حفظ التعديلات' : 'إضافة المستخدم'),
         button({ type: 'button', className: 'btn ghost', onClick: closeForm }, 'إلغاء'))) : null,
-    usersList,
-    section({ className: 'permwrap' },
-      div({ className: 'permhead' }, h3(null, 'الصلاحيات الافتراضية للأدوار'), p({ className: 'muted small' }, 'تُطبَّق عند إنشاء المستخدم، ويمكن تخصيصها لأي مستخدم من نموذج التعديل.')),
-      div({ className: 'tablewrap' }, table({ className: 'dt matrix' },
-        thead(null, tr(null, th({ scope: 'col' }, 'الصفحة'), Object.keys(ROLE_LABEL).map(function (r) { return th({ key: r, scope: 'col' }, span({ className: 'rolepill ' + r }, ROLE_LABEL[r])); }))),
-        tbody(null, Object.keys(PAGE_LABEL).map(function (k) {
-          return tr({ key: k }, td(null, PAGE_LABEL[k]), Object.keys(ROLE_LABEL).map(function (r) {
-            const ok = ROLE_PAGES[r].indexOf(k) !== -1;
-            return td({ key: r }, ok ? span({ className: 'perm yes', role: 'img', 'aria-label': 'مسموح' }, h(Icon, { name: 'check', size: 14 })) : span({ className: 'perm no', role: 'img', 'aria-label': 'غير مسموح' }, '—'));
-          }));
-        }))))));
+    usersList);
 }
