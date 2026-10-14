@@ -64,7 +64,7 @@ function NoticeSheet(props) {
           ed ? select({ className: 'nt-in', 'aria-label': 'طريقة الدفع', value: ed.d.paymentMethod, onChange: function (e) { ed.set('paymentMethod', e.target.value); } }, NT_METHODS.map(function (m) { return option({ key: m, value: m }, m); }))
             : strong({ className: 'nt-pm' }, n.paymentMethod))),
       div({ className: 'nt-mid' },
-        div({ className: 'nt-title' }, strong(null, 'فاتورة ضريبية مبسطة'), strong(null, 'Simple Tax Invoice')),
+        div({ className: 'nt-title' }, strong(null, 'إشعار مدين'), strong(null, 'Debit Note')),
         div({ className: 'nt-page' }, 'Page', span(null, '1 of 1'))),
       div({ className: 'nt-qr', dangerouslySetInnerHTML: { __html: qr } })),
     div({ className: 'nt-parties' },
