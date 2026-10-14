@@ -258,14 +258,14 @@ function App() {
   else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq, onDelete: user.role === 'admin' ? removeRecord : undefined });
   else body = h(Dashboard, { onDelete: user.role === 'admin' ? removeRecord : undefined, reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });
 
-  return div(null,
-    header({ className: 'topbar' }, div({ className: 'gutter topin' }, h(Brand),
-      div({ className: 'topend' },
-        allowed.length > 1 ? div({ className: 'seg', role: 'group', 'aria-label': 'صفحات النظام' }, allowed.map(function (k) {
-          return button({ key: k, 'aria-pressed': role === k, onClick: function () { changeRole(k); } }, ROLE_NAME[k], h(Badge, { n: roleUnread[k] || 0 }));
-        })) : null,
-        div({ className: 'uchip' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
-          button({ type: 'button', onClick: logout }, 'خروج'))))),
+  /* the navigation sits in a column beside the content (the right side in RTL); on narrow screens it stacks above */
+  return div({ className: 'appshell' },
+    header({ className: 'appside' }, h(Brand),
+      allowed.length > 1 ? div({ className: 'seg sidenav', role: 'group', 'aria-label': 'صفحات النظام' }, allowed.map(function (k) {
+        return button({ key: k, 'aria-pressed': role === k, onClick: function () { changeRole(k); } }, ROLE_NAME[k], h(Badge, { n: roleUnread[k] || 0 }));
+      })) : null,
+      div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
+        button({ type: 'button', onClick: logout }, 'خروج'))),
     main({ className: 'gutter page', id: 'main', tabIndex: -1 }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'notices' ? 'إصدار الإشعارات الضريبية للموردين وتعديلها وطباعتها' : (role === 'suppliers' ? 'التهيئة الأساسية لبيانات الموردين' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))))), body),
     toast ? div({ className: 'toast', role: 'status' }, toast) : null);
 }

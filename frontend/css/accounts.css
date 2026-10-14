@@ -23,7 +23,6 @@ input.ltr { direction: ltr; text-align: start; }
 .uchip .un small { color: var(--ink-3); font-size: .72rem; }
 .uchip button { border: 0; background: #FFFFFF; border: 1px solid var(--line); color: var(--ink); padding: 6px 12px; min-height: 32px; border-radius: 999px; font-weight: 500; }
 .uchip button:hover { background: var(--icon-soft); }
-.topend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .ustats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
 .ustat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; box-shadow: var(--shadow); }
 .ustat b { display: block; font: 600 1.5rem var(--f-display); color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -152,13 +151,8 @@ input.ltr { direction: ltr; text-align: start; }
   .perm { width: 24px; height: 24px; }
 }
 
-/* ---------- top bar on small screens: brand + account on one row, page tabs full width below ---------- */
+/* ---------- navigation column: account chip and page buttons on small screens ---------- */
 @media (max-width: 860px) {
-  .topin { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding-block: 8px; }
-  .topin .brand { grid-area: 1 / 1; font-size: 1rem; min-width: 0; }
-  .topend { display: contents; }
-  .topend .uchip { grid-area: 1 / 2; padding: 2px 3px 2px 8px; gap: 8px; }
-  .topend .seg { grid-area: 2 / 1 / 3 / 3; width: 100%; }
   .seg button { flex: 1 1 0; min-width: 0; padding: 6px 6px; font-size: .86rem; line-height: 1.25; }
   .uchip .un { max-width: 120px; }
   .uchip .un span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -216,7 +210,7 @@ input.ltr { direction: ltr; text-align: start; }
 .uchip button { border: 0; background: var(--surface-2); color: var(--ink-2); padding: 6px 14px; min-height: 34px; font-weight: 600; transition: background-color .15s, color .15s; }
 .uchip button:hover { background: var(--bad-soft); color: var(--bad); }
 .uchip button:focus-visible { outline-offset: 1px; }
-@media (max-width: 860px) { .topend .uchip { padding: 2px 2px 2px 3px; gap: 8px; } .uchip .av { width: 32px; height: 32px; } .uchip button { padding: 4px 12px; min-height: 32px; } }
+@media (max-width: 860px) { .sideuser { padding: 2px 2px 2px 3px; gap: 8px; } .uchip .av { width: 32px; height: 32px; } .uchip button { padding: 4px 12px; min-height: 32px; } }
 
 /* ---------- statement reconciliation page ---------- */
 .rc-side { background: var(--surface); }

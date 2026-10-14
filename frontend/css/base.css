@@ -43,9 +43,21 @@ p { margin: 0; }
 .ic { flex: none; }
 
 .gutter { width: 100%; max-width: 1180px; margin-inline: auto; padding-inline: 16px; }
-.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: #FFFFFF; color: var(--ink); border-bottom: 1px solid var(--line); box-shadow: 0 2px 12px rgba(62, 116, 224, .08); }
-.topbar .who { color: var(--ink-2); }
-.topin { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding-block: 10px; }
+/* app shell: the navigation is a column beside the content (the right side in RTL); on narrow screens it stacks above */
+.appshell { display: grid; grid-template-columns: 250px minmax(0, 1fr); align-items: start; min-height: 100vh; }
+.appshell > main { min-width: 0; }
+.appside { position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 18px 14px; background: #FFFFFF; color: var(--ink); border-inline-start: 1px solid var(--line); box-shadow: 0 2px 12px rgba(62, 116, 224, .08); }
+.appside .brand { padding-inline: 6px; }
+.appside .sidenav { flex-direction: column; align-items: stretch; border-radius: var(--r-md); }
+.appside .sidenav button { width: 100%; display: flex; align-items: center; justify-content: space-between; text-align: start; border-radius: 10px; }
+.appside .sideuser { width: 100%; justify-content: space-between; margin-top: auto; }
+@media (max-width: 860px) {
+  .appshell { grid-template-columns: minmax(0, 1fr); }
+  .appside { position: sticky; top: 0; z-index: 5; height: auto; overflow: visible; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 16px; border-inline-start: 0; border-bottom: 1px solid var(--line); }
+  .appside .sidenav { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; }
+  .appside .sidenav button { width: auto; flex: 1 1 auto; justify-content: center; padding: 8px 12px; }
+  .appside .sideuser { width: auto; margin-top: 0; margin-inline-start: auto; }
+}
 .brand { display: flex; align-items: center; gap: 10px; font: 600 1.05rem var(--f-display); }
 .brand svg { color: var(--icon); }
 .ic { color: var(--icon); }

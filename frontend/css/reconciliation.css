@@ -35,7 +35,7 @@
 .rc-raw table { min-width: 0; font-size: .8rem; } .rc-raw td { padding: 4px 8px; white-space: nowrap; }
 .printonly { display: none; }
 @media print {
-  .topbar, .foot, .noprint, .toast { display: none !important; }
+  .appside, .foot, .noprint, .toast { display: none !important; }
   .printonly { display: block !important; }
   body { background: #fff; color: #000; font-size: 12px; }
   .page { padding: 0; }
