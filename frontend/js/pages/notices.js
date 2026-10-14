@@ -134,8 +134,7 @@ function NoticeView(props) {
       div({ className: 'rc-acts' },
         draft ? [button({ key: 's', type: 'button', className: 'btn primary sm', disabled: busy, onClick: save }, h(Icon, { name: 'check', size: 16 }), busy ? 'جارٍ الحفظ…' : 'حفظ التعديلات'),
           button({ key: 'c', type: 'button', className: 'btn ghost sm', onClick: function () { setDraft(null); setError(''); } }, 'إلغاء')]
-          : [props.canEdit ? button({ key: 'e', type: 'button', className: 'btn ghost sm', onClick: function () { setDraft(ntDraftOf(n)); } }, h(Icon, { name: 'pencil', size: 16 }), 'تعديل الإشعار') : null,
-            button({ key: 'p', type: 'button', className: 'btn primary sm', onClick: function () { try { rcPrint(false); } catch (e) { props.onToast('الطباعة غير متاحة في هذه النافذة. افتح الموقع في Chrome واطبع منه.'); } } }, h(Icon, { name: 'print', size: 16 }), 'طباعة / PDF')])),
+          : null)),
     error ? div({ className: 'err noprint', role: 'alert' }, error) : null,
     draft ? div({ className: 'note noprint' }, 'وضع التعديل: غيّر الكمية أو سعر الوحدة أو الخصم أو بيانات العميل مباشرة في الإشعار، وتتحدث المبالغ والضريبة والإجمالي ورمز QR فوراً. اضغط «حفظ التعديلات» لاعتمادها.') : null,
     h(NoticeSheet, { n: shown, edit: ed }));
