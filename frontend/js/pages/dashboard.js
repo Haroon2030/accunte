@@ -24,12 +24,12 @@ function UnifiedTable(props) {
       return div({ className: 'cell-status' }, h(StatusPill, { st: stOf(r) }), !isComplaint(r) && isLate(r) ? h(LateChip) : null);
     } },
     { key: 'matcher', label: 'المطابق', filter: 'select', fv: function (r) { return isComplaint(r) ? '—' : (r.matcher || 'لم يُوزَّع بعد'); }, val: function (r) { return isComplaint(r) ? '' : (r.matcher || ''); }, render: function (r) { return isComplaint(r) ? span({ className: 'muted' }, '—') : (r.matcher || span({ className: 'muted' }, 'لم يُوزَّع بعد')); } },
-    { key: 'due', label: 'الموعد المستهدف', val: function (r) { return isComplaint(r) ? 0 : r.due.getTime(); }, render: function (r) { return isComplaint(r) ? span({ className: 'muted' }, '—') : dueText(r); } },
-    { key: 'updated', label: 'آخر تحديث', val: function (r) { return (isComplaint(r) ? r.created : lastTouch(r)).getTime(); }, render: function (r) { return since(isComplaint(r) ? r.created : lastTouch(r)); } },
+    { key: 'due', label: 'الموعد المستهدف', val: function (r) { return isComplaint(r) ? 0 : r.due.getTime(); }, xl: function (r) { return isComplaint(r) ? '' : xlDate(r.due); }, render: function (r) { return isComplaint(r) ? span({ className: 'muted' }, '—') : dueText(r); } },
+    { key: 'updated', label: 'آخر تحديث', val: function (r) { return (isComplaint(r) ? r.created : lastTouch(r)).getTime(); }, xl: function (r) { return xlDate(isComplaint(r) ? r.created : lastTouch(r)); }, render: function (r) { return since(isComplaint(r) ? r.created : lastTouch(r)); } },
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (r) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(r), h(Badge, { n: unreadOf(r, role, props.seen) })); } },
     openCol(props.onDelete)
   ];
-  return h(DataTable, { cols: defs, rows: props.rows, onOpen: props.onOpen, rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
+  return h(DataTable, { cols: defs, rows: props.rows, onOpen: props.onOpen, exportName: 'طلبات-ومطابقات', rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
 }
 
 function Dashboard(props) {

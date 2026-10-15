@@ -110,7 +110,7 @@ function RcSide(props) {
         side.rows.filter(function (r) { return (r || []).some(function (c) { return String(c == null ? '' : c).trim(); }); }).slice(0, 12).map(function (r, i) {
           return tr({ key: i }, (r || []).slice(0, 8).map(function (c, j) { return td({ key: j }, c instanceof Date ? fmtDate(c) : String(c == null ? '' : c).slice(0, 40)); }));
         })))) : null,
-      led && led.lines.length ? h(DataTable, { cols: RC_LINE_COLS, rows: led.lines.map(function (l) { return Object.assign({ id: 'L' + l.n }, l); }) }) : null) : null,
+      led && led.lines.length ? h(DataTable, { cols: RC_LINE_COLS, exportName: 'بنود-الكشف', rows: led.lines.map(function (l) { return Object.assign({ id: 'L' + l.n }, l); }) }) : null) : null,
     div({ className: 'rc-paste' },
       button({ type: 'button', className: 'btn ghost sm', onClick: function () { setPasteOpen(!pasteOpen); } }, pasteOpen ? 'إخفاء اللصق' : 'أو الصق الجدول يدوياً'),
       pasteOpen ? div({ className: 'stack' },

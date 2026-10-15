@@ -203,12 +203,12 @@ function NoticeTable(props) {
   const defs = [
     { key: 'id', label: 'رقم الإشعار', filter: 'text', val: function (n) { return n.id; }, render: function (n) { return span({ className: 'mono' }, n.id); } },
     { key: 'supplier', label: 'المورد', filter: 'text', val: function (n) { return n.supplier; }, render: function (n) { return strong({ style: { fontWeight: 600 } }, n.supplier); } },
-    { key: 'date', label: 'التاريخ', val: function (n) { return new Date(n.issuedAt).getTime(); }, render: function (n) { return fmtDate(new Date(n.issuedAt)); } },
+    { key: 'date', label: 'التاريخ', val: function (n) { return new Date(n.issuedAt).getTime(); }, xl: function (n) { return xlDate(new Date(n.issuedAt)); }, render: function (n) { return fmtDate(new Date(n.issuedAt)); } },
     { key: 'desc', label: 'البيان', filter: 'text', val: function (n) { return n.description || n.items[0].name; }, render: function (n) { return (n.description || n.items[0].name).slice(0, 70); } },
-    { key: 'total', label: 'الإجمالي (ر.س)', val: function (n) { return n.total; }, render: function (n) { return span({ className: 'mono' }, ntNum(n.total)); } },
+    { key: 'total', label: 'الإجمالي (ر.س)', val: function (n) { return n.total; }, num: true, render: function (n) { return span({ className: 'mono' }, ntNum(n.total)); } },
     openCol(props.onDelete)
   ];
-  return h(DataTable, { cols: props.hide ? defs.filter(function (c) { return props.hide.indexOf(c.key) === -1; }) : defs, rows: props.rows, onOpen: props.onOpen, defaultSort: { key: 'date', dir: 'desc' }, empty: 'لا توجد إشعارات بعد.' });
+  return h(DataTable, { cols: props.hide ? defs.filter(function (c) { return props.hide.indexOf(c.key) === -1; }) : defs, rows: props.rows, onOpen: props.onOpen, defaultSort: { key: 'date', dir: 'desc' }, exportName: 'الإشعارات', empty: 'لا توجد إشعارات بعد.' });
 }
 
 /* shared by the staff page and the supplier panel: the list, or one notice ready to print */

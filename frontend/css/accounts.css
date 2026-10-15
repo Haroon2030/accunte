@@ -189,7 +189,9 @@ input.ltr { direction: ltr; text-align: start; }
 .dtbox .dt td .btn.sm, .dtbox .dt td .abtn { min-height: 32px; padding-inline: 8px; }
 .dtbox .dt td .abl { display: none; }
 .dtbox .thslot { min-width: 0; width: 100%; }
-.dtsearch { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.dtsearch { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 8px; }
+.dtsearch .dtq { flex: 1 1 240px; max-width: 420px; }
+.dtsearch .dtxl { flex: none; min-height: 36px; }
 .dtq { width: min(320px, 100%); min-height: 36px; padding: 6px 12px; border: 1px solid #B7C9E8; border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: .88rem; }
 .dtq:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .dtbox .dt td.rownum, .dtbox .dt th:first-child { width: 34px; min-width: 0; padding-inline: 2px; text-align: center; color: var(--ink-3); font-variant-numeric: tabular-nums; }

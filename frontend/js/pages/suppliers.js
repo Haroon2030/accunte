@@ -143,6 +143,6 @@ function SuppliersPage(props) {
       div({ className: 'formactions' },
         button({ type: 'submit', className: 'btn primary', disabled: busy }, formV.id ? 'حفظ التعديلات' : 'إضافة المورد'),
         button({ type: 'button', className: 'btn ghost', onClick: closeForm }, 'إلغاء'))) : null,
-    h(DataTable, { cols: cols, rows: list, onOpen: canEdit ? function (id) { const s = list.filter(function (x) { return x.id === id; })[0]; if (s) openForm(s); } : undefined,
+    h(DataTable, { cols: cols, rows: list, exportName: 'بيانات-الموردين', onOpen: canEdit ? function (id) { const s = list.filter(function (x) { return x.id === id; })[0]; if (s) openForm(s); } : undefined,
       empty: 'لا يوجد موردون بعد. أضف أول مورد من زر «مورد جديد».', defaultSort: { key: 'name', dir: 'asc' } }));
 }

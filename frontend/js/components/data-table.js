@@ -8,6 +8,45 @@ function pageList(cur, pages) {
   for (let p = from; p <= to; p++) out.push(p);
   return out;
 }
+/* Excel export of a table: every row that the filters, search and sort leave (not only the visible page).
+   Columns are the table's own columns, in order; the row number and the action column are left out.
+   A column may give `xl(row)` for the raw value (dates, amounts); `num: true` formats the column as a number. */
+function xlDate(d) {
+  const p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function exportTableXlsx(fileName, cols, rows) {
+  return rcLoad('xlsx').then(function () {
+    const xc = cols.filter(function (c) { return c.key !== 'num' && c.key !== 'open' && c.label; });
+    const cell = function (c, r) {
+      if (c.xl) return c.xl(r);
+      if (c.fv) return c.fv(r) != null ? String(c.fv(r)) : '';
+      if (c.val) { const v = c.val(r); return typeof v === 'number' ? v : (v != null ? String(v) : ''); }
+      return '';
+    };
+    const body = rows.map(function (r) { return xc.map(function (c) { return cell(c, r); }); });
+    const aoa = [xc.map(function (c) { return c.label; })].concat(body);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    /* column widths follow the longest value (header included), within a readable range */
+    ws['!cols'] = xc.map(function (c, ci) {
+      const longest = aoa.reduce(function (m, row) { const t = row[ci] == null ? '' : String(row[ci]); return Math.max(m, t.length); }, 0);
+      return { wch: Math.min(Math.max(longest + 3, 10), 46) };
+    });
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: Math.max(xc.length - 1, 0) } }) };
+    xc.forEach(function (c, ci) {
+      if (!c.num) return;
+      for (let ri = 1; ri < aoa.length; ri++) {
+        const a = XLSX.utils.encode_cell({ r: ri, c: ci });
+        if (ws[a] && typeof ws[a].v === 'number') ws[a].z = '#,##0.00';
+      }
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
+    wb.Workbook = { Sheets: [{ RTL: true }], Views: [{ RTL: true }] };   /* right-to-left sheet, as the app */
+    XLSX.writeFile(wb, fileName);
+  });
+}
+
 function DataTable(props) {
   const [sort, setSort] = useState(props.defaultSort || null);
   const [flt, setFlt] = useState({});
@@ -73,7 +112,10 @@ function DataTable(props) {
       cols.filter(function (c) { return c.filter; }).map(function (c) { return div({ key: c.key, className: 'tfield' }, label(null, c.label), filterCell(c)); })) : null) : null;
   return div({ className: 'dtbox' },
     div({ className: 'dtsearch' }, input({ type: 'search', className: 'dtq', 'aria-label': 'بحث في الجدول', placeholder: 'بحث في الجدول…', value: q,
-      onChange: function (e) { setQ(e.target.value); setPage(1); } })),
+      onChange: function (e) { setQ(e.target.value); setPage(1); } }),
+      button({ type: 'button', className: 'btn ghost sm dtxl', disabled: !rows.length, title: 'تصدير الصفوف الظاهرة بعد التصفية والبحث إلى Excel',
+        onClick: function () { const d = new Date(); exportTableXlsx((props.exportName || 'بيانات') + '-' + xlDate(d) + '.xlsx', cols, rows).catch(function () { if (props.onToast) props.onToast('تعذّر تصدير الملف. تأكد من الاتصال بالإنترنت وأعد المحاولة.'); }); } },
+        h(Icon, { name: 'download', size: 15 }), 'تصدير Excel')),
     phoneTools,
     div({ className: 'tablewrap' },
       table({ className: 'dt' },
