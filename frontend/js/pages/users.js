@@ -7,17 +7,10 @@ function UsersPage(props) {
   const [errs, setErrs] = useState({});
   const [confirm, setConfirm] = useState(null);
   const [temp, setTemp] = useState(null);
-  const [q, setQ] = useState('');
-  const [roleF, setRoleF] = useState('');
-  const [statF, setStatF] = useState('');
-  const [nameF, setNameF] = useState('');
-  const [orgF, setOrgF] = useState('');
-  const [sort, setSort] = useState({ key: 'name', dir: 'asc' });
   const baseRef = useRef('');
   const users = props.users;
   const canManage = function (x) { return me.role === 'admin' || x.role !== 'admin'; };
   const roleOpts = me.role === 'admin' ? ['supplier', 'matcher', 'supervisor', 'manager', 'admin'] : ['supplier', 'matcher', 'supervisor', 'manager'];
-  const normDigits = function (v) { return String(v || '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); }).replace(/\s/g, ''); };
   const count = function (f) { return users.filter(f).length; };
   const setF = function (k, v) { setFormV(function (o) { const n = Object.assign({}, o); n[k] = v; return n; }); };
   function openNew() { setTemp(null); setConfirm(null); setErrs({}); const f = Object.assign({}, EMPTY_FORM, { password: genPass() }); baseRef.current = JSON.stringify(f); setFormV(f); }
@@ -94,81 +87,37 @@ function UsersPage(props) {
   const togglePage = function (k, on) {
     setFormV(function (o) { const set = (o.pages || []).filter(function (p) { return p !== k; }); if (on) set.push(k); return Object.assign({}, o, { pages: STAFF_PAGE_KEYS.filter(function (p) { return set.indexOf(p) !== -1; }) }); });
   };
-  const hay = function (list) { return list.join(' ').toLowerCase(); };
-  const needle = normDigits(q).trim().toLowerCase(), nameN = normDigits(nameF).trim().toLowerCase(), orgN = normDigits(orgF).trim().toLowerCase();
   const ROLE_ORDER = { admin: 0, manager: 1, supervisor: 2, matcher: 3, supplier: 4 };
-  const sorters = {
-    name: function (a, b) { return String(a.name).localeCompare(String(b.name), 'ar'); },
-    role: function (a, b) { return ROLE_ORDER[a.role] - ROLE_ORDER[b.role]; },
-    org: function (a, b) { return String(a.org || '').localeCompare(String(b.org || ''), 'ar'); },
-    status: function (a, b) { return (b.active ? 1 : 0) - (a.active ? 1 : 0); },
-    last: function (a, b) { return (a.last ? a.last.getTime() : 0) - (b.last ? b.last.getTime() : 0); }
-  };
-  const shown = users.filter(function (x) {
-    if (roleF && x.role !== roleF) return false;
-    if (statF && (statF === 'active') !== !!x.active) return false;
-    if (nameN && hay([x.name, x.username]).indexOf(nameN) === -1) return false;
-    if (orgN && hay([x.org, x.code, x.taxNo, x.mobile]).indexOf(orgN) === -1) return false;
-    return !needle || hay([x.name, x.username, x.org, x.code, x.taxNo, x.mobile]).indexOf(needle) !== -1;
-  }).sort(function (a, b) { const r = (sorters[sort.key] || sorters.name)(a, b); return sort.dir === 'asc' ? r : -r; });
-  const anyFilter = !!(q || roleF || statF || nameF || orgF);
-  const clearFilters = function () { setQ(''); setRoleF(''); setStatF(''); setNameF(''); setOrgF(''); };
-  const toggleSort = function (k) { setSort(function (o) { return o.key === k ? { key: k, dir: o.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' }; }); };
-  const textF = function (v, set, lbl) { return input({ type: 'text', className: 'thf', placeholder: 'بحث…', 'aria-label': 'تصفية ' + lbl, value: v, onChange: function (e) { set(e.target.value); } }); };
-  const roleSel = function (cls) {
-    return select({ className: cls, 'aria-label': 'تصفية حسب الدور', value: roleF, onChange: function (e) { setRoleF(e.target.value); } },
-      option({ value: '' }, 'كل الأدوار'), Object.keys(ROLE_LABEL).map(function (r) { return option({ key: r, value: r }, ROLE_LABEL[r]); }));
-  };
-  const statSel = function (cls) {
-    return select({ className: cls, 'aria-label': 'تصفية حسب الحالة', value: statF, onChange: function (e) { setStatF(e.target.value); } },
-      option({ value: '' }, 'كل الحالات'), option({ value: 'active' }, 'نشط'), option({ value: 'off' }, 'موقوف'));
-  };
-  const HEAD = [
-    { k: 'name', t: 'المستخدم', f: textF(nameF, setNameF, 'المستخدم') },
-    { k: 'role', t: 'الدور', f: roleSel('thf') },
-    { k: 'org', t: 'الجهة', f: textF(orgF, setOrgF, 'الجهة') },
-    { k: 'status', t: 'الحالة', f: statSel('thf') },
-    { k: 'last', t: 'آخر دخول' },
-    { k: 'act', t: 'إجراءات', nosort: true }
-  ];
   const statusPill = function (x) {
     return span({ className: 'pill ' + (x.active ? (x.mustChange ? 'warn' : 'ok') : 'bad') }, span({ className: 'dot' }), x.active ? (x.mustChange ? 'لم يغيّر كلمة المرور' : 'نشط') : 'موقوف');
   };
-  const userRow = function (x) {
-    return tr({ key: x.id, className: x.active ? '' : 'off' },
-      td({ 'data-label': 'المستخدم' }, div({ className: 'ucell' },
-        span({ className: 'uav ' + x.role, 'aria-hidden': 'true' }, String(x.name).charAt(0)),
-        div({ className: 'utxt' },
-          strong(null, x.name, x.id === me.id ? span({ className: 'you' }, 'أنت') : null),
-          span({ className: 'unum' }, 'رقم ', span({ className: 'mono' }, x.username))))),
-      td({ 'data-label': 'الدور' }, span({ className: 'rolepill ' + x.role }, ROLE_LABEL[x.role]), x.customPages ? span({ className: 'cust', title: 'صفحات مخصّصة: ' + (x.pages || []).map(function (k) { return PAGE_LABEL[k]; }).join('، ') }, 'مخصّص') : null),
-      td({ 'data-label': 'الجهة' }, div({ className: 'utxt' },
-        span(null, x.org || '—'),
-        x.role === 'supplier' && (x.code || x.taxNo) ? span({ className: 'usub' },
-          x.code ? span(null, 'رمز ', span({ className: 'mono' }, x.code)) : null,
-          x.code && x.taxNo ? ' · ' : null,
-          x.taxNo ? span(null, 'ضريبي ', span({ className: 'mono' }, x.taxNo)) : null,
-          x.mobile ? span(null, ' · جوال ', span({ className: 'mono' }, x.mobile)) : null) : null)),
-      td({ 'data-label': 'الحالة' }, statusPill(x)),
-      td({ 'data-label': 'آخر دخول' }, x.last ? since(x.last) : span({ className: 'muted' }, 'لم يدخل بعد')),
-      td({ 'data-label': 'إجراءات', className: 'actcell' }, actions(x)));
-  };
-  const usersList = div({ className: 'ulist' },
-    div({ className: 'utools' },
-      div({ className: 'usearch' }, h(Icon, { name: 'search' }),
-        input({ type: 'search', value: q, placeholder: 'ابحث بالاسم أو الرقم أو الجهة أو رمز المورد', 'aria-label': 'بحث في المستخدمين', onChange: function (e) { setQ(e.target.value); } })),
-      roleSel('tool-mobile'), statSel('tool-mobile'),
-      anyFilter ? button({ type: 'button', className: 'btn ghost sm', onClick: clearFilters }, 'مسح التصفية') : null,
-      span({ className: 'muted small ucount' }, shown.length === users.length ? users.length + ' مستخدم' : shown.length + ' من ' + users.length)),
-    div({ className: 'tablewrap' }, table({ className: 'dt utable' },
-      thead(null, tr(null, HEAD.map(function (c) {
-        const on = sort.key === c.k;
-        return th({ key: c.k, scope: 'col', 'aria-sort': c.nosort ? undefined : (on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none') },
-          div({ className: 'thcell' },
-            c.nosort ? span({ className: 'thlabel' }, c.t) : button({ type: 'button', className: 'thbtn', onClick: function () { toggleSort(c.k); } }, c.t, h(Icon, { name: on ? (sort.dir === 'asc' ? 'up' : 'down') : 'sort', size: 14 })),
-            c.f ? div({ className: 'thslot' }, c.f) : null));
-      }))),
-      tbody(null, shown.length ? shown.map(userRow) : tr(null, td({ colSpan: 6, className: 'empty' }, users.length ? 'لا يوجد مستخدم يطابق التصفية' : 'لا يوجد مستخدمون'))))));
+  /* the shared table does the search, filters, sorting, numbering and export; these are its columns */
+  const cols = [
+    { key: 'name', label: 'المستخدم', filter: 'text', val: function (x) { return x.name; }, fv: function (x) { return x.name + ' ' + x.username; },
+      render: function (x) {
+        return div({ className: 'ucell' },
+          span({ className: 'uav ' + x.role, 'aria-hidden': 'true' }, String(x.name).charAt(0)),
+          div({ className: 'utxt' },
+            strong(null, x.name, x.id === me.id ? span({ className: 'you' }, 'أنت') : null),
+            span({ className: 'unum' }, 'رقم ', span({ className: 'mono' }, x.username))));
+      } },
+    { key: 'role', label: 'الدور', filter: 'select', fv: function (x) { return ROLE_LABEL[x.role]; }, val: function (x) { return ROLE_ORDER[x.role]; },
+      render: function (x) { return [span({ key: 'r', className: 'rolepill ' + x.role }, ROLE_LABEL[x.role]), x.customPages ? span({ key: 'c', className: 'cust', title: 'صفحات مخصّصة: ' + (x.pages || []).map(function (k) { return PAGE_LABEL[k]; }).join('، ') }, 'مخصّص') : null]; } },
+    { key: 'org', label: 'الجهة', filter: 'text', fv: function (x) { return [x.org, x.code, x.taxNo, x.mobile].join(' '); }, val: function (x) { return x.org || ''; },
+      render: function (x) {
+        return div({ className: 'utxt' },
+          span(null, x.org || '—'),
+          x.role === 'supplier' && (x.code || x.taxNo) ? span({ className: 'usub' },
+            x.code ? span(null, 'رمز ', span({ className: 'mono' }, x.code)) : null,
+            x.code && x.taxNo ? ' · ' : null,
+            x.taxNo ? span(null, 'ضريبي ', span({ className: 'mono' }, x.taxNo)) : null,
+            x.mobile ? span(null, ' · جوال ', span({ className: 'mono' }, x.mobile)) : null) : null);
+      } },
+    { key: 'status', label: 'الحالة', filter: 'select', fv: function (x) { return x.active ? 'نشط' : 'موقوف'; }, val: function (x) { return x.active ? 1 : 0; }, render: statusPill },
+    { key: 'last', label: 'آخر دخول', val: function (x) { return x.last ? x.last.getTime() : 0; }, xl: function (x) { return x.last ? xlDate(x.last) : ''; },
+      render: function (x) { return x.last ? since(x.last) : span({ className: 'muted' }, 'لم يدخل بعد'); } },
+    { key: 'act', label: 'إجراءات', render: actions }
+  ];
   const fld = function (id, lbl, ctl, k, hint, cls) {
     return div({ className: 'field' + (cls ? ' ' + cls : '') }, label({ htmlFor: id }, lbl), ctl, errs[k] ? span({ className: 'err', role: 'alert' }, errs[k]) : (hint ? span({ className: 'hint' }, hint) : null));
   };
@@ -218,5 +167,5 @@ function UsersPage(props) {
       div({ className: 'formactions' },
         button({ type: 'submit', className: 'btn primary' }, formV.id ? 'حفظ التعديلات' : 'إضافة المستخدم'),
         button({ type: 'button', className: 'btn ghost', onClick: closeForm }, 'إلغاء'))) : null,
-    usersList);
+    h(DataTable, { cols: cols, rows: users, exportName: 'المستخدمون', rowClass: function (x) { return x.active ? undefined : 'off'; }, empty: 'لا يوجد مستخدمون' }));
 }
