@@ -284,7 +284,7 @@ function RcSheet(props) {
   const shown = list.slice(0, lim);
   const tot = function (f) { return list.reduce(function (t, x) { return t + (f(x) || 0); }, 0); };
   const num = function (v) { return td({ className: 'n' }, v == null ? '' : span({ className: 'mono' }, rcMoney(v))); };
-  const HEAD = ['#', 'الحالة', 'النوع', 'مستند المورد', 'مستند نظامنا', 'التاريخ', 'عند المورد', 'عندنا', 'الفرق', 'السبب والإجراء المقترح'];
+  const HEAD = ['#', 'الحالة', 'النوع', 'مستند المورد', 'مستند نظامنا', 'التاريخ', 'عند المورد', 'عندنا', 'الفرق الحقيقي (المبلغ)', 'فرق التاريخ (يوم)', 'السبب والإجراء المقترح'];
   return div({ className: 'rc-sheetbox' },
     div({ className: 'rc-sheetbar' },
       div({ className: 'usearch' }, h(Icon, { name: 'search' }), input({ type: 'search', value: q, placeholder: 'بحث برقم المستند أو البيان أو السبب', 'aria-label': 'بحث في البنود', onChange: function (e) { setQ(e.target.value); setLim(200); } })),
@@ -293,7 +293,7 @@ function RcSheet(props) {
         Object.keys(RC_STATUS).map(function (k) { const n = props.items.filter(function (i) { return i.status === k; }).length; return n ? option({ key: k, value: k }, RC_STATUS[k].label + ' (' + n + ')') : null; })),
       span({ className: 'muted small' }, list.length + ' صف')),
     div({ className: 'rc-grid' }, table(null,
-      thead(null, tr(null, HEAD.map(function (t, i) { return th({ key: i, scope: 'col', className: i >= 6 && i <= 8 ? 'n' : (i === 0 ? 'rn' : '') }, t); }))),
+      thead(null, tr(null, HEAD.map(function (t, i) { return th({ key: i, scope: 'col', className: i >= 6 && i <= 9 ? 'n' : (i === 0 ? 'rn' : '') }, t); }))),
       tbody(null, shown.length ? shown.map(function (r, i) {
         return tr({ key: r.id, className: 's-' + r.status },
           td({ className: 'rn' }, i + 1),
@@ -303,10 +303,19 @@ function RcSheet(props) {
           td({ className: 'c' }, r.date ? fmtDate(r.date) : ''),
           num(r.amtA), num(r.amtB),
           td({ className: 'n' }, span({ className: 'mono rc-diff' + (Math.abs(r.diff) > 0.005 ? ' off' : '') }, Math.abs(r.diff) < 0.005 ? '' : rcSigned(r.diff))),
+          td({ className: 'n' }, dayGap(r)),
           td({ className: 'why' }, r.reason || ''));
       }) : tr(null, td({ colSpan: HEAD.length, className: 'empty' }, 'لا توجد بنود مطابقة للتصفية'))),
-      tfoot(null, tr(null, td({ colSpan: 6, className: 'tot' }, 'الإجمالي (' + list.length + ' صف)'), num(tot(function (x) { return x.amtA; })), num(tot(function (x) { return x.amtB; })), num(tot(function (x) { return x.diff; })), td(null))))),
+      tfoot(null, tr(null, td({ colSpan: 6, className: 'tot' }, 'الإجمالي (' + list.length + ' صف)'), num(tot(function (x) { return x.amtA; })), num(tot(function (x) { return x.amtB; })), num(tot(function (x) { return x.diff; })), td(null), td(null))))),
     list.length > lim ? div({ className: 'rc-more' }, button({ type: 'button', className: 'btn ghost sm', onClick: function () { setLim(lim + 300); } }, 'عرض المزيد (' + (list.length - lim) + ' صف متبقٍ)')) : null);
+}
+
+/* days between the same movement on the two statements: + means our date is later than theirs */
+function dayGap(r) {
+  if (!r.dateA || !r.dateB) return '';
+  const d = Math.round((r.dateA - r.dateB) / DAY);
+  if (d === 0) return span({ className: 'muted' }, '0');
+  return span({ className: 'mono rc-diff off' }, (d > 0 ? '+' : '') + d);
 }
 
 function ReconTool(props) {
