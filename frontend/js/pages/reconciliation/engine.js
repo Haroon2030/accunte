@@ -384,16 +384,18 @@ const RC_STATUS = {
   amount_diff: { label: 'فرق في المبلغ', tone: 'warn' },
   only_supplier: { label: 'عند المورد فقط', tone: 'bad' },
   only_company: { label: 'عندنا فقط', tone: 'bad' },
-  cancelled: { label: 'قيد ملغى', tone: 'idle' }
+  cancelled: { label: 'قيد ملغى', tone: 'idle' },
+  after_period: { label: 'فرق توقيت (بعد نهاية فترة الكشف)', tone: 'idle' }
 };
 function rcReason(status, kind, diff) {
   if (status === 'matched') return '';
+  if (status === 'after_period') return 'الحركة تقع بعد آخر تاريخ في الكشف الآخر، فلم تصل إليه بعد. فرق توقيت وليس خطأ، وتتسوّى عند استلام الكشف للفترة التالية.';
   if (status === 'cancelled') return 'قيد يعاكسه قيد آخر بالمبلغ نفسه في الكشف ذاته، فصافيهما صفر ولا أثر لهما على الرصيد.';
   if (status === 'matched_amount') return 'نفس المبلغ ولكن رقم المستند مختلف أو غائب. أكّد أنهما بند واحد.';
   if (status === 'amount_diff') return diff > 0 ? 'مبلغ المورد أعلى من مبلغنا. تحقق من خصم تجاري أو ضريبة أو فرق تسعير.' : 'مبلغنا أعلى من مبلغ المورد. تحقق من تسجيل المورد للفاتورة.';
   if (status === 'only_supplier') {
     if (kind === 'invoice') return 'فاتورة عند المورد غير مسجّلة عندنا. تحقق من الاستلام والإدخال.';
-    if (kind === 'payment') return 'دفعة مسجّلة عند المورد غير مسجّلة عندنا. تحقق من السداد.';
+    if (kind === 'payment') return 'دفعة مسجّلة عند المورد غير مسجّلة عندنا. تحقق من السداد، وابحث بالمبلغ والتاريخ في كشوف فروع المورد الأخرى قبل اعتبارها غير مسجّلة.';
     if (kind === 'credit_note') return 'خصم أو إشعار عند المورد غير مسجّل عندنا. اطلب المستند وسجّله.';
     if (kind === 'adjustment') return 'تسوية عند المورد غير مسجّلة عندنا. اطلب تفاصيلها.';
     return 'حركة عند المورد غير مسجّلة عندنا. اطلب التفاصيل.';
@@ -407,6 +409,7 @@ function rcReason(status, kind, diff) {
 /* the kind of open item an entry is: it decides the wording of its diagnosis and the line it belongs to in the settlement */
 function rcCatOf(it) {
   if (it.status === 'matched') return 'matched';
+  if (it.status === 'after_period') return 'timing';
   if (it.status === 'cancelled') return 'cancelled';
   if (it.kind === 'opening') return 'opening';
   if (it.status === 'amount_diff') return 'amount_diff';
@@ -516,14 +519,19 @@ function rcReconcile(A, B, opts) {
   const goneA = cancelled(aLeft, usedA), goneB = cancelled(bLeft, usedB);
   /* an opening balance of zero on one side only is not a difference */
   const zeroOpening = function (l) { return l.kind === 'opening' && Math.abs(l.amount) < 0.005; };
-  aLeft.forEach(function (a) { if (!usedA[a.i] && !zeroOpening(a)) items.push(mkItem(goneA[a.i] ? 'cancelled' : 'only_supplier', a, null)); });
-  bLeft.forEach(function (b) { if (!usedB[b.i] && !zeroOpening(b)) items.push(mkItem(goneB[b.i] ? 'cancelled' : 'only_company', null, b)); });
+  /* a movement dated after the last date of the other statement has not reached it yet: a timing difference */
+  const lastDate = function (lines) { return lines.reduce(function (m, l) { return l.date instanceof Date && (!m || l.date > m) ? l.date : m; }, null); };
+  const lastA = lastDate(aLeft), lastB = lastDate(bLeft);
+  const afterPeriod = function (l, other) { return l.date instanceof Date && other && l.date > other && l.kind !== 'opening'; };
+  aLeft.forEach(function (a) { if (!usedA[a.i] && !zeroOpening(a)) items.push(mkItem(goneA[a.i] ? 'cancelled' : afterPeriod(a, lastB) ? 'after_period' : 'only_supplier', a, null)); });
+  bLeft.forEach(function (b) { if (!usedB[b.i] && !zeroOpening(b)) items.push(mkItem(goneB[b.i] ? 'cancelled' : afterPeriod(b, lastA) ? 'after_period' : 'only_company', null, b)); });
   items.sort(function (x, y) { return (x.date ? x.date.getTime() : 0) - (y.date ? y.date.getTime() : 0) || (x.id < y.id ? -1 : 1); });
 
   /* statement: supplier balance - explained items = company balance (exact by construction) */
   const sumA = A.sum, sumB = B.sum;
   const cat = rcCatOf;
   const CATS = [
+    ['timing', 'فروق توقيت: حركات بعد نهاية فترة الكشف الآخر'],
     ['inv_supplier', 'فواتير في كشف المورد غير مسجّلة عندنا'],
     ['inv_company', 'فواتير عندنا غير ظاهرة في كشف المورد'],
     ['pay_company', 'دفعات سددناها وغير مسجّلة عند المورد'],
@@ -547,7 +555,7 @@ function rcReconcile(A, B, opts) {
   items.forEach(function (it) { counts[it.status] = (counts[it.status] || 0) + 1; });
   return {
     items: items, sumA: sumA, sumB: sumB, diff: sumA - sumB, lines: lines, adjusted: adjusted, unexplained: adjusted - sumB, counts: counts,
-    open: items.filter(function (it) { return it.status !== 'matched' && it.status !== 'cancelled'; }).length
+    open: items.filter(function (it) { return it.status !== 'matched' && it.status !== 'cancelled' && it.status !== 'after_period'; }).length
   };
 }
 /* sample statements (same shape a parsed Excel sheet would have), used by the demo button */

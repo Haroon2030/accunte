@@ -25,6 +25,9 @@ const RC_CARD = {
   adj_company: { title: 'تسوية داخلية لدينا لا تظهر عند المورد', tone: 'blue',
     why: 'قيد داخلي (تكاليف أو مخزون) لا يخص المورد ولا يظهر في كشفه.',
     todo: 'راجعه داخلياً، ولا يُرسل للمورد.' },
+  timing: { title: 'فرق توقيت: حركة بعد نهاية فترة الكشف الآخر', tone: 'blue',
+    why: 'الحركة تقع بعد آخر تاريخ في الكشف الآخر، فلم تصل إليه بعد.',
+    todo: 'لا تعالجها الآن؛ تتسوّى تلقائياً عند استلام الكشف للفترة التالية.' },
   adj_supplier: { title: 'تسوية لدى المورد غير مسجلة لدينا', tone: 'amber',
     why: 'المورد أجرى تسوية في حسابه لا نجدها في دفاترنا.',
     todo: 'اطلب تفاصيل التسوية ومستندها قبل قبولها.' },
@@ -42,6 +45,7 @@ const RC_CARD = {
 /* the amount a card shows: the movement itself, or the gap for a pair that disagrees */
 function rcCardAmount(it) {
   if (it.status === 'only_supplier') return it.amtA;
+  if (it.status === 'after_period') return it.amtA != null ? it.amtA : it.amtB;
   if (it.status === 'only_company') return it.amtB;
   /* a pair matched by amount has no difference to show: its amount is the figure */
   if (it.status === 'matched_amount') return it.amtA != null ? it.amtA : it.amtB;
@@ -52,10 +56,11 @@ const rcBr = function (v) { return Math.abs(v) < 0.005 ? '0.00' : (v < 0 ? '(' +
 
 function RcDiagnosis(props) {
   const res = props.res;
-  const open = res.items.filter(function (i) { return i.status !== 'matched' && i.status !== 'matched_amount' && i.status !== 'cancelled'; });
+  const open = res.items.filter(function (i) { return i.status !== 'matched' && i.status !== 'matched_amount' && i.status !== 'cancelled' && i.status !== 'after_period'; });
   const cancelledN = res.items.filter(function (i) { return i.status === 'cancelled'; }).length;
   const byAmountOnly = res.items.filter(function (i) { return i.status === 'matched_amount'; });
-  const agreed = res.items.length - open.length - cancelledN;
+  const timingN = res.items.filter(function (i) { return i.status === 'after_period'; }).length;
+  const agreed = res.items.length - open.length - cancelledN - timingN;
   const ranked = open.concat(byAmountOnly).map(function (i) { return { it: i, cat: rcCatOf(i), v: rcCardAmount(i) }; })
     .sort(function (a, b) { return Math.abs(b.v) - Math.abs(a.v); });
   const [filter, setFilter] = useState('all');
@@ -67,6 +72,9 @@ function RcDiagnosis(props) {
   const expected = res.sumB + toYours.reduce(function (s, l) { return s + l.effect; }, 0);
   const gap = expected - res.sumA;
   const diff = res.sumA - res.sumB;
+  /* the timing part is the movements after the other statement's end; the rest is the real difference */
+  const timingSum = res.items.filter(function (i) { return i.status === 'after_period'; }).reduce(function (t, i) { return t + ((i.amtA || 0) - (i.amtB || 0)); }, 0);
+  const realDiff = diff - timingSum;
   const verdict = Math.abs(diff) < 0.5 ? { t: 'الرصيدان متطابقان', c: 'ok' }
     : Math.abs(gap) <= 0.5 ? { t: 'يوجد فرق مفسَّر بالكامل', c: 'warn' } : { t: 'يوجد فرق غير مفسَّر', c: 'bad' };
   const cats = {};
@@ -119,7 +127,9 @@ function RcDiagnosis(props) {
       kpi(count('amount_diff'), 'فروق مبالغ', count('amount_diff') ? 'warn' : ''),
       kpi(count('only_supplier'), 'لدى المورد فقط', count('only_supplier') ? 'warn' : ''),
       kpi(count('only_company'), 'لدينا فقط', count('only_company') ? 'warn' : ''),
-      kpi(cancelledN, 'قيود ملغاة (صافيها صفر)')),
+      kpi(cancelledN, 'قيود ملغاة (صافيها صفر)'),
+      kpi(rcMoney(timingSum), 'منه فروق توقيت'),
+      kpi(rcMoney(realDiff), 'الفرق الحقيقي')),
 
     ranked.length ? div({ className: 'rcd-list' },
       div({ className: 'rcd-filters noprint', role: 'group', 'aria-label': 'تصفية البنود' },
