@@ -38,7 +38,8 @@ function rcWithTimeout(promise, ms, msg) {
    on the same line into words, normalise the forms (NFKC) and split a side label off an amount ("58,650.00 مدين") */
 const RC_SIDE_RE = /^(مدين|دائن)$/;
 function rcMergeRuns(items) {
-  const sorted = items.map(function (it) { return Object.assign({}, it, { str: it.str.normalize('NFKC') }); })
+  /* some fonts put NUL or other control characters between the glyphs: they carry no text */
+  const sorted = items.map(function (it) { return Object.assign({}, it, { str: it.str.normalize('NFKC').replace(/[\u0000-\u001F\u007F\uFEFF]/g, '') }); })
     .filter(function (it) { return it.str.trim(); })
     .sort(function (a, b) { return a.y - b.y || a.x0 - b.x0; });
   const runs = [];
@@ -131,7 +132,7 @@ const RC_OPEN_TOK = /فتتاحي|افتتاح|opening|الرصيد السابق
 const RC_TOTAL_TOK = /(صافي\s*الحركة|الحركة\s*صافي|الرصيد\s*الختامي|الختامي\s*الرصيد|رصيد ختامي|الرصيد النهائي|closing balance|net movement)/i;
 const RC_STOP_TOK = /صافي|الحركة|الختامي|الرصيد الختامي|إجمالي العمليات|اجمالي العمليات|إجمالي|اجمالي|total|طبع بواسطة|تاريخ التقرير|المدير العام|المحاسب|يعتبر هذا الكشف|الرصيد الحالي|الرصيد الختامي|prepared by|check by|ملاحظة|مﻼحظة/i;
 function rcPdfStatement(items) {
-  if (items.length < 40) return null;
+  if (items.length < 15) return null;
   const hs = items.map(function (i) { return i.h; }).sort(function (a, b) { return a - b; });
   const medH = Math.max(hs[Math.floor(hs.length / 2)] || 10, 6);
   const sorted = items.slice().sort(function (a, b) { return a.y - b.y || a.x0 - b.x0; });
@@ -169,7 +170,8 @@ function rcPdfStatement(items) {
       c.x1 = (c.x1 * c.n + it.x1) / (c.n + 1); c.n++; c.cs.push((it.x0 + it.x1) / 2);
     });
   });
-  const minN = Math.max(3, Math.round(entries.length * 0.08));
+  /* a short statement can have a credit column with only two entries: a money column needs two values to count */
+  const minN = Math.max(2, Math.round(entries.length * 0.05));
   const cols = cl.filter(function (c) { return c.n >= minN; }).sort(function (a, b) { return a.x1 - b.x1; });
   if (cols.length < 2 || cols.length > 4) return null;
   cols.forEach(function (c) { c.c = c.cs.reduce(function (t, v) { return t + v; }, 0) / c.cs.length; });
