@@ -62,7 +62,7 @@ function rcMergeRuns(items) {
     });
     groups.forEach(function (g) {
       const parts = g.items.slice().sort(function (a, b) { return g.sc === 'ar' ? b.x1 - a.x1 : a.x0 - b.x0; });
-      let str = parts.map(function (i) { return i.str; }).join('').replace(/\s+/g, ' ').trim();
+      let str = parts.map(function (i) { return i.str; }).join('').replace(/[\uE000-\uF8FF]/g, '').replace(/\s+/g, ' ').trim();
       str = str.replace(/^(-?[\d,]+\.\d{2})\s*(مدين|دائن)$/, '$1');
       if (!str) return;
       out.push({ str: str, x0: g.x0, x1: g.x1, y: run.y, h: Math.max.apply(null, g.items.map(function (i) { return i.h; })) });
@@ -127,7 +127,9 @@ const RC_DATE_TOK = /^(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{4}|\d{4}[\/.\-]\d{1,2}[\/.
 const RC_MONEY_TOK = /^\(?-?\d{1,3}(?:,\d{3})*\.\d{2}\)?-?$|^-?\d+\.\d{2}$/;
 const RC_INT_TOK = /^\d{3,}$/;
 const RC_OPEN_TOK = /فتتاحي|افتتاح|opening|الرصيد السابق|رصيد سابق|رصيد مدور|رصيد مرحل|previous balance|brought forward|b\/f/i;
-const RC_STOP_TOK = /إجمالي العمليات|اجمالي العمليات|إجمالي|اجمالي|total|طبع بواسطة|تاريخ التقرير|المدير العام|المحاسب|يعتبر هذا الكشف|الرصيد الحالي|الرصيد الختامي|prepared by|check by|ملاحظة|مﻼحظة/i;
+/* the summary lines (net movement, closing balance) are words that may come out in either order (RTL) */
+const RC_TOTAL_TOK = /(صافي\s*الحركة|الحركة\s*صافي|الرصيد\s*الختامي|الختامي\s*الرصيد|رصيد ختامي|الرصيد النهائي|closing balance|net movement)/i;
+const RC_STOP_TOK = /صافي|الحركة|الختامي|الرصيد الختامي|إجمالي العمليات|اجمالي العمليات|إجمالي|اجمالي|total|طبع بواسطة|تاريخ التقرير|المدير العام|المحاسب|يعتبر هذا الكشف|الرصيد الحالي|الرصيد الختامي|prepared by|check by|ملاحظة|مﻼحظة/i;
 function rcPdfStatement(items) {
   if (items.length < 40) return null;
   const hs = items.map(function (i) { return i.h; }).sort(function (a, b) { return a - b; });
@@ -151,7 +153,7 @@ function rcPdfStatement(items) {
     ln.items.forEach(function (it) { it.k = kind(it); });
     ln.page = Math.floor(ln.y / 10000);
     ln.text = ln.items.map(function (i) { return i.str; }).join(' ');
-    ln.main = ln.items.some(function (i) { return i.k === 'date'; }) && ln.items.some(function (i) { return i.k === 'money'; });
+    ln.main = ln.items.some(function (i) { return i.k === 'date'; }) && ln.items.some(function (i) { return i.k === 'money'; }) && !RC_TOTAL_TOK.test(ln.text);
     ln.open = !ln.main && RC_OPEN_TOK.test(ln.text) && ln.items.some(function (i) { return i.k === 'money'; });
   });
   const entries = lines.filter(function (l) { return l.main || l.open; });
