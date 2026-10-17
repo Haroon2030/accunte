@@ -220,7 +220,8 @@ function rcPdfStatement(items) {
   const fmtMoney = function (t) { return t.replace(/[()\-]/g, ''); };
   const textOf = function (its) {
     const ar = its.some(function (i) { return arabic.test(i.str); });
-    return (ar ? its.slice().sort(function (a, b) { return b.x1 - a.x1; }) : its).map(function (i) { return i.str; }).join(' ');
+    /* a page's total label (المجموع / الإجمالي) can sit on the same line as the last row: it is not part of the wording */
+    return ((ar ? its.slice().sort(function (a, b) { return b.x1 - a.x1; }) : its).map(function (i) { return i.str; }).join(' ')).replace(/\s*(المجموع|الإجمالي|إجمالي|اجمالي)\s*$/, '');
   };
   const flush = function () {
     if (!cur) return;

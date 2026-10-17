@@ -309,9 +309,16 @@ function rcDocKey(doc, desc) {
 /* every long number (6+ digits) in the document, reference and wording: supplier invoice numbers hide there */
 function rcKeysOf(doc, ref, desc) {
   const out = [];
+  const add = function (k) { k = k.replace(/^0+/, ''); if (k && out.indexOf(k) === -1) out.push(k); };
   [ref, doc, desc].forEach(function (src) {
     if (src == null || src === '' || src instanceof Date) return;
-    (rcLatin(String(src)).match(/\d{6,}/g) || []).forEach(function (m) { const k = m.replace(/^0+/, ''); if (k && out.indexOf(k) === -1) out.push(k); });
+    const t = rcLatin(String(src));
+    (t.match(/\d{6,}/g) || []).forEach(add);
+    /* the document column of a supplier statement carries its invoice numbers as they are (4 digits and up) */
+    if (src === doc) (t.match(/\d{4,}/g) || []).forEach(add);
+    /* a reference with a prefix (INV10012, PYT9843) and a supplier's "برقم 10012" carry shorter invoice numbers */
+    (t.match(/[A-Za-z]{2,}[-\s]?(\d{4,})/g) || []).forEach(function (m) { add(m.match(/\d{4,}$/)[0]); });
+    (t.match(/برقم\s*(\d{4,})/g) || []).forEach(function (m) { add(m.match(/\d{4,}$/)[0]); });
   });
   /* Arabic PDFs sometimes hand over a long number back to front: try it both ways */
   out.slice().forEach(function (k) { if (k.length >= 10) { const r = k.split('').reverse().join(''); if (out.indexOf(r) === -1) out.push(r); } });
