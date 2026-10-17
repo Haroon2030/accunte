@@ -514,8 +514,10 @@ function rcReconcile(A, B, opts) {
     return gone;
   };
   const goneA = cancelled(aLeft, usedA), goneB = cancelled(bLeft, usedB);
-  aLeft.forEach(function (a) { if (!usedA[a.i]) items.push(mkItem(goneA[a.i] ? 'cancelled' : 'only_supplier', a, null)); });
-  bLeft.forEach(function (b) { if (!usedB[b.i]) items.push(mkItem(goneB[b.i] ? 'cancelled' : 'only_company', null, b)); });
+  /* an opening balance of zero on one side only is not a difference */
+  const zeroOpening = function (l) { return l.kind === 'opening' && Math.abs(l.amount) < 0.005; };
+  aLeft.forEach(function (a) { if (!usedA[a.i] && !zeroOpening(a)) items.push(mkItem(goneA[a.i] ? 'cancelled' : 'only_supplier', a, null)); });
+  bLeft.forEach(function (b) { if (!usedB[b.i] && !zeroOpening(b)) items.push(mkItem(goneB[b.i] ? 'cancelled' : 'only_company', null, b)); });
   items.sort(function (x, y) { return (x.date ? x.date.getTime() : 0) - (y.date ? y.date.getTime() : 0) || (x.id < y.id ? -1 : 1); });
 
   /* statement: supplier balance - explained items = company balance (exact by construction) */

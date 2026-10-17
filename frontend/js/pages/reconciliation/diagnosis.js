@@ -43,6 +43,8 @@ const RC_CARD = {
 function rcCardAmount(it) {
   if (it.status === 'only_supplier') return it.amtA;
   if (it.status === 'only_company') return it.amtB;
+  /* a pair matched by amount has no difference to show: its amount is the figure */
+  if (it.status === 'matched_amount') return it.amtA != null ? it.amtA : it.amtB;
   return it.diff;
 }
 const rcPlain = function (v) { return (v < 0 ? '-' : '') + rcMoney(Math.abs(v)); };
