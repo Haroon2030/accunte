@@ -75,3 +75,8 @@
 
 /* the column-mapping grid: its fields take the grid's columns (the shared field minimum would push them past the card edge) */
 .rc-map .tfield { min-width: 0; }
+
+/* a wide child (a table, a long heading) must not push the grid past the screen edge */
+.recon .stack > *, .recon .rc-sides > * { min-width: 0; }
+/* the result tabs wrap on narrow screens instead of running past the edge */
+@media (max-width: 560px) { .rc-tabs { display: flex; flex-wrap: wrap; justify-self: stretch; max-width: 100%; } .rc-tabs button { padding-inline: 10px; flex: 1 1 auto; } }
