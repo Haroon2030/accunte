@@ -125,7 +125,8 @@ function rcItemsToRows(items) {
    Returns table rows (header first) or null when the page does not look like a statement.
    --------------------------------------------------------------------- */
 const RC_DATE_TOK = /^(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{4}|\d{4}[\/.\-]\d{1,2}[\/.\-]\d{1,2})$/;
-const RC_MONEY_TOK = /^\(?-?\d{1,3}(?:,\d{3})*\.\d{2}\)?-?$|^-?\d+\.\d{2}$/;
+/* amounts carry 2 decimals, or 3 where the ledger keeps fils-level precision (1,107,019.480) */
+const RC_MONEY_TOK = /^\(?-?\d{1,3}(?:,\d{3})*\.\d{2,3}\)?-?$|^-?\d+\.\d{2,3}$/;
 const RC_INT_TOK = /^\d{3,}$/;
 const RC_OPEN_TOK = /فتتاحي|افتتاح|opening|الرصيد السابق|رصيد سابق|رصيد مدور|رصيد مرحل|previous balance|brought forward|b\/f/i;
 /* the summary lines (net movement, closing balance) are words that may come out in either order (RTL) */
