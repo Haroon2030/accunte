@@ -20,6 +20,8 @@ for _h in ('127.0.0.1', 'localhost'):  # the container healthcheck calls 127.0.0
     if _h not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(_h)
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+# hostnames that serve the suppliers' entrance only: staff accounts cannot sign in through them
+SUPPLIER_HOSTS = [h.lower() for h in env.list('SUPPLIER_HOSTS', default=[])]
 
 INSTALLED_APPS = [
     'django.contrib.admin',

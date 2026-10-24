@@ -525,3 +525,19 @@ class SupplierDataTests(TestCase):
         mt = login(self.matcher)
         self.assertEqual(mt.get('/api/supplier-data/').status_code, 200)
         self.assertEqual(mt.post('/api/supplier-data/', {'name': 'مورد', 'code': 'G-1'}, format='json').status_code, 201)
+
+
+class SupplierHostTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.staff = make('1', 'admin')
+        self.sup = make('4', 'supplier', org='شركة', code='S-1')
+
+    @override_settings(SUPPLIER_HOSTS=['suppliers.example.com'], ALLOWED_HOSTS=['suppliers.example.com', 'staff.example.com', 'testserver'])
+    def test_staff_cannot_sign_in_on_the_suppliers_domain(self):
+        body = {'username': '1', 'password': 'Pass1234'}
+        on_sup = APIClient().post('/api/auth/login', body, format='json', HTTP_HOST='suppliers.example.com')
+        self.assertEqual((on_sup.status_code, on_sup.json()['detail']), (400, 'رقم المستخدم أو كلمة المرور غير صحيحة.'))   # same answer as a wrong password
+        self.assertEqual(APIClient().post('/api/auth/login', body, format='json', HTTP_HOST='staff.example.com').status_code, 200)
+        sup = {'username': '4', 'password': 'Pass1234'}
+        self.assertEqual(APIClient().post('/api/auth/login', sup, format='json', HTTP_HOST='suppliers.example.com').status_code, 200)
