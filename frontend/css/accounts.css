@@ -752,3 +752,6 @@ textarea.nt-in { text-align: start; resize: vertical; }
 .sinfo dt { color: var(--ink-3); font-size: .76rem; }
 .sinfo dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .uform .sinfo.wide { grid-column: 1 / -1; }
+
+.rc-grid td.desc { white-space: normal; min-width: 260px; max-width: 380px; line-height: 1.6; font-size: .78rem; }
+.rc-grid td.desc .sub { color: var(--ink-3); }

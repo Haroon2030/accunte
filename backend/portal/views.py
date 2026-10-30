@@ -83,6 +83,8 @@ class LoginView(APIView):
         user = User.objects.filter(username=name).first()
         if not user or not user.check_password(pw):
             raise bad
+        if request.get_host().split(':')[0].lower() in settings.SUPPLIER_HOSTS and user.role != User.SUPPLIER:
+            raise bad                      # the suppliers' domain is public: staff accounts are not accepted there, and the answer is the same as for a wrong password
         if not user.is_active:
             raise ValidationError({'detail': 'هذا الحساب موقوف. تواصل مع مدير النظام لتفعيله.'})
         login(request, authenticate(request, username=name, password=pw))
