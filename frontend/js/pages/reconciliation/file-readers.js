@@ -125,13 +125,19 @@ function rcItemsToRows(items) {
    Returns table rows (header first) or null when the page does not look like a statement.
    --------------------------------------------------------------------- */
 const RC_DATE_TOK = /^(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{4}|\d{4}[\/.\-]\d{1,2}[\/.\-]\d{1,2})$/;
-const RC_MONEY_TOK = /^\(?-?\d{1,3}(?:,\d{3})*\.\d{2}\)?-?$|^-?\d+\.\d{2}$/;
+/* two or three decimals: some systems print amounts to the fils (1,234.567) */
+const RC_MONEY_TOK = /^\(?-?\d{1,3}(?:,\d{3})*\.\d{2,3}\)?-?$|^-?\d+\.\d{2,3}$/;
+const RC_CUR_TOK = /\s*(SAR|ر\.س\.?)$/i;
 const RC_INT_TOK = /^\d{3,}$/;
 const RC_OPEN_TOK = /فتتاحي|افتتاح|opening|الرصيد السابق|رصيد سابق|رصيد مدور|رصيد مرحل|previous balance|brought forward|b\/f/i;
 /* the summary lines (net movement, closing balance) are words that may come out in either order (RTL) */
 const RC_TOTAL_TOK = /(صافي\s*الحركة|الحركة\s*صافي|الرصيد\s*الختامي|الختامي\s*الرصيد|رصيد ختامي|الرصيد النهائي|closing balance|net movement)/i;
 const RC_STOP_TOK = /صافي|الحركة|الختامي|الرصيد الختامي|إجمالي العمليات|اجمالي العمليات|إجمالي|اجمالي|total|طبع بواسطة|تاريخ التقرير|المدير العام|المحاسب|يعتبر هذا الكشف|الرصيد الحالي|الرصيد الختامي|prepared by|check by|ملاحظة|مﻼحظة/i;
+/* page furniture of a printed statement: the column titles repeated on each page, the page footer and the software credit */
+const RC_NOISE_TOK = /posting date|due date|ref\.?\s*[12]\b|info:|continued on next|^page\s+\d+/i;
 function rcPdfStatement(items) {
+  /* the currency code printed after each amount (2,137.534 SAR) is not part of the amount */
+  items = items.map(function (it) { return Object.assign({}, it, { str: it.str.replace(RC_CUR_TOK, '').trim() }); }).filter(function (it) { return it.str; });
   if (items.length < 15) return null;
   const hs = items.map(function (i) { return i.h; }).sort(function (a, b) { return a - b; });
   const medH = Math.max(hs[Math.floor(hs.length / 2)] || 10, 6);
@@ -177,7 +183,8 @@ function rcPdfStatement(items) {
   cols.forEach(function (c) { c.c = c.cs.reduce(function (t, v) { return t + v; }, 0) / c.cs.length; });
 
   /* header words above the first entry decide which column is debit / credit / balance */
-  const firstIdx = lines.indexOf(entries[0]);
+  /* the column titles sit above the first real row; an opening-balance line can come before them */
+  const firstIdx = lines.indexOf(entries.filter(function (l) { return l.main; })[0]);
   const hdr = [];
   lines.slice(0, firstIdx).forEach(function (ln) {
     ln.items.forEach(function (it) {
@@ -230,20 +237,27 @@ function rcPdfStatement(items) {
     rows.push([cur.date, cur.docs.join(' '), cur.desc.join(' '), cur.dr, cur.cr, cur.bal]);
     cur = null;
   };
+  /* some printers repeat the opening line on every page with a zero amount: only the first one is a real opening */
+  let openSeen = false;
   lines.forEach(function (ln, li) {
+    if (ln.open && !ln.main && openSeen && ln.items.every(function (i) { return i.k !== 'money' || parseFloat(i.str.replace(/[^\d.]/g, '')) === 0; })) return;
+    if (ln.open) openSeen = true;
     if (ln.main || ln.open) {
       flush(); ended = false; pageSeen = ln.page;
       cur = { date: '', docs: [], desc: [], dr: '', cr: '', bal: '' };
       const dates = ln.items.filter(function (i) { return i.k === 'date'; });
       if (dates.length) cur.date = dates[0].str;
       const text = [];
+      const noise = RC_NOISE_TOK.test(ln.text);
       ln.items.forEach(function (it) {
         if (it.k === 'money') {
-          const c = colOf(it);
+          let c = colOf(it);
           if (!c) return;
+          /* a minus sign (or brackets) moves the amount to the other side: a credit memo printed as -989.230 in the debit column reduces the balance */
+          if (/^[(-]/.test(it.str) && c !== colBal) c = c === colDr ? colCr : colDr;
           if (c === colDr) cur.dr = fmtMoney(it.str); else if (c === colCr) cur.cr = fmtMoney(it.str); else if (c === colBal) cur.bal = it.str;
         } else if (it.k === 'int') { if (!constant(it.str) && cur.docs.indexOf(it.str) === -1) cur.docs.push(it.str); }
-        else if (it.k === 'text') text.push(it);
+        else if (it.k === 'text' && !noise) text.push(it);
       });
       if (text.length) cur.desc.push(textOf(text));
       if (ln.open && !cur.dr && !cur.cr && cur.bal) {
@@ -255,6 +269,7 @@ function rcPdfStatement(items) {
     }
     if (!cur || ended || ln.page !== pageSeen) return;
     if (RC_STOP_TOK.test(ln.text)) { ended = true; return; }
+    if (RC_NOISE_TOK.test(ln.text)) return;
     const text = [];
     ln.items.forEach(function (it) {
       if (it.k === 'int') { if (!constant(it.str) && cur.docs.indexOf(it.str) === -1) cur.docs.push(it.str); }
@@ -263,6 +278,20 @@ function rcPdfStatement(items) {
     if (text.length) cur.desc.push(textOf(text));
   });
   flush();
+  /* the running balance decides the side: when a row's amount is exactly the balance change, the row sits on the side the balance moved to (a reversal can be printed in either column) */
+  const num = function (s) { return s ? parseFloat(s.replace(/[,()\s]/g, '')) : NaN; };
+  let prevBal = NaN;
+  rows.slice(1).forEach(function (r) {
+    const bal = num(r[5]), amt = num(r[3]) || num(r[4]);
+    if (!isNaN(prevBal) && !isNaN(bal) && amt) {
+      const delta = bal - prevBal;
+      if (Math.abs(Math.abs(delta) - amt) < 0.011) {
+        const v = r[3] || r[4];
+        r[3] = delta > 0 ? v : ''; r[4] = delta > 0 ? '' : v;
+      }
+    }
+    if (!isNaN(bal)) prevBal = bal;
+  });
   return rows.length > 5 ? rows : null;
 }
 

@@ -420,7 +420,21 @@ function rcCatOf(it) {
   return it.status === 'only_supplier' ? 'inv_supplier' : 'inv_company';
 }
 /* A = supplier statement ledger, B = company ledger (both already normalised). */
-function rcReconcile(A, B, opts) {
+/* the first date of a statement's movements (its opening line carries no date) */
+function rcStartOf(side) {
+  return side.lines.reduce(function (m, l) { return l.kind !== 'opening' && l.date instanceof Date && (!m || l.date < m) ? l.date : m; }, null);
+}
+/* a statement that starts earlier than the other one: its movements before the other's first date are the balance the other one opens with, so they fold into one opening line */
+function rcFoldBefore(side, start) {
+  if (!start) return side;
+  const pre = side.lines.filter(function (l) { return l.kind === 'opening' || (l.date instanceof Date && l.date < start); });
+  if (!pre.some(function (l) { return l.kind !== 'opening'; })) return side;
+  const rest = side.lines.filter(function (l) { return pre.indexOf(l) === -1; });
+  const folded = { kind: 'opening', doc: '', desc: 'رصيد مرحل قبل بداية فترة الكشف الآخر', amount: pre.reduce(function (s, l) { return s + l.amount; }, 0), date: null, keys: [], key: '', debit: null, credit: null };
+  return Object.assign({}, side, { lines: [folded].concat(rest) });
+}
+function rcReconcile(A0, B0, opts) {
+  const A = rcFoldBefore(A0, rcStartOf(B0)), B = rcFoldBefore(B0, rcStartOf(A0));
   const tol = opts && opts.tol != null ? opts.tol : 0.25;
   const winDays = opts && opts.days != null ? opts.days : 15;
   const aLeft = A.lines.map(function (l, i) { return Object.assign({ i: i }, l); });
