@@ -849,3 +849,87 @@ textarea.nt-in { text-align: start; resize: vertical; }
   .nt-form .nt-itrow .nt-c.wide { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) { .sechead { flex-wrap: wrap; row-gap: 4px; } .sechead h2 { flex: 1 1 100%; } }
+
+/* ---------- multi-supplier payment batch ---------- */
+.payspage .payhead-acts { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.chip-batch { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .72rem; font-weight: 600; }
+.pbform { display: grid; gap: 12px; }
+.pbform .uformhead { margin-bottom: 0; }
+.pbtools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+.pbfile { display: none; }
+.pbwrap { overflow-x: auto; background: var(--surface); border: 1px solid #CBD5E6; border-radius: var(--r-md); }
+.pbtable { width: 100%; border-collapse: separate; border-spacing: 0; }
+.pbtable th { padding: 8px 8px; background: #EEF3FC; color: var(--ink-2); font-size: .78rem; text-align: start; border-bottom: 1px solid #CBD5E6; white-space: nowrap; }
+.pbtable td { padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.pbtable tbody tr:last-child td { border-bottom: 0; }
+.pbtable tr.bad td { background: color-mix(in srgb, var(--c-bad) 7%, var(--surface)); }
+.pbtable td.rownum { width: 34px; padding-top: 14px; text-align: center; color: var(--ink-3); font-variant-numeric: tabular-nums; font-size: .78rem; }
+.pbtable td.pbrm { width: 44px; text-align: center; }
+.pbtable input, .pbtable select { width: 100%; min-width: 0; min-height: 38px; padding: 4px 8px; border: 1px solid #B7C9E8; border-radius: 8px; background: #fff; font: inherit; font-size: .86rem; }
+.pbtable input:focus, .pbtable select:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.pbtable .pbsup { min-width: 230px; }
+.pbtable .err, .pbtable .hint { display: block; margin-top: 3px; font-size: .76rem; }
+.pbsum { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); font-weight: 600; }
+.pbsum strong { font-size: 1.1rem; color: var(--accent); }
+@media (max-width: 760px) {
+  .pbwrap { border: 0; background: transparent; overflow: visible; }
+  .pbtable, .pbtable tbody { display: block; }
+  .pbtable thead { display: none; }
+  .pbtable tbody { display: grid; gap: 10px; }
+  .pbtable tr { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; background: var(--surface); border: 1px solid #CBD5E6; border-radius: var(--r-md); position: relative; }
+  .pbtable td { display: grid; gap: 3px; padding: 0; border: 0; }
+  .pbtable td[data-label]:not([data-label=""]):not([data-label="#"])::before { content: attr(data-label); color: var(--ink-3); font-size: .74rem; }
+  .pbtable td.rownum { display: none; }
+  .pbtable td.pbsup, .pbtable td[data-label="ملاحظة"] { grid-column: 1 / -1; }
+  .pbtable td.pbrm { grid-column: 1 / -1; width: auto; text-align: start; }
+  .pbtable .pbsup { min-width: 0; }
+}
+.pbform input[type="date"].empty::-webkit-datetime-edit { color: transparent; }
+.pbform input[type="date"].empty:focus::-webkit-datetime-edit { color: var(--ink-3); }
+
+/* batch rows now carry branch, cost center and both banks: keep the table readable and let it scroll sideways */
+.pbtable { min-width: 1180px; }
+.pbtable td[data-label="الفرع"], .pbtable td[data-label="مركز التكلفة"], .pbtable td[data-label="البنك الرئيسي"], .pbtable td[data-label="البنك التحليلي"] { min-width: 130px; }
+@media (max-width: 760px) { .pbtable { min-width: 0; } .pbtable td[data-label="الفرع"], .pbtable td[data-label="مركز التكلفة"], .pbtable td[data-label="البنك الرئيسي"], .pbtable td[data-label="البنك التحليلي"] { min-width: 0; } }
+
+/* date fields in forms look like the other inputs */
+.userspage .uform input[type="date"] { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #B7C9E8; border-radius: 10px; background: #fff; font: inherit; color: var(--ink); }
+.userspage .uform input[type="date"]:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* ---------- batch sheet: one column per approval level ---------- */
+.payspage .batchpick { min-height: 38px; padding: 4px 10px; border: 1px solid #B7C9E8; border-radius: 10px; background: var(--surface); font: inherit; font-size: .86rem; color: var(--ink); }
+.chip-batch.link { border: 0; cursor: pointer; font-family: inherit; }
+.chip-batch.link:hover { background: var(--accent); color: #fff; }
+.shsheet { gap: 12px; }
+.shsteps { display: flex; flex-wrap: wrap; gap: 6px; }
+.shbar { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); }
+.shbar .checkrow { align-self: center; }
+.shbar .shnote { flex: 1 1 240px; margin: 0; }
+.shbar .shnote input { width: 100%; min-height: 40px; padding: 6px 10px; border: 1px solid #B7C9E8; border-radius: 10px; background: #fff; font: inherit; font-size: .88rem; }
+.shbar > .btn { align-self: flex-start; min-height: 40px; }
+.shtable { min-width: 1240px; }
+.shtable th.shlv { vertical-align: top; min-width: 150px; }
+.shtable th .shn { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-inline-end: 6px; border-radius: 50%; background: var(--accent); color: #fff; font-size: .7rem; }
+.shtable td { vertical-align: middle; }
+.shtable td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.shtable td.shchk, .shtable th:first-child { width: 36px; text-align: center; }
+.shtable tr.mine td { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.shtable td.shlvc.on { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+.shcell { display: grid; gap: 3px; justify-items: start; }
+.shcell .mono { font-weight: 600; white-space: nowrap; }
+.shcell .shwho { color: var(--ink-3); font-size: .74rem; line-height: 1.4; }
+.shcell.edit input { width: 100%; min-width: 100px; min-height: 36px; padding: 4px 8px; border: 1px solid var(--accent); border-radius: 8px; background: #fff; font: inherit; font-size: .88rem; }
+.shtable tfoot td { padding: 10px 8px; background: #EEF3FC; border-top: 1px solid #CBD5E6; font-weight: 700; }
+.shtable td.shtot { text-align: start; }
+@media (max-width: 760px) {
+  .shtable { min-width: 0; }
+  .shtable td.shchk { display: block; width: auto; text-align: start; }
+  .shtable tfoot { display: none; }
+  .pbtable tr { grid-template-columns: 1fr 1fr; }
+  .pbtable td[data-label="الحالة"], .pbtable td.shlvc { grid-column: auto; }
+}
+/* the entry table of a batch is wider now that balances sit beside the supplier */
+.pbform .pbtable:not(.shtable) { min-width: 1500px; }
+@media (max-width: 760px) { .pbform .pbtable:not(.shtable) { min-width: 0; } }
+.payspage .batchpick { flex: 0 1 auto; width: auto; max-width: 190px; }
+.payspage .payhead-acts { justify-content: flex-end; }

@@ -6,6 +6,7 @@ function App() {
   const [users, setUsers] = useState([]);
   const [notices, setNotices] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [paySuppliers, setPaySuppliers] = useState([]);
   const [supplierData, setSupplierData] = useState([]);
   const [matchers, setMatchers] = useState([]);
   const [reqs, setReqs] = useState([]);
@@ -59,6 +60,7 @@ function App() {
     if (u.role === 'supplier' || has('matcher', 'manager')) jobs.push(API.get('/requests/').then(function (rs) { setReqs(rs.map(API.request)); }));
     if (u.role === 'supplier' || has('manager')) jobs.push(API.get('/complaints/').then(function (cs) { setComplaints(cs.map(API.complaint)); }));
     if (has('payments')) jobs.push(API.get('/payments/').then(function (ps) { setPayments(ps); }));
+    if (has('payments')) jobs.push(API.get('/payments/suppliers/').then(function (ss) { setPaySuppliers(ss); }));
     if (u.role === 'supplier' || has('notices')) jobs.push(API.get('/notices/').then(function (ns) { setNotices(ns); }));
     if (u.role === 'supervisor' || u.role === 'manager' || u.role === 'admin') jobs.push(API.get('/matchers/').then(function (ms) { setMatchers(ms); }));
     if (u.role !== 'supplier' && has('suppliers', 'users', 'notices')) jobs.push(API.get('/supplier-data/').then(function (ss) { setSupplierData(ss); }));
@@ -161,6 +163,20 @@ function App() {
       return p;
     }, function (e) { if (e.status === 409 && me) loadAll(me).catch(function () { /* next refresh retries */ }); throw e; });
   }
+  function createPaymentBatch(data) {
+    return API.post('/payments/batch/', data).then(function (r) {
+      setPayments(function (ps) { return r.payments.concat(ps); });
+      setToast('رُفعت الدفعة ' + r.batch + ' وفيها ' + r.payments.length + (r.payments.length === 1 ? ' مورد' : ' موردين') + '، وأُحيلت إلى مدير المشتريات.');
+      return r;
+    });
+  }
+  function bulkPayments(action, items, note) {
+    return API.post('/payments/bulk/', { action: action, items: items, note: note }).then(function (r) {
+      r.payments.forEach(replacePay);
+      setToast((action === 'reject' ? 'رُفض ' : 'نُفّذ الإجراء على ') + r.payments.length + (r.payments.length === 1 ? ' أمر.' : ' أوامر.'));
+      return r;
+    }, function (e) { if (e.status === 409 && me) loadAll(me).catch(function () { /* next refresh retries */ }); throw e; });
+  }
   function rejectPayment(pk, data) {
     return API.post('/payments/' + pk + '/reject', data).then(function (p) {
       replacePay(p);
@@ -214,7 +230,7 @@ function App() {
   function changeRole(r) { if (allowed.indexOf(r) === -1) return; setRole(r); home(); }
   function logout() {
     API.post('/auth/logout').catch(function () { /* already signed out */ }).then(function () {
-      setMe(null); setReqs([]); setComplaints([]); setUsers([]); setSupplierData([]); setPayments([]); setView({ name: 'home' }); setToast(''); goTop();
+      setMe(null); setReqs([]); setComplaints([]); setUsers([]); setSupplierData([]); setPayments([]); setPaySuppliers([]); setView({ name: 'home' }); setToast(''); goTop();
     });
   }
   function saveUser(d) {
@@ -282,7 +298,7 @@ function App() {
   else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { suppliers: supplierData, users: users, me: user, onSave: saveUser, onToggle: toggleUser, onDelete: removeUser, onReset: resetUser, onToast: setToast });
   else if (role === 'suppliers' && allowed.indexOf('suppliers') !== -1) body = h(SuppliersPage, { suppliers: supplierData, canEdit: true, canDelete: user.role === 'admin', onSave: saveSupplier, onDelete: removeSupplier, onToast: setToast });
   else if (role === 'notices' && allowed.indexOf('notices') !== -1) body = h(NoticesPage, { notices: notices, suppliers: noticeSuppliers, canIssue: true, onCreate: createNotice, onUpdate: updateNotice, onDelete: user.role === 'admin' ? removeNotice : undefined, onToast: setToast });
-  else if (role === 'payments' && allowed.indexOf('payments') !== -1) body = h(PaymentPage, { payments: payments, onSave: savePayment, onAdvance: advancePayment, onReject: rejectPayment, onDelete: user.role === 'admin' ? removePayment : undefined, onToast: setToast });
+  else if (role === 'payments' && allowed.indexOf('payments') !== -1) body = h(PaymentPage, { payments: payments, onSave: savePayment, onAdvance: advancePayment, onReject: rejectPayment, suppliers: paySuppliers, canBatch: user.role === 'services' || user.role === 'admin', onBatch: createPaymentBatch, onBulk: bulkPayments, onDelete: user.role === 'admin' ? removePayment : undefined, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
   else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq, onDelete: user.role === 'admin' ? removeRecord : undefined });
   else body = h(Dashboard, { onDelete: user.role === 'admin' ? removeRecord : undefined, reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });

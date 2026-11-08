@@ -634,3 +634,92 @@ class PaymentTests(TestCase):
             self.assertEqual(login(u).get('/api/payments/').status_code, 200, u.role)
         self.assertEqual(login(self.services).delete(f'/api/payments/{p.pk}/').status_code, 403)
         self.assertEqual(login(self.admin).delete(f'/api/payments/{p.pk}/').status_code, 204)
+
+    # ---- multi-supplier batch
+    def batch(self, user, rows, **extra):
+        return login(user).post('/api/payments/batch/', {'rows': rows, **extra}, format='json')
+
+    def test_batch_adds_many_suppliers_in_one_file(self):
+        s1, s2 = self.sup.supplier, Supplier.objects.create(name='شركة ب', code='S-2')
+        r = self.batch(self.services, [{'supplierId': s1.pk, 'amount': '1,500.50'}, {'code': 's-2', 'amount': '700', 'method': 'شيك', 'note': 'فاتورة 9'}], method='تحويل بنكي', dueDate='2026-12-01')
+        self.assertEqual(r.status_code, 201, r.content)
+        body = r.json()
+        self.assertRegex(body['batch'], r'^PB-\d{4}-001$')
+        got = {p['supplierCode']: p for p in body['payments']}
+        self.assertEqual((got['S-1']['amount'], got['S-1']['method'], got['S-1']['dueDate']), (1500.5, 'تحويل بنكي', '2026-12-01'))   # row inherits the file's defaults
+        self.assertEqual((got['S-2']['method'], got['S-2']['note'], got['S-2']['request']), ('شيك', 'فاتورة 9', ''))              # its own method; no reconciliation request
+        self.assertTrue(all(p['status'] == Payment.PURCHASING and p['batch'] == body['batch'] for p in body['payments']))        # straight to the purchasing manager
+        self.assertEqual(Payment.objects.get(supplier_rec=s1).history[0]['action'], 'propose')
+        self.assertTrue(login(self.purchasing).get('/api/payments/').json()[0]['canAct'])
+        self.assertEqual(self.batch(self.services, [{'supplierId': s1.pk, 'amount': '5', 'method': 'نقداً'}]).json()['batch'].endswith('-002'), True)   # next batch number
+
+    def test_batch_carries_branch_banks_and_cost_center(self):
+        s1, s2 = self.sup.supplier, Supplier.objects.create(name='شركة ب', code='S-2')
+        r = self.batch(self.services, [{'supplierId': s1.pk, 'amount': '10'}, {'supplierId': s2.pk, 'amount': '20', 'branch': 'جدة', 'costCenter': 'المبيعات'}],
+                       method='شيك', branch='الرياض', costCenter='المشتريات', bank='الراجحي', bankSub='حساب التشغيل')
+        got = {p['supplierCode']: p for p in r.json()['payments']}
+        self.assertEqual((got['S-1']['branch'], got['S-1']['costCenter'], got['S-1']['bank'], got['S-1']['bankSub']), ('الرياض', 'المشتريات', 'الراجحي', 'حساب التشغيل'))   # file defaults
+        self.assertEqual((got['S-2']['branch'], got['S-2']['costCenter'], got['S-2']['bank']), ('جدة', 'المبيعات', 'الراجحي'))                                              # a row overrides its own
+        p = Payment.objects.get(supplier_rec=s1)
+        edit = login(self.purchasing).patch(f'/api/payments/{p.pk}/', {'bank': 'الأهلي', 'bankSub': 'حساب الموردين'}, format='json')
+        self.assertEqual((edit.status_code, edit.json()['bank'], edit.json()['bankSub']), (200, 'الأهلي', 'حساب الموردين'))     # the level at its turn can correct them
+
+    def test_batch_is_all_or_nothing(self):
+        s1 = self.sup.supplier
+        r = self.batch(self.services, [{'supplierId': s1.pk, 'amount': '100', 'method': 'شيك'}, {'code': 'NOPE', 'amount': '5', 'method': 'شيك'}, {'supplierId': s1.pk, 'amount': 'abc', 'method': 'شيك'}])
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(sorted(r.json()['rowErrors']), ['1', '2'])          # row 0 was fine, but nothing is saved
+        self.assertFalse(Payment.objects.exists())
+        dup = self.batch(self.services, [{'supplierId': s1.pk, 'amount': '1', 'method': 'شيك'}, {'code': 'S-1', 'amount': '2', 'method': 'شيك'}])
+        self.assertEqual((dup.status_code, list(dup.json()['rowErrors'])), (400, ['1']))
+        self.assertEqual(self.batch(self.services, [{'supplierId': s1.pk, 'amount': '1'}]).status_code, 400)       # no method anywhere
+        self.assertEqual(self.batch(self.services, []).status_code, 400)
+
+    def test_only_services_and_admin_upload_batches(self):
+        rows = [{'supplierId': self.sup.supplier.pk, 'amount': '10', 'method': 'شيك'}]
+        for u in (self.purchasing, self.auditor, self.treasury, self.manager):
+            self.assertEqual(self.batch(u, rows).status_code, 403, u.role)
+        self.assertEqual(self.batch(self.admin, rows).status_code, 201)
+        self.assertEqual(login(self.services).get('/api/payments/suppliers/').status_code, 200)
+        self.assertEqual(login(self.sup, 'supplier').get('/api/payments/suppliers/').status_code, 403)
+
+    # ---- batch sheet: balances, and one action on many orders
+    def make_batch(self, n=3):
+        sups = [self.sup.supplier] + [Supplier.objects.create(name=f'شركة {i}', code=f'X-{i}') for i in range(2, n + 1)]
+        rows = [{'supplierId': s.pk, 'amount': str(100 * (i + 1)), 'balance': str(5000 - i), 'stockBalance': '-20' if i == 0 else '300'} for i, s in enumerate(sups)]
+        return self.batch(self.services, rows, method='شيك').json()['payments']
+
+    def bulk(self, user, action, items, **extra):
+        return login(user).post('/api/payments/bulk/', {'action': action, 'items': items, **extra}, format='json')
+
+    def test_balances_are_kept_and_levels_are_recorded(self):
+        ps = self.make_batch(2)
+        got = {p['supplierCode']: p for p in ps}
+        self.assertEqual((got['S-1']['balance'], got['S-1']['stockBalance']), (5000.0, -20.0))        # a negative stock balance is allowed
+        self.assertEqual(got['S-1']['history'][0]['level'], 1)
+        bad = self.batch(self.services, [{'supplierId': self.sup.supplier.pk, 'amount': '5', 'method': 'شيك', 'balance': 'abc'}])
+        self.assertEqual((bad.status_code, list(bad.json()['rowErrors'])), (400, ['0']))
+
+    def test_bulk_moves_a_whole_batch_level_by_level(self):
+        pks = [p['pk'] for p in self.make_batch(3)]
+        ok = self.bulk(self.purchasing, 'advance', [{'pk': pks[0], 'fromStage': 2, 'amount': '90'}] + [{'pk': k, 'fromStage': 2} for k in pks[1:]], note='مراجعة')
+        self.assertEqual((ok.status_code, sorted(p['status'] for p in ok.json()['payments'])), (200, [3, 3, 3]))
+        self.assertEqual(Payment.objects.get(pk=pks[0]).amount, Decimal('90.00'))                     # purchasing proposed another amount on one row
+        wrong = self.bulk(self.purchasing, 'advance', [{'pk': pks[0], 'fromStage': 3}, {'pk': pks[1], 'fromStage': 3}])
+        self.assertEqual((wrong.status_code, sorted(wrong.json()['rowErrors'])), (400, sorted(str(k) for k in pks[:2])))   # not its level any more
+        self.assertEqual(self.bulk(self.auditor, 'reject', [{'pk': pks[0], 'fromStage': 3}]).status_code, 400)           # a reason is required
+        self.assertEqual(self.bulk(self.auditor, 'reject', [{'pk': pks[0], 'fromStage': 3}], note='ناقص مستند').status_code, 200)
+        self.assertEqual(Payment.objects.get(pk=pks[0]).status, 1)                                                          # back to services
+        self.assertEqual(self.bulk(self.auditor, 'advance', [{'pk': k, 'fromStage': 3} for k in pks[1:]]).status_code, 200)
+        done = self.bulk(self.treasury, 'advance', [{'pk': k, 'fromStage': 4} for k in pks[1:]])
+        self.assertEqual(sorted(p['status'] for p in done.json()['payments']), [5, 5])                                      # final approval, no amount change needed
+
+    def test_bulk_is_all_or_none_and_checks_the_role(self):
+        pks = [p['pk'] for p in self.make_batch(2)]
+        mixed = self.bulk(self.purchasing, 'advance', [{'pk': pks[0], 'fromStage': 2}, {'pk': pks[1], 'fromStage': 9}])    # the second page is stale
+        self.assertEqual((mixed.status_code, list(mixed.json()['rowErrors'])), (400, [str(pks[1])]))
+        self.assertEqual(sorted(Payment.objects.values_list('status', flat=True)), [2, 2])                                   # the first row was not moved either
+        self.assertEqual(self.bulk(self.matcher, 'advance', [{'pk': pks[0]}]).status_code, 403)
+        self.assertEqual(self.bulk(self.services, 'advance', [{'pk': pks[0], 'fromStage': 2}]).status_code, 400)           # not its turn
+        self.assertEqual(self.bulk(self.admin, 'advance', [{'pk': pks[0], 'fromStage': 2}]).status_code, 200)              # the admin may act at any level
+        self.assertEqual(self.bulk(self.purchasing, 'nonsense', [{'pk': pks[0]}]).status_code, 400)

@@ -833,6 +833,12 @@ class NoticeDetailView(APIView):
 
 # ------------------------------------------------------------------ payments (four-level approval after a finished reconciliation)
 PAY_METHODS = ('تحويل بنكي', 'شيك', 'نقداً', 'خصم من الحساب')
+# request key -> Payment field: branch, main bank, analytical bank, cost center
+PAY_DIMS = (('branch', 'branch'), ('bank', 'bank'), ('bankSub', 'bank_sub'), ('costCenter', 'cost_center'))
+
+
+def dim_text(v):
+    return str(v or '').strip()[:80]
 STEP_NAME = {Payment.PROPOSING: 'خدمات الموردين', Payment.PURCHASING: 'مدير المشتريات', Payment.AUDIT: 'المدقق', Payment.TREASURY: 'مسؤول التحويل'}
 
 
@@ -841,7 +847,7 @@ def open_payment(req):
     now = timezone.now()
     amount = abs(req.diff) if req.diff else None
     p, created = Payment.objects.get_or_create(
-        request=req, defaults={'supplier': req.supplier, 'amount': amount, 'reached': {'1': now.isoformat()}, 'created_at': now})
+        request=req, defaults={'supplier': req.supplier, 'supplier_rec': req.supplier.supplier, 'amount': amount, 'reached': {'1': now.isoformat()}, 'created_at': now})
     if created:
         p.number = f'PY-{now:%y%m}-{p.pk:04d}'
         p.save(update_fields=['number'])
@@ -849,7 +855,7 @@ def open_payment(req):
 
 
 def payment_qs():
-    return Payment.objects.select_related('request', 'supplier', 'paid_by')
+    return Payment.objects.select_related('request', 'supplier', 'supplier_rec', 'paid_by')
 
 
 def get_payment(pk):
@@ -863,6 +869,30 @@ def pay_out(request, pk):
     return payment_out(get_payment(pk), request.user)
 
 
+def parse_amount(raw):
+    """A positive money amount from text typed or read from a spreadsheet ("1,250.50", Arabic digits...). Raises ValueError with the message."""
+    try:
+        d = Decimal(normalize_digits(str(raw)).replace(',', '').replace('٬', '').replace('٫', '.').strip())
+    except InvalidOperation:
+        raise ValueError('المبلغ غير صحيح.')
+    if not d.is_finite() or d <= 0 or d > Decimal('999999999'):
+        raise ValueError('المبلغ يجب أن يكون أكبر من صفر.')
+    return d.quantize(Decimal('0.01'))
+
+
+def parse_balance(raw):
+    """A balance from the books: empty is allowed, zero and negative are allowed. Raises ValueError with the message."""
+    if raw in (None, ''):
+        return None
+    try:
+        d = Decimal(normalize_digits(str(raw)).replace(',', '').replace('٬', '').replace('٫', '.').strip())
+    except InvalidOperation:
+        raise ValueError('قيمة الرصيد غير صحيحة.')
+    if not d.is_finite() or abs(d) > Decimal('9999999999'):
+        raise ValueError('قيمة الرصيد غير صحيحة.')
+    return d.quantize(Decimal('0.01'))
+
+
 def apply_payment_fields(p, data):
     """The level working on the payment may propose another amount, method or due date."""
     if 'amount' in data:
@@ -871,12 +901,9 @@ def apply_payment_fields(p, data):
             p.amount = None
         else:
             try:
-                d = Decimal(normalize_digits(str(raw)))
-            except InvalidOperation:
-                raise ValidationError({'amount': 'المبلغ غير صحيح.'})
-            if not d.is_finite() or d <= 0 or d > Decimal('999999999'):
-                raise ValidationError({'amount': 'المبلغ يجب أن يكون أكبر من صفر.'})
-            p.amount = d.quantize(Decimal('0.01'))
+                p.amount = parse_amount(raw)
+            except ValueError as e:
+                raise ValidationError({'amount': str(e)})
     if 'method' in data:
         m = (data.get('method') or '').strip()
         if m and m not in PAY_METHODS:
@@ -884,10 +911,20 @@ def apply_payment_fields(p, data):
         p.method = m
     if 'dueDate' in data:
         p.due_date = clean_due(data.get('dueDate'))
+    for key, attr in PAY_DIMS:
+        if key in data:
+            setattr(p, attr, dim_text(data.get(key)))
+    if p.status == Payment.PROPOSING:          # the balances belong to supplier services' proposal
+        for key, attr in (('balance', 'balance'), ('stockBalance', 'stock_balance')):
+            if key in data:
+                try:
+                    setattr(p, attr, parse_balance(data.get(key)))
+                except ValueError as e:
+                    raise ValidationError({key: str(e)})
 
 
-def log_payment(p, user, action, note=''):
-    p.history = [*p.history, {'at': timezone.now().isoformat(), 'by': user.name, 'role': user.role, 'action': action,
+def log_payment(p, user, action, note='', level=None):
+    p.history = [*p.history, {'at': timezone.now().isoformat(), 'by': user.name, 'role': user.role, 'level': level or p.status, 'action': action,
                               'amount': str(p.amount) if p.amount is not None else None, 'note': (note or '').strip()[:500]}]
 
 
@@ -895,22 +932,104 @@ class StalePayment(Exception):
     pass
 
 
-def lock_payment(request, pk):
+def lock_payment(user, data, pk):
     """Lock the row, check that the page showed the current step (a stale click gets 409) and that it is the caller's turn."""
     list(Payment.objects.select_for_update().filter(pk=pk).values_list('pk', flat=True))
     p = get_payment(pk)
-    seen = request.data.get('fromStage')
+    seen = data.get('fromStage')
     if seen not in (None, '') and str(seen) != str(p.status):
         raise StalePayment
     if p.status == Payment.PAID:
         raise ValidationError({'detail': 'تم سداد هذا الأمر، فلا يمكن تعديله.'})
-    if not can_act_on_payment(request.user, p):
+    if not can_act_on_payment(user, p):
         raise PermissionDenied(f'هذا الأمر بانتظار {STEP_NAME[p.status]}، وليس دورك الآن.')
     return p
 
 
 def stale_response():
     return Response({'detail': 'تغيّرت حالة أمر السداد للتو. حُدّثت الصفحة فتأكد قبل المتابعة.'}, status=409)
+
+
+class PaymentSuppliersView(APIView):
+    """The active suppliers a batch can pay (supplier services has no access to the suppliers page)."""
+    permission_classes = [IsPaymentsPage]
+
+    def get(self, request):
+        return Response([{'id': s.pk, 'name': s.name, 'code': s.code, 'taxNo': s.tax_no} for s in Supplier.objects.filter(is_active=True).order_by('name')])
+
+
+class PaymentBatchView(APIView):
+    """Several suppliers in one file: every row becomes a payment order, all sharing one batch number.
+    The uploader is supplier services (the first level), so the batch goes straight to the purchasing manager. All rows or none."""
+    permission_classes = [IsPaymentsPage]
+    MAX_ROWS = 300
+
+    @transaction.atomic
+    def post(self, request):
+        if request.user.role not in (User.SERVICES, User.ADMIN):
+            raise PermissionDenied('رفع دفعة سداد لخدمات الموردين ومدير النظام فقط.')
+        rows = request.data.get('rows')
+        if not isinstance(rows, list) or not rows:
+            raise ValidationError({'detail': 'أضف مورداً واحداً على الأقل.'})
+        if len(rows) > self.MAX_ROWS:
+            raise ValidationError({'detail': f'الحد الأقصى {self.MAX_ROWS} مورد في الدفعة الواحدة.'})
+        default_method = (request.data.get('method') or '').strip()
+        default_due = request.data.get('dueDate')
+        suppliers = list(Supplier.objects.filter(is_active=True))
+        by_id = {s.pk: s for s in suppliers}
+        by_code = {s.code.strip().lower(): s for s in suppliers}
+        errors, clean, seen = {}, [], {}
+        for i, row in enumerate(rows):
+            row = row if isinstance(row, dict) else {}
+            sid = str(row.get('supplierId') or '')
+            s = by_id.get(int(sid)) if sid.isdigit() else by_code.get(str(row.get('code') or '').strip().lower())
+            if not s:
+                errors[str(i)] = 'المورد غير موجود في بيانات الموردين أو موقوف.'
+                continue
+            try:
+                amount = parse_amount(row.get('amount'))
+            except ValueError as e:
+                errors[str(i)] = str(e)
+                continue
+            method = (row.get('method') or default_method or '').strip()
+            if method not in PAY_METHODS:
+                errors[str(i)] = 'اختر طريقة السداد.'
+                continue
+            try:
+                due = clean_due(row.get('dueDate') or default_due)
+            except ValidationError:
+                errors[str(i)] = 'تاريخ الاستحقاق غير صحيح.'
+                continue
+            if s.pk in seen:
+                errors[str(i)] = f'المورد مكرر في الدفعة (السطر {seen[s.pk] + 1}). اجمع المبلغين في سطر واحد.'
+                continue
+            try:
+                balances = {'balance': parse_balance(row.get('balance')), 'stock_balance': parse_balance(row.get('stockBalance'))}
+            except ValueError as e:
+                errors[str(i)] = str(e)
+                continue
+            seen[s.pk] = i
+            dims = {attr: dim_text(row.get(key)) or dim_text(request.data.get(key)) for key, attr in PAY_DIMS}
+            dims.update(balances)
+            clean.append((s, amount, method, due, (row.get('note') or '').strip()[:300], dims))
+        if errors:
+            raise ValidationError({'detail': f'راجع {len(errors)} سطر فيه خطأ، لم يُرفع شيء.', 'rowErrors': errors})
+
+        now = timezone.now()
+        prefix = f'PB-{now:%y%m}-'
+        seq = Payment.objects.filter(batch__startswith=prefix).values('batch').distinct().count() + 1
+        batch = f'{prefix}{seq:03d}'
+        created = []
+        for s, amount, method, due, note, dims in clean:
+            p = Payment.objects.create(
+                **dims, supplier_rec=s, supplier=s.users.filter(role=User.SUPPLIER, is_active=True).first(), batch=batch, note=note,
+                status=Payment.PURCHASING, amount=amount, method=method, due_date=due, created_at=now,
+                reached={'1': now.isoformat(), '2': now.isoformat()})
+            p.number = f'PY-{now:%y%m}-{p.pk:04d}'
+            log_payment(p, request.user, 'propose', note, level=Payment.PROPOSING)
+            p.save(update_fields=['number', 'history'])
+            created.append(p.pk)
+        return Response({'batch': batch, 'payments': [payment_out(p, request.user) for p in payment_qs().filter(pk__in=created)]}, status=201)
 
 
 class PaymentsView(APIView):
@@ -920,13 +1039,54 @@ class PaymentsView(APIView):
         return Response([payment_out(p, request.user) for p in payment_qs()[:1000]])
 
 
+def err_text(e):
+    """The first message of a DRF exception, as plain text (for the per-row errors of a bulk action)."""
+    d = getattr(e, 'detail', e)
+    if isinstance(d, dict):
+        d = next(iter(d.values()), '')
+    if isinstance(d, (list, tuple)):
+        d = d[0] if d else ''
+    return str(d)
+
+
+def do_advance(user, p, data):
+    """Approve at the caller's level. Level 1 proposes (amount + method); level 4 gives the final approval, which completes the payment."""
+    apply_payment_fields(p, data)
+    if not p.amount:
+        raise ValidationError({'amount': 'حدّد مبلغ السداد.'})
+    if p.status == Payment.PROPOSING and not p.method:
+        raise ValidationError({'method': 'اختر طريقة السداد قبل رفع الاقتراح.'})
+    note = data.get('note')
+    if p.status == Payment.TREASURY:
+        p.paid_by = user
+        log_payment(p, user, 'pay', note)
+    else:
+        log_payment(p, user, 'propose' if p.status == Payment.PROPOSING else 'approve', note)
+    p.status += 1
+    stamp(p, p.status)
+    p.save()
+
+
+def do_reject(user, p, data):
+    """Only the auditor rejects. The payment goes back to supplier services with the reason."""
+    if p.status != Payment.AUDIT:
+        raise PermissionDenied('الرفض للمدقق عند مرحلة التدقيق فقط.')
+    reason = (data.get('note') or '').strip()
+    if not reason:
+        raise ValidationError({'note': 'اكتب سبب الرفض.'})
+    log_payment(p, user, 'reject', reason)
+    p.status = Payment.PROPOSING
+    p.reached = {'1': timezone.now().isoformat()}
+    p.save()
+
+
 class PaymentDetailView(APIView):
     permission_classes = [IsPaymentsPage]
 
     @transaction.atomic
     def patch(self, request, pk):
         try:
-            p = lock_payment(request, pk)
+            p = lock_payment(request.user, request.data, pk)
         except StalePayment:
             return stale_response()
         apply_payment_fields(p, request.data)
@@ -941,49 +1101,62 @@ class PaymentDetailView(APIView):
 
 
 class PaymentAdvanceView(APIView):
-    """Approve at the caller's level. Level 1 proposes (needs amount + method); level 4 gives the final approval, which completes the payment."""
     permission_classes = [IsPaymentsPage]
 
     @transaction.atomic
     def post(self, request, pk):
         try:
-            p = lock_payment(request, pk)
+            p = lock_payment(request.user, request.data, pk)
         except StalePayment:
             return stale_response()
-        apply_payment_fields(p, request.data)
-        if not p.amount:
-            raise ValidationError({'amount': 'حدّد مبلغ السداد.'})
-        if p.status == Payment.PROPOSING and not p.method:
-            raise ValidationError({'method': 'اختر طريقة السداد قبل رفع الاقتراح.'})
-        note = request.data.get('note')
-        if p.status == Payment.TREASURY:
-            p.paid_by = request.user
-            log_payment(p, request.user, 'pay', note)
-        else:
-            log_payment(p, request.user, 'propose' if p.status == Payment.PROPOSING else 'approve', note)
-        p.status += 1
-        stamp(p, p.status)
-        p.save()
+        do_advance(request.user, p, request.data)
         return Response(pay_out(request, pk))
 
 
 class PaymentRejectView(APIView):
-    """Only the auditor may reject. The payment goes back to supplier services with the reason."""
     permission_classes = [IsPaymentsPage]
 
     @transaction.atomic
     def post(self, request, pk):
         try:
-            p = lock_payment(request, pk)
+            p = lock_payment(request.user, request.data, pk)
         except StalePayment:
             return stale_response()
-        if p.status != Payment.AUDIT:
-            raise PermissionDenied('الرفض للمدقق عند مرحلة التدقيق فقط.')
-        reason = (request.data.get('note') or '').strip()
-        if not reason:
-            raise ValidationError({'note': 'اكتب سبب الرفض.'})
-        log_payment(p, request.user, 'reject', reason)
-        p.status = Payment.PROPOSING
-        p.reached = {'1': timezone.now().isoformat()}
-        p.save()
+        do_reject(request.user, p, request.data)
         return Response(pay_out(request, pk))
+
+
+class PaymentBulkView(APIView):
+    """One action on many orders (a whole batch sheet): approve ("advance") or reject. Each order is checked exactly as when done one by one:
+    the caller's level, the step the page showed, the required fields. All orders or none."""
+    permission_classes = [IsPaymentsPage]
+    MAX_ITEMS = 300
+
+    @transaction.atomic
+    def post(self, request):
+        action, items = request.data.get('action'), request.data.get('items')
+        if action not in ('advance', 'reject'):
+            raise ValidationError({'detail': 'إجراء غير معروف.'})
+        if not isinstance(items, list) or not items:
+            raise ValidationError({'detail': 'حدّد أمراً واحداً على الأقل.'})
+        if len(items) > self.MAX_ITEMS:
+            raise ValidationError({'detail': f'الحد الأقصى {self.MAX_ITEMS} أمر في المرة.'})
+        common_note = request.data.get('note')
+        errors, done = {}, []
+        for it in items:
+            it = it if isinstance(it, dict) else {}
+            key = str(it.get('pk'))
+            try:
+                if not key.isdigit():
+                    raise ValidationError({'detail': 'أمر غير صحيح.'})
+                p = lock_payment(request.user, it, int(key))
+                data = {**it, 'note': it.get('note') or common_note}
+                (do_advance if action == 'advance' else do_reject)(request.user, p, data)
+                done.append(p.pk)
+            except StalePayment:
+                errors[key] = 'تغيّرت حالة هذا الأمر للتو، حدّث الصفحة.'
+            except (ValidationError, PermissionDenied, NotFound) as e:
+                errors[key] = err_text(e)
+        if errors:
+            raise ValidationError({'detail': f'راجع {len(errors)} أمر فيه خطأ، لم يُنفَّذ شيء.', 'rowErrors': errors})
+        return Response({'payments': [payment_out(p, request.user) for p in payment_qs().filter(pk__in=done)]})

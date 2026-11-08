@@ -69,10 +69,13 @@ def payment_out(p, user=None):
     r = p.request
     last = p.history[-1] if p.history else None
     return {
-        'id': p.number, 'pk': p.pk, 'request': r.number, 'requestPk': r.pk, 'period': r.period,
-        'supplier': p.supplier.org or p.supplier.name, 'supplierCode': p.supplier.code or '',
+        'id': p.number, 'pk': p.pk, 'request': r.number if r else '', 'requestPk': r.pk if r else None, 'period': r.period if r else '',
+        'supplier': p.supplier_name, 'supplierCode': p.supplier_code,
+        'batch': p.batch, 'note': p.note,
+        'balance': float(p.balance) if p.balance is not None else None, 'stockBalance': float(p.stock_balance) if p.stock_balance is not None else None,
+        'branch': p.branch, 'bank': p.bank, 'bankSub': p.bank_sub, 'costCenter': p.cost_center,
         'status': p.status, 'amount': float(p.amount) if p.amount is not None else None,
-        'diff': float(r.diff) if r.diff is not None else None,
+        'diff': float(r.diff) if r is not None and r.diff is not None else None,
         'method': p.method, 'reference': p.reference, 'dueDate': p.due_date.isoformat() if p.due_date else None,
         'paidBy': p.paid_by.name if p.paid_by else '', 'history': p.history,
         # an auditor's rejection sends the payment back to supplier services; show why until it is proposed again
