@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from .models import Attachment, MatchRequest, Payment, Supplier, User
+from .models import Attachment, Lookup, MatchRequest, Payment, Supplier, User
 
 PDF = b'%PDF-1.4\n%test\n'
 XLSX = b'PK\x03\x04' + b'0' * 40
@@ -446,7 +446,7 @@ class PagePermissionTests(TestCase):
         created = a.post('/api/users/', {'name': 'جديد', 'username': '8', 'role': 'matcher', 'password': '1234', 'pages': ['manager', 'users']}, format='json')
         self.assertEqual((created.status_code, created.json()['pages']), (201, ['manager', 'users']))
         role_change = a.patch(f'/api/users/{self.matcher.pk}/', {'name': 'x', 'username': '3', 'role': 'manager'}, format='json')
-        self.assertEqual(role_change.json()['pages'], ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers'])   # new role, its own defaults
+        self.assertEqual(role_change.json()['pages'], ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'settings'])   # new role, its own defaults
 
 
 class SupplierDataTests(TestCase):
@@ -570,19 +570,30 @@ class PaymentTests(TestCase):
         r.save(update_fields=['number'])
         return r
 
-    def payment(self, diff=None):
-        r = self.finished_request(diff)
-        resp = login(self.manager).post(f'/api/requests/{r.pk}/advance', {'fromStage': 4, 'file': SimpleUploadedFile('m.xlsx', XLSX)}, format='multipart')
-        self.assertEqual(resp.status_code, 200)
-        return Payment.objects.get(request=r)
+    def payment(self, amount=None):
+        """A payment waiting at level 1 (supplier services), as after an auditor's rejection or a single order."""
+        now = timezone.now()
+        p = Payment.objects.create(supplier=self.sup, supplier_rec=self.sup.supplier, amount=amount, reached={'1': now.isoformat()}, created_at=now)
+        p.number = f'PY-{p.pk:04d}'
+        p.save(update_fields=['number'])
+        return p
 
     def act(self, user, p, action='advance', **body):
         return login(user).post(f'/api/payments/{p.pk}/{action}', body, format='json')
 
-    def test_payment_opens_when_the_file_is_sent(self):
-        p = self.payment(diff='-1250.50')
-        self.assertEqual((p.status, p.amount, p.supplier_id), (Payment.PROPOSING, Decimal('1250.50'), self.sup.pk))   # suggested from the difference
-        self.assertTrue(p.number.startswith('PY-'))
+    def test_finishing_a_reconciliation_does_not_open_a_payment(self):
+        r = self.finished_request(diff='-1250.50')
+        resp = login(self.manager).post(f'/api/requests/{r.pk}/advance', {'fromStage': 4, 'file': SimpleUploadedFile('m.xlsx', XLSX)}, format='multipart')
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Payment.objects.exists())
+
+    def test_the_list_shows_only_payments_added_by_hand(self):
+        r = self.finished_request()
+        legacy = Payment.objects.create(request=r, supplier=self.sup, supplier_rec=self.sup.supplier, amount=5)   # one that an earlier version made by itself
+        mine = self.make_batch(1)
+        ids = [p['pk'] for p in login(self.manager).get('/api/payments/').json()]
+        self.assertEqual(ids, [mine[0]['pk']])
+        self.assertNotIn(legacy.pk, ids)
 
     def test_each_level_acts_only_on_its_own_step(self):
         p = self.payment()
@@ -655,6 +666,8 @@ class PaymentTests(TestCase):
 
     def test_batch_carries_branch_banks_and_cost_center(self):
         s1, s2 = self.sup.supplier, Supplier.objects.create(name='شركة ب', code='S-2')
+        for kind, name in (('branch', 'الرياض'), ('branch', 'جدة'), ('costCenter', 'المشتريات'), ('costCenter', 'المبيعات'), ('bank', 'الراجحي'), ('bank', 'الأهلي'), ('bankSub', 'حساب التشغيل'), ('bankSub', 'حساب الموردين')):
+            Lookup.objects.create(kind=kind, name=name)
         r = self.batch(self.services, [{'supplierId': s1.pk, 'amount': '10'}, {'supplierId': s2.pk, 'amount': '20', 'branch': 'جدة', 'costCenter': 'المبيعات'}],
                        method='شيك', branch='الرياض', costCenter='المشتريات', bank='الراجحي', bankSub='حساب التشغيل')
         got = {p['supplierCode']: p for p in r.json()['payments']}
@@ -723,3 +736,81 @@ class PaymentTests(TestCase):
         self.assertEqual(self.bulk(self.services, 'advance', [{'pk': pks[0], 'fromStage': 2}]).status_code, 400)           # not its turn
         self.assertEqual(self.bulk(self.admin, 'advance', [{'pk': pks[0], 'fromStage': 2}]).status_code, 200)              # the admin may act at any level
         self.assertEqual(self.bulk(self.purchasing, 'nonsense', [{'pk': pks[0]}]).status_code, 400)
+
+    # ---- the setup lists (التهيئة)
+    def test_settings_lists_crud_and_who_may_edit(self):
+        mgr = login(self.manager)                     # the finance manager has the settings page by default
+        made = mgr.post('/api/lookups/', {'kind': 'branch', 'code': ' ١٠ ', 'name': '  الرياض   الرئيسي '}, format='json')
+        self.assertEqual((made.status_code, made.json()['code'], made.json()['name'], made.json()['active']), (201, '10', 'الرياض الرئيسي', True))   # spaces are tidied, Arabic digits become Latin
+        pk = made.json()['id']
+        self.assertEqual(mgr.post('/api/lookups/', {'kind': 'branch', 'code': '11', 'name': 'الرياض الرئيسي'}, format='json').status_code, 400)   # no duplicate names
+        self.assertEqual(mgr.post('/api/lookups/', {'kind': 'branch', 'code': '10', 'name': 'جدة'}, format='json').status_code, 400)             # no duplicate numbers in one list
+        self.assertEqual(mgr.post('/api/lookups/', {'kind': 'bank', 'code': '10', 'name': 'الراجحي'}, format='json').status_code, 201)           # the same number in another list is fine
+        self.assertEqual(mgr.post('/api/lookups/', {'kind': 'branch', 'name': 'الدمام'}, format='json').status_code, 400)                        # the number is required
+        self.assertEqual(mgr.post('/api/lookups/', {'kind': 'nonsense', 'code': '1', 'name': 'x'}, format='json').status_code, 400)
+        self.assertEqual(mgr.post('/api/lookups/', {'kind': 'bank', 'code': '5', 'name': '  '}, format='json').status_code, 400)
+        edit = mgr.patch(f'/api/lookups/{pk}/', {'code': '12', 'name': 'جدة', 'active': False}, format='json')
+        self.assertEqual((edit.json()['code'], edit.json()['name'], edit.json()['active']), ('12', 'جدة', False))
+        self.assertEqual(mgr.patch(f'/api/lookups/{pk}/', {'code': ''}, format='json').status_code, 400)
+        self.assertEqual([l['name'] for l in mgr.get('/api/lookups/').json()['branch']], ['جدة'])
+        for u in (self.services, self.purchasing, self.auditor, self.treasury):    # the payment roles read the lists but cannot change them
+            c = login(u)
+            self.assertEqual(c.get('/api/lookups/').status_code, 200, u.role)
+            self.assertEqual(c.post('/api/lookups/', {'kind': 'branch', 'code': '9', 'name': 'x'}, format='json').status_code, 403, u.role)
+            self.assertEqual(c.patch(f'/api/lookups/{pk}/', {'name': 'y'}, format='json').status_code, 403, u.role)
+            self.assertEqual(c.delete(f'/api/lookups/{pk}/').status_code, 403, u.role)
+        self.assertEqual(login(self.matcher).get('/api/lookups/').status_code, 403)
+        self.assertEqual(login(self.sup, 'supplier').get('/api/lookups/').status_code, 403)
+        self.assertEqual(mgr.delete(f'/api/lookups/{pk}/').status_code, 204)
+
+    def test_payment_methods_and_dimensions_come_from_the_lists(self):
+        s1 = self.sup.supplier
+        self.assertEqual(Lookup.objects.filter(kind='method').count(), 4)           # the migration seeded the old fixed methods
+        self.assertEqual(sorted(Lookup.objects.filter(kind='method').values_list('code', flat=True)), ['1', '2', '3', '4'])   # ...and numbered them
+        row = {'supplierId': s1.pk, 'amount': '10'}
+        self.assertEqual(self.batch(self.services, [row], method='حوالة سريعة').status_code, 400)   # not in the list yet
+        Lookup.objects.create(kind='method', name='حوالة سريعة')
+        self.assertEqual(self.batch(self.services, [row], method='حوالة سريعة').status_code, 201)
+        Lookup.objects.filter(kind='method', name='شيك').update(is_active=False)    # a switched-off entry can no longer be chosen
+        self.assertEqual(self.batch(self.services, [dict(row, supplierId=Supplier.objects.create(name='ب', code='B').pk)], method='شيك').status_code, 400)
+        no_branch = self.batch(self.services, [row], method='نقداً', branch='فرع غير معرّف')
+        self.assertEqual(no_branch.status_code, 400)
+        Lookup.objects.create(kind='branch', name='فرع معرّف')
+        ok = self.batch(self.services, [dict(row, supplierId=Supplier.objects.create(name='ج', code='C').pk)], method='نقداً', branch='فرع معرّف')
+        self.assertEqual((ok.status_code, ok.json()['payments'][0]['branch']), (201, 'فرع معرّف'))
+        p = Payment.objects.get(branch='فرع معرّف')
+        Lookup.objects.filter(kind='branch').delete()                                # the list changes later: the order keeps its value and can still be saved
+        keep = login(self.purchasing).patch(f'/api/payments/{p.pk}/', {'branch': 'فرع معرّف', 'amount': '12'}, format='json')
+        self.assertEqual((keep.status_code, keep.json()['branch']), (200, 'فرع معرّف'))
+        bad = login(self.purchasing).patch(f'/api/payments/{p.pk}/', {'branch': 'فرع آخر'}, format='json')
+        self.assertEqual(bad.status_code, 400)
+
+    # ---- edit / delete a whole document (a batch)
+    def test_services_edits_and_deletes_a_document_until_purchasing_approves(self):
+        for kind, name, code in (('branch', 'جدة', '1'), ('bank', 'الأهلي', '1'), ('method', 'شيك الشركة', '9')):
+            Lookup.objects.create(kind=kind, name=name, code=code)
+        pks = [p['pk'] for p in self.make_batch(2)]
+        batch = Payment.objects.get(pk=pks[0]).batch
+        url = f'/api/payments/batch/{batch}/'
+        edit = login(self.services).patch(url, {'branch': 'جدة', 'bank': 'الأهلي', 'method': 'شيك الشركة', 'dueDate': '2026-12-31', 'amount': '1'}, format='json')
+        self.assertEqual(edit.status_code, 200, edit.content)
+        got = edit.json()['payments']
+        self.assertEqual({(p['branch'], p['bank'], p['method'], p['dueDate']) for p in got}, {('جدة', 'الأهلي', 'شيك الشركة', '2026-12-31')})   # on every order of the document
+        self.assertNotEqual(got[0]['amount'], 1.0)                                                                                           # only the basic data is editable here
+        self.assertEqual(login(self.services).patch(url, {'branch': 'فرع غير معرّف'}, format='json').status_code, 400)                     # still from the settings lists
+        for u in (self.purchasing, self.auditor, self.treasury, self.manager):
+            self.assertEqual(login(u).patch(url, {'branch': 'جدة'}, format='json').status_code, 403, u.role)
+            self.assertEqual(login(u).delete(url).status_code, 403, u.role)
+        self.assertEqual(self.bulk(self.purchasing, 'advance', [{'pk': pks[0], 'fromStage': 2}]).status_code, 200)    # purchasing approves one order
+        self.assertEqual(login(self.services).patch(url, {'branch': 'جدة'}, format='json').status_code, 403)          # services is out
+        self.assertEqual(login(self.services).delete(url).status_code, 403)
+        self.assertEqual(login(self.admin).delete(url).status_code, 204)                                                 # the admin may always delete
+        self.assertFalse(Payment.objects.filter(batch=batch).exists())
+        self.assertEqual(login(self.admin).delete(url).status_code, 404)
+
+    def test_services_deletes_an_untouched_document(self):
+        pks = [p['pk'] for p in self.make_batch(2)]
+        batch = Payment.objects.get(pk=pks[0]).batch
+        self.assertEqual(login(self.services).delete(f'/api/payments/batch/{batch}/').status_code, 204)
+        self.assertEqual(Payment.objects.count(), 0)                                                                    # all of its orders went with it
+

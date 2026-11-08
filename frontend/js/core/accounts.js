@@ -10,12 +10,12 @@ const ROLE_PAGES = {
   supplier: ['supplier'],
   matcher: ['matcher', 'recon'],
   supervisor: ['matcher', 'recon'],
-  manager: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers'],
-  admin: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'users'],
+  manager: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'settings'],
+  admin: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'settings', 'users'],
   services: ['payments'], purchasing: ['payments'], auditor: ['payments'], treasury: ['payments']   /* the payment approval chain */
 };
 const HOME_PAGE = { supplier: 'supplier', matcher: 'matcher', supervisor: 'matcher', manager: 'manager', admin: 'manager', services: 'payments', purchasing: 'payments', auditor: 'payments', treasury: 'payments' };
-const PAGE_LABEL = { supplier: 'صفحة المورد', matcher: 'صفحة المطابق', manager: 'لوحة المدير المالي', recon: 'مطابقة الكشوف', payments: 'السداد', notices: 'إشعارات الموردين', suppliers: 'بيانات الموردين', users: 'إدارة المستخدمين' };
+const PAGE_LABEL = { supplier: 'صفحة المورد', matcher: 'صفحة المطابق', manager: 'لوحة المدير المالي', recon: 'مطابقة الكشوف', payments: 'السداد', settings: 'التهيئة', notices: 'إشعارات الموردين', suppliers: 'بيانات الموردين', users: 'إدارة المستخدمين' };
 /* two separate entrances: suppliers use supplier.html, staff use index.html */
 const PORTAL = document.body.getAttribute('data-portal') || 'staff';
 const inPortal = function (u) { return (u.role === 'supplier') === (PORTAL === 'supplier'); };

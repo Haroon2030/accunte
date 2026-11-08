@@ -19,10 +19,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import SLA_DAYS, Attachment, Complaint, Message, MatchRequest, Notice, Payment, Supplier, User
-from .permissions import (IsPaymentsPage, can_act_on_payment, supplier_or_page, IsAdmin, IsManagerPage, IsMatcherPage, IsStaff, IsSupplier, IsSuppliersPage, CanReadSuppliers, STAFF_PAGES, SupplierOrManagerPage, IsNoticesPage, SupplierOrNotices, allowed_pages,
+from .models import SLA_DAYS, Attachment, Complaint, Lookup, Message, MatchRequest, Notice, Payment, Supplier, User
+from .permissions import (CanReadLookups, IsSettingsPage, IsPaymentsPage, can_act_on_payment, supplier_or_page, IsAdmin, IsManagerPage, IsMatcherPage, IsStaff, IsSupplier, IsSuppliersPage, CanReadSuppliers, STAFF_PAGES, SupplierOrManagerPage, IsNoticesPage, SupplierOrNotices, allowed_pages,
                           can_view_complaint, can_view_request, roles)
-from .serializers import complaint_out, message_out, notice_out, payment_out, request_out, supplier_out, user_out
+from .serializers import complaint_out, lookup_out, message_out, notice_out, payment_out, request_out, supplier_out, user_out
 from .validators import INLINE_TYPES, TAX_RE, MOBILE_RE, check_password_rule, extension_of, normalize_digits, normalize_mobile, validate_upload
 
 USERNAME_RE = re.compile(r'^[a-z0-9._-]{1,30}$')
@@ -467,8 +467,6 @@ class RequestAdvanceView(APIView):
         req.stage += 1
         stamp(req, req.stage)
         req.save()
-        if req.stage == 5:
-            open_payment(req)      # the reconciliation file went out: the settlement starts
         return Response(request_out(get_request(request.user, pk)))
 
 
@@ -832,7 +830,15 @@ class NoticeDetailView(APIView):
 
 
 # ------------------------------------------------------------------ payments (four-level approval after a finished reconciliation)
-PAY_METHODS = ('تحويل بنكي', 'شيك', 'نقداً', 'خصم من الحساب')
+DEFAULT_PAY_METHODS = ('تحويل بنكي', 'شيك', 'نقداً', 'خصم من الحساب')   # used until the settings page has its own list
+
+
+def lookup_names(kind):
+    return list(Lookup.objects.filter(kind=kind, is_active=True).values_list('name', flat=True))
+
+
+def pay_methods():
+    return lookup_names(Lookup.METHOD) or list(DEFAULT_PAY_METHODS)
 # request key -> Payment field: branch, main bank, analytical bank, cost center
 PAY_DIMS = (('branch', 'branch'), ('bank', 'bank'), ('bankSub', 'bank_sub'), ('costCenter', 'cost_center'))
 
@@ -840,18 +846,6 @@ PAY_DIMS = (('branch', 'branch'), ('bank', 'bank'), ('bankSub', 'bank_sub'), ('c
 def dim_text(v):
     return str(v or '').strip()[:80]
 STEP_NAME = {Payment.PROPOSING: 'خدمات الموردين', Payment.PURCHASING: 'مدير المشتريات', Payment.AUDIT: 'المدقق', Payment.TREASURY: 'مسؤول التحويل'}
-
-
-def open_payment(req):
-    """One payment per request, created when the reconciliation file is sent. The amount starts as the reconciled difference."""
-    now = timezone.now()
-    amount = abs(req.diff) if req.diff else None
-    p, created = Payment.objects.get_or_create(
-        request=req, defaults={'supplier': req.supplier, 'supplier_rec': req.supplier.supplier, 'amount': amount, 'reached': {'1': now.isoformat()}, 'created_at': now})
-    if created:
-        p.number = f'PY-{now:%y%m}-{p.pk:04d}'
-        p.save(update_fields=['number'])
-    return p
 
 
 def payment_qs():
@@ -906,14 +900,18 @@ def apply_payment_fields(p, data):
                 raise ValidationError({'amount': str(e)})
     if 'method' in data:
         m = (data.get('method') or '').strip()
-        if m and m not in PAY_METHODS:
-            raise ValidationError({'method': 'اختر طريقة سداد من القائمة.'})
+        if m and m != p.method and m not in pay_methods():
+            raise ValidationError({'method': 'اختر طريقة سداد من قائمة التهيئة.'})
         p.method = m
     if 'dueDate' in data:
         p.due_date = clean_due(data.get('dueDate'))
     for key, attr in PAY_DIMS:
         if key in data:
-            setattr(p, attr, dim_text(data.get(key)))
+            v = dim_text(data.get(key))
+            # a value must come from the settings lists; one the order already holds (older data) may stay as it is
+            if v and v != getattr(p, attr) and v not in lookup_names(key):
+                raise ValidationError({key: 'اختر القيمة من قائمة التهيئة.'})
+            setattr(p, attr, v)
     if p.status == Payment.PROPOSING:          # the balances belong to supplier services' proposal
         for key, attr in (('balance', 'balance'), ('stockBalance', 'stock_balance')):
             if key in data:
@@ -975,6 +973,14 @@ class PaymentBatchView(APIView):
             raise ValidationError({'detail': f'الحد الأقصى {self.MAX_ROWS} مورد في الدفعة الواحدة.'})
         default_method = (request.data.get('method') or '').strip()
         default_due = request.data.get('dueDate')
+        methods = pay_methods()
+        allowed = {key: set(lookup_names(key)) for key, _ in PAY_DIMS}
+        for key, attr in PAY_DIMS:
+            v = dim_text(request.data.get(key))
+            if v and v not in allowed[key]:
+                raise ValidationError({'detail': f'«{v}» ليس في قائمة التهيئة. اختر قيمة من القائمة.', key: 'اختر القيمة من قائمة التهيئة.'})
+        if default_method and default_method not in methods:
+            raise ValidationError({'detail': 'طريقة السداد الافتراضية ليست في قائمة التهيئة.', 'method': 'اختر القيمة من قائمة التهيئة.'})
         suppliers = list(Supplier.objects.filter(is_active=True))
         by_id = {s.pk: s for s in suppliers}
         by_code = {s.code.strip().lower(): s for s in suppliers}
@@ -992,8 +998,8 @@ class PaymentBatchView(APIView):
                 errors[str(i)] = str(e)
                 continue
             method = (row.get('method') or default_method or '').strip()
-            if method not in PAY_METHODS:
-                errors[str(i)] = 'اختر طريقة السداد.'
+            if method not in methods:
+                errors[str(i)] = 'اختر طريقة السداد من قائمة التهيئة.'
                 continue
             try:
                 due = clean_due(row.get('dueDate') or default_due)
@@ -1010,6 +1016,10 @@ class PaymentBatchView(APIView):
                 continue
             seen[s.pk] = i
             dims = {attr: dim_text(row.get(key)) or dim_text(request.data.get(key)) for key, attr in PAY_DIMS}
+            bad = next((key for key, attr in PAY_DIMS if dims[attr] and dims[attr] not in allowed[key]), None)
+            if bad:
+                errors[str(i)] = f'«{dims[dict(PAY_DIMS)[bad]]}» ليس في قائمة التهيئة.'
+                continue
             dims.update(balances)
             clean.append((s, amount, method, due, (row.get('note') or '').strip()[:300], dims))
         if errors:
@@ -1032,11 +1042,52 @@ class PaymentBatchView(APIView):
         return Response({'batch': batch, 'payments': [payment_out(p, request.user) for p in payment_qs().filter(pk__in=created)]}, status=201)
 
 
+class PaymentDocumentView(APIView):
+    """One document = one batch. Edit its basic data (branch, cost center, banks, method, due date) on every order, or delete it with all its orders.
+    Supplier services may do both while nobody is past purchasing's turn; the system admin may always delete."""
+    permission_classes = [IsPaymentsPage]
+    EDITABLE = ('method', 'dueDate', 'branch', 'costCenter', 'bank', 'bankSub')
+
+    @staticmethod
+    def _orders(batch):
+        list(Payment.objects.select_for_update().filter(batch=batch, request__isnull=True).values_list('pk', flat=True))
+        orders = list(payment_qs().filter(batch=batch, request__isnull=True))
+        if not orders:
+            raise NotFound('الوثيقة غير موجودة.')
+        return orders
+
+    @staticmethod
+    def _allow(user, orders, deleting):
+        untouched = all(p.status <= Payment.PURCHASING for p in orders)      # nobody beyond purchasing's turn has acted
+        if (deleting and user.role == User.ADMIN) or (user.role in (User.SERVICES, User.ADMIN) and untouched):
+            return
+        raise PermissionDenied('تعديل الوثيقة وحذفها لخدمات الموردين ما دامت لم تُعتمد من المشتريات، ولمدير النظام حذفها دائماً.')
+
+    @transaction.atomic
+    def patch(self, request, batch):
+        orders = self._orders(batch)
+        self._allow(request.user, orders, deleting=False)
+        data = {k: v for k, v in request.data.items() if k in self.EDITABLE}
+        for p in orders:
+            apply_payment_fields(p, data)
+            p.save()
+        return Response({'payments': [payment_out(p, request.user) for p in payment_qs().filter(pk__in=[p.pk for p in orders])]})
+
+    @transaction.atomic
+    def delete(self, request, batch):
+        orders = self._orders(batch)
+        self._allow(request.user, orders, deleting=True)
+        for p in orders:
+            p.delete()
+        return Response(status=204)
+
+
 class PaymentsView(APIView):
     permission_classes = [IsPaymentsPage]
 
     def get(self, request):
-        return Response([payment_out(p, request.user) for p in payment_qs()[:1000]])
+        # only payments added through "إضافة سداد متعدد": a finished reconciliation does not open a payment by itself
+        return Response([payment_out(p, request.user) for p in payment_qs().filter(request__isnull=True)[:1000]])
 
 
 def err_text(e):
@@ -1160,3 +1211,75 @@ class PaymentBulkView(APIView):
         if errors:
             raise ValidationError({'detail': f'راجع {len(errors)} أمر فيه خطأ، لم يُنفَّذ شيء.', 'rowErrors': errors})
         return Response({'payments': [payment_out(p, request.user) for p in payment_qs().filter(pk__in=done)]})
+
+
+# ------------------------------------------------------------------ setup lists (التهيئة)
+LOOKUP_LABEL = dict(Lookup.KINDS)
+
+
+def clean_lookup_name(raw, kind, exclude_pk=None):
+    name = ' '.join(str(raw or '').split())[:80]
+    if not name:
+        raise ValidationError({'name': 'اكتب الاسم.'})
+    if Lookup.objects.filter(kind=kind, name__iexact=name).exclude(pk=exclude_pk).exists():
+        raise ValidationError({'name': 'الاسم موجود في القائمة.'})
+    return name
+
+
+def clean_lookup_code(raw, kind, exclude_pk=None):
+    """The number of an entry: no spaces, Arabic digits become Latin, unique inside its list."""
+    code = ''.join(normalize_digits(raw).split())[:20]
+    if not code:
+        raise ValidationError({'code': 'اكتب الرقم.'})
+    if Lookup.objects.filter(kind=kind, code__iexact=code).exclude(pk=exclude_pk).exists():
+        raise ValidationError({'code': 'الرقم مستخدم في هذه القائمة.'})
+    return code
+
+
+class LookupsView(APIView):
+    """Every list, grouped by kind. The payment forms read it; only the settings page adds."""
+    permission_classes = [CanReadLookups]
+
+    def get(self, request):
+        out = {k: [] for k, _ in Lookup.KINDS}
+        for l in Lookup.objects.all():
+            out[l.kind].append(lookup_out(l))
+        return Response(out)
+
+    @transaction.atomic
+    def post(self, request):
+        if 'settings' not in allowed_pages(request.user):
+            raise PermissionDenied('ليست لديك صلاحية لصفحة التهيئة.')
+        kind = request.data.get('kind')
+        if kind not in LOOKUP_LABEL:
+            raise ValidationError({'detail': 'قائمة غير معروفة.'})
+        code = clean_lookup_code(request.data.get('code'), kind)
+        l = Lookup.objects.create(kind=kind, code=code, name=clean_lookup_name(request.data.get('name'), kind))
+        return Response(lookup_out(l), status=201)
+
+
+class LookupDetailView(APIView):
+    permission_classes = [IsSettingsPage]
+
+    @staticmethod
+    def _get(pk):
+        l = Lookup.objects.filter(pk=pk).first()
+        if not l:
+            raise NotFound('العنصر غير موجود.')
+        return l
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        l = self._get(pk)
+        if 'code' in request.data:
+            l.code = clean_lookup_code(request.data.get('code'), l.kind, exclude_pk=l.pk)
+        if 'name' in request.data:
+            l.name = clean_lookup_name(request.data.get('name'), l.kind, exclude_pk=l.pk)   # existing orders keep the name they were saved with
+        if 'active' in request.data:
+            l.is_active = bool(request.data.get('active'))
+        l.save()
+        return Response(lookup_out(l))
+
+    def delete(self, request, pk):
+        self._get(pk).delete()
+        return Response(status=204)

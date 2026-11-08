@@ -119,7 +119,7 @@ function DataTable(props) {
           return [option({ key: c.key + 'a', value: c.key + ':asc' }, c.label + ' (تصاعدي)'), option({ key: c.key + 'd', value: c.key + ':desc' }, c.label + ' (تنازلي)')];
         }))) : null,
       cols.filter(function (c) { return c.filter; }).map(function (c) { return div({ key: c.key, className: 'tfield' }, label(null, c.label), filterCell(c)); })) : null) : null;
-  return div({ className: 'dtbox' },
+  return div({ className: 'dtbox' + (props.inlineHead ? ' inlinehead' : '') },
     div({ className: 'dtsearch' }, input({ type: 'search', className: 'dtq', 'aria-label': 'بحث في الجدول', placeholder: 'بحث في الجدول…', value: q,
       onChange: function (e) { setQ(e.target.value); setPage(1); } }),
       df ? div({ className: 'dtdate', role: 'group', 'aria-label': 'تصفية بالتاريخ: ' + df.label },

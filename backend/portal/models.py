@@ -220,6 +220,25 @@ class Payment(models.Model):
         return (self.supplier.code or '') if self.supplier_id else ''
 
 
+class Lookup(models.Model):
+    """Setup lists (التهيئة) that the payment forms read from: branches, cost centers, main banks, analytical banks, payment methods."""
+    BRANCH, COST_CENTER, BANK, BANK_SUB, METHOD = 'branch', 'costCenter', 'bank', 'bankSub', 'method'
+    KINDS = [(BRANCH, 'الفروع'), (COST_CENTER, 'مراكز التكلفة'), (BANK, 'البنوك الرئيسية'), (BANK_SUB, 'البنوك التحليلية'), (METHOD, 'طرق السداد')]
+    kind = models.CharField(max_length=12, choices=KINDS)
+    code = models.CharField('الرقم', max_length=20, default='')    # unique inside its list; entries created before numbers existed are numbered by a migration
+    name = models.CharField(max_length=80)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['kind', 'name']
+        constraints = [models.UniqueConstraint(fields=['kind', 'name'], name='lookup_kind_name_unique'),
+                       models.UniqueConstraint(fields=['kind', 'code'], condition=~models.Q(code=''), name='lookup_kind_code_unique')]
+
+    def __str__(self):
+        return f'{self.kind}: {self.code} {self.name}'.replace('  ', ' ')
+
+
 @receiver(post_delete, sender=Attachment)
 def remove_stored_file(sender, instance, **kwargs):
     """Deleting a record also removes its files from storage (disk or R2) once the deletion is committed."""

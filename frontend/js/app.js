@@ -7,6 +7,7 @@ function App() {
   const [notices, setNotices] = useState([]);
   const [payments, setPayments] = useState([]);
   const [paySuppliers, setPaySuppliers] = useState([]);
+  const [lookups, setLookups] = useState({});     // the lists of the settings page, by kind
   const [supplierData, setSupplierData] = useState([]);
   const [matchers, setMatchers] = useState([]);
   const [reqs, setReqs] = useState([]);
@@ -60,6 +61,7 @@ function App() {
     if (u.role === 'supplier' || has('matcher', 'manager')) jobs.push(API.get('/requests/').then(function (rs) { setReqs(rs.map(API.request)); }));
     if (u.role === 'supplier' || has('manager')) jobs.push(API.get('/complaints/').then(function (cs) { setComplaints(cs.map(API.complaint)); }));
     if (has('payments')) jobs.push(API.get('/payments/').then(function (ps) { setPayments(ps); }));
+    if (has('payments', 'settings')) jobs.push(API.get('/lookups/').then(function (ls) { setLookups(ls); }));
     if (has('payments')) jobs.push(API.get('/payments/suppliers/').then(function (ss) { setPaySuppliers(ss); }));
     if (u.role === 'supplier' || has('notices')) jobs.push(API.get('/notices/').then(function (ns) { setNotices(ns); }));
     if (u.role === 'supervisor' || u.role === 'manager' || u.role === 'admin') jobs.push(API.get('/matchers/').then(function (ms) { setMatchers(ms); }));
@@ -163,6 +165,25 @@ function App() {
       return p;
     }, function (e) { if (e.status === 409 && me) loadAll(me).catch(function () { /* next refresh retries */ }); throw e; });
   }
+  /* settings lists: keep each kind sorted by name */
+  const byName = function (a, b) { return String(a.code || '').localeCompare(String(b.code || ''), 'ar', { numeric: true }) || a.name.localeCompare(b.name, 'ar'); };
+  const putLookup = function (l) { setLookups(function (o) { const n = Object.assign({}, o); n[l.kind] = (n[l.kind] || []).filter(function (x) { return x.id !== l.id; }).concat([l]).sort(byName); return n; }); };
+  function addLookup(kind, code, name) { return API.post('/lookups/', { kind: kind, code: code, name: name }).then(function (l) { putLookup(l); setToast('أُضيف «' + l.name + '» برقم ' + l.code + '.'); return l; }); }
+  function updateLookup(id, data) { return API.patch('/lookups/' + id + '/', data).then(function (l) { putLookup(l); return l; }); }
+  function removeLookup(l) { return API.del('/lookups/' + l.id + '/').then(function () { setLookups(function (o) { const n = Object.assign({}, o); n[l.kind] = (n[l.kind] || []).filter(function (x) { return x.id !== l.id; }); return n; }); setToast('حُذفت «' + l.name + '».'); }); }
+  function editPaymentBatch(batch, data) {
+    return API.patch('/payments/batch/' + encodeURIComponent(batch) + '/', data).then(function (r) {
+      r.payments.forEach(replacePay);
+      setToast('حُفظت بيانات الوثيقة ' + batch + '.');
+      return r;
+    });
+  }
+  function deletePaymentBatch(batch) {
+    return API.del('/payments/batch/' + encodeURIComponent(batch) + '/').then(function () {
+      setPayments(function (ps) { return ps.filter(function (x) { return x.batch !== batch; }); });
+      setToast('حُذفت الوثيقة ' + batch + ' مع أوامرها.');
+    });
+  }
   function createPaymentBatch(data) {
     return API.post('/payments/batch/', data).then(function (r) {
       setPayments(function (ps) { return r.payments.concat(ps); });
@@ -230,7 +251,7 @@ function App() {
   function changeRole(r) { if (allowed.indexOf(r) === -1) return; setRole(r); home(); }
   function logout() {
     API.post('/auth/logout').catch(function () { /* already signed out */ }).then(function () {
-      setMe(null); setReqs([]); setComplaints([]); setUsers([]); setSupplierData([]); setPayments([]); setPaySuppliers([]); setView({ name: 'home' }); setToast(''); goTop();
+      setMe(null); setReqs([]); setComplaints([]); setUsers([]); setSupplierData([]); setPayments([]); setPaySuppliers([]); setLookups({}); setView({ name: 'home' }); setToast(''); goTop();
     });
   }
   function saveUser(d) {
@@ -298,7 +319,8 @@ function App() {
   else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { suppliers: supplierData, users: users, me: user, onSave: saveUser, onToggle: toggleUser, onDelete: removeUser, onReset: resetUser, onToast: setToast });
   else if (role === 'suppliers' && allowed.indexOf('suppliers') !== -1) body = h(SuppliersPage, { suppliers: supplierData, canEdit: true, canDelete: user.role === 'admin', onSave: saveSupplier, onDelete: removeSupplier, onToast: setToast });
   else if (role === 'notices' && allowed.indexOf('notices') !== -1) body = h(NoticesPage, { notices: notices, suppliers: noticeSuppliers, canIssue: true, onCreate: createNotice, onUpdate: updateNotice, onDelete: user.role === 'admin' ? removeNotice : undefined, onToast: setToast });
-  else if (role === 'payments' && allowed.indexOf('payments') !== -1) body = h(PaymentPage, { payments: payments, onSave: savePayment, onAdvance: advancePayment, onReject: rejectPayment, suppliers: paySuppliers, canBatch: user.role === 'services' || user.role === 'admin', onBatch: createPaymentBatch, onBulk: bulkPayments, onDelete: user.role === 'admin' ? removePayment : undefined, onToast: setToast });
+  else if (role === 'payments' && allowed.indexOf('payments') !== -1) body = h(PaymentPage, { lookups: lookups, payments: payments, onSave: savePayment, onAdvance: advancePayment, onReject: rejectPayment, suppliers: paySuppliers, canBatch: user.role === 'services' || user.role === 'admin', onBatch: createPaymentBatch, onEditBatch: editPaymentBatch, onDeleteBatch: deletePaymentBatch, isAdmin: user.role === 'admin', onBulk: bulkPayments, onDelete: user.role === 'admin' ? removePayment : undefined, onToast: setToast });
+  else if (role === 'settings' && allowed.indexOf('settings') !== -1) body = h(SettingsPage, { lookups: lookups, onAdd: addLookup, onUpdate: updateLookup, onRemove: removeLookup, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
   else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq, onDelete: user.role === 'admin' ? removeRecord : undefined });
   else body = h(Dashboard, { onDelete: user.role === 'admin' ? removeRecord : undefined, reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });
@@ -311,6 +333,6 @@ function App() {
       })) : null,
       div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
         button({ type: 'button', onClick: logout }, 'خروج'))),
-    main({ className: 'gutter page', id: 'main', tabIndex: -1 }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'payments' ? 'سداد مستحقات الموردين بعد إنجاز المطابقة' : role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'notices' ? 'إصدار الإشعارات الضريبية للموردين وتعديلها وطباعتها' : (role === 'suppliers' ? 'التهيئة الأساسية لبيانات الموردين' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))))), body),
+    main({ className: 'gutter page', id: 'main', tabIndex: -1 }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'settings' ? 'القوائم التي تقرأ منها نماذج السداد' : role === 'payments' ? 'سداد مستحقات الموردين بعد إنجاز المطابقة' : role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'notices' ? 'إصدار الإشعارات الضريبية للموردين وتعديلها وطباعتها' : (role === 'suppliers' ? 'التهيئة الأساسية لبيانات الموردين' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))))), body),
     toast ? div({ className: 'toast', role: 'status' }, toast) : null);
 }

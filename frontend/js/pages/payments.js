@@ -27,14 +27,15 @@ function PaymentPage(props) {
   const [busy, setBusy] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [sheet, setSheet] = useState('');      // batch number whose sheet is open
+  const [editDoc, setEditDoc] = useState('');  // batch number whose basic data is being edited
   const cur = sel ? list.filter(function (x) { return x.pk === sel; })[0] : null;
   const set = function (k, v) { setF(function (o) { const n = Object.assign({}, o); n[k] = v; return n; }); };
+  /* a document opens its table: every supplier of the batch, the approvals inside each row */
   function open(id) {
-    const x = list.filter(function (r) { return r.id === id; })[0];
-    if (!x) return;
-    setBatchOpen(false); setSheet(''); setErrs({}); setSel(x.pk);
-    setF({ amount: x.amount == null ? '' : String(x.amount), method: x.method || '', dueDate: x.dueDate || '', note: '', branch: x.branch || '', costCenter: x.costCenter || '', bank: x.bank || '', bankSub: x.bankSub || '', balance: x.balance == null ? '' : String(x.balance), stockBalance: x.stockBalance == null ? '' : String(x.stockBalance) });
-    setTimeout(function () { const el = document.getElementById('pf-amount'); if (el && x.canAct) el.focus(); }, 0);
+    const d = list.filter(function (x) { return (x.batch || x.id) === id; })[0];
+    if (!d) return;
+    setBatchOpen(false); setEditDoc(''); setSel(null); setSheet(d.batch || '');
+    if (d.batch) setTimeout(function () { const el = document.querySelector('.shsheet'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }, 60);
   }
   function fail(ex) {
     setBusy(false);
@@ -59,27 +60,52 @@ function PaymentPage(props) {
     props.onReject(cur.pk, fields()).then(function () { setBusy(false); setSel(null); }, fail);
   }
 
+  /* the table lists documents: every batch is one document (many suppliers inside); an order without a batch is its own document */
+  const uniq = function (xs) { return xs.filter(function (v, k, a) { return v && a.indexOf(v) === k; }); };
+  const groups = {};
+  list.forEach(function (x) { const k = x.batch || x.id; (groups[k] = groups[k] || []).push(x); });
+  const docs = Object.keys(groups).map(function (k) {
+    const os = groups[k], first = os.slice().sort(function (a, b) { return new Date(a.created) - new Date(b.created); })[0];
+    const h0 = (first.history || [])[0];
+    const branches = uniq(os.map(function (x) { return x.branch; }));
+    const sts = uniq(os.map(function (x) { return x.status; }));
+    return { id: k, orders: os, n: os.length, names: uniq(os.map(function (x) { return x.supplier; })).sort(function (a, b) { return a.localeCompare(b, 'ar'); }), by: h0 ? h0.by : '', created: new Date(first.created),
+      branch: !branches.length ? '' : (branches.length === 1 ? branches[0] : 'عدة فروع'),
+      status: sts.length === 1 ? sts[0] : 0, paid: os.filter(function (x) { return x.status === 5; }).length,
+      mine: os.some(function (x) { return x.canAct; }), rejected: os.some(function (x) { return x.rejected; }), late: os.some(payLate) };
+  });
+  /* services (and the admin) may edit while nobody is past purchasing's turn; the admin may always delete */
+  const isBatchDoc = function (d) { return !!d.orders[0].batch; };      // only documents made by "إضافة سداد متعدد"
+  const canEditDoc = function (d) { return isBatchDoc(d) && props.canBatch && d.orders.every(function (x) { return x.status <= 2; }); };
+  const canDeleteDoc = function (d) { return isBatchDoc(d) && (props.isAdmin || canEditDoc(d)); };
+  function removeDoc(d) {
+    if (!window.confirm('حذف الوثيقة ' + d.id + ' مع ' + (d.n === 1 ? 'أمرها' : 'أوامرها الـ ' + d.n) + ' نهائياً؟ لا يمكن التراجع عن الحذف.')) return;
+    props.onDeleteBatch(d.id).then(function () { if (sheet === d.id) setSheet(''); if (editDoc === d.id) setEditDoc(''); }, function (ex) { props.onToast(ex.message); });
+  }
+  /* the state of a document: one step when all its orders are there, otherwise "in approval" with how many are paid */
+  const docLabel = function (d) { return d.status === 5 ? PAY_PAID : (d.status ? PAY_STEPS[d.status - 1].pill : 'قيد الاعتماد'); };
+  const docTone = function (d) { return d.status === 5 ? 'ok' : (d.rejected ? 'bad' : (d.status === 4 ? 'work' : 'warn')); };
   const cols = [
-    { key: 'id', label: 'رقم السداد', filter: 'text', val: function (x) { return x.id; }, render: function (x) { return span({ className: 'mono' }, x.id); } },
-    { key: 'supplier', label: 'المورد', filter: 'text', val: function (x) { return x.supplier; }, render: function (x) { return strong({ style: { fontWeight: 600 } }, x.supplier); } },
-    { key: 'ref', label: 'المرجع', filter: 'text', val: function (x) { return x.request || x.batch; }, render: function (x) { return x.request ? span({ className: 'mono' }, x.request) : span(null, span({ className: 'mono' }, x.batch), ' ', button({ type: 'button', className: 'chip-batch link', title: 'فتح ورقة الدفعة', onClick: function (e) { e.stopPropagation(); setSel(null); setBatchOpen(false); setSheet(x.batch); } }, 'ورقة الدفعة')); } },
-    { key: 'branch', label: 'الفرع', filter: 'select', fv: function (x) { return x.branch || '—'; }, val: function (x) { return x.branch || ''; }, render: function (x) { return x.branch || span({ className: 'muted' }, '—'); } },
-    { key: 'costCenter', label: 'مركز التكلفة', filter: 'select', fv: function (x) { return x.costCenter || '—'; }, val: function (x) { return x.costCenter || ''; }, render: function (x) { return x.costCenter || span({ className: 'muted' }, '—'); } },
-    { key: 'period', label: 'الفترة', filter: 'select', fv: function (x) { return x.period || '—'; }, val: function (x) { return x.period || '—'; }, render: function (x) { return x.period || span({ className: 'muted' }, '—'); } },
-    { key: 'amount', label: 'المبلغ', num: true, val: function (x) { return x.amount == null ? -1 : x.amount; }, xl: function (x) { return x.amount; }, render: function (x) { return x.amount == null ? span({ className: 'muted' }, 'لم يُحدَّد') : span({ className: 'mono' }, payMoney(x.amount)); } },
-    { key: 'status', label: 'الحالة', filter: 'select', fv: payLabel, val: function (x) { return x.status; },
-      render: function (x) { return div({ className: 'cell-status' }, span({ className: 'pill ' + payTone(x) }, span({ className: 'dot' }), payLabel(x)), x.rejected ? span({ className: 'chip-late' }, 'أعادها المدقق') : null, payLate(x) ? h(LateChip) : null); } },
-    { key: 'mine', label: 'دورك', filter: 'select', fv: function (x) { return x.canAct ? 'بانتظارك' : '—'; }, val: function (x) { return x.canAct ? 0 : 1; },
-      render: function (x) { return x.canAct ? span({ className: 'pill work' }, span({ className: 'dot' }), 'بانتظارك') : span({ className: 'muted' }, '—'); } },
-    { key: 'due', label: 'الاستحقاق', val: function (x) { return x.dueDate ? new Date(x.dueDate).getTime() : 0; }, xl: function (x) { return x.dueDate || ''; }, render: function (x) { return x.dueDate ? payDate(x.dueDate) : span({ className: 'muted' }, '—'); } },
-    openCol(props.onDelete)
+    /* the supplier's name; a document with several shows the first two and how many more. The document number stays in the tooltip and in search. */
+    { key: 'id', label: 'المورد', filter: 'text', val: function (d) { return d.names[0] || ''; }, fv: function (d) { return d.names.join(' ') + ' ' + d.id; },
+      render: function (d) { return strong({ style: { fontWeight: 600 }, title: d.id + ' · ' + d.names.join('، ') }, d.names.slice(0, 2).join('، ') + (d.names.length > 2 ? ' +' + (d.names.length - 2) : '')); } },
+    { key: 'by', label: 'الشخص المدخل', filter: 'select', fv: function (d) { return d.by || '—'; }, val: function (d) { return d.by; }, render: function (d) { return d.by || span({ className: 'muted' }, '—'); } },
+    { key: 'branch', label: 'الفرع', filter: 'select', fv: function (d) { return d.branch || '—'; }, val: function (d) { return d.branch; }, render: function (d) { return d.branch || span({ className: 'muted' }, '—'); } },
+    { key: 'created', label: 'تاريخ الإدخال', val: function (d) { return d.created.getTime(); }, xl: function (d) { return xlDate(d.created); }, render: function (d) { return fmtDT(d.created); } },
+    { key: 'status', label: 'الحالة', filter: 'select', fv: function (d) { return docLabel(d); }, val: function (d) { return d.status; },
+      render: function (d) { return div({ className: 'cell-status' }, span({ className: 'pill ' + docTone(d) }, span({ className: 'dot' }), docLabel(d)), d.status === 0 ? span({ className: 'muted small' }, d.paid + ' من ' + d.n + ' مسدّد') : null, d.rejected ? span({ className: 'chip-late' }, 'فيها مرفوض') : null, d.late ? h(LateChip) : null); } },
+    { key: 'act', label: 'إجراءات', render: function (d) {
+      const e = canEditDoc(d), x = canDeleteDoc(d);
+      if (!e && !x) return span({ className: 'muted' }, '—');
+      return div({ className: 'rowacts' },
+        e ? button({ type: 'button', className: 'abtn edit', title: 'تعديل', 'aria-label': 'تعديل ' + d.id, onClick: function (ev) { ev.stopPropagation(); setBatchOpen(false); setSheet(''); setSel(null); setEditDoc(d.id); setTimeout(function () { const el = document.querySelector('.pbform'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }, 60); } }, h(Icon, { name: 'pencil', size: 16 }), span({ className: 'abl' }, 'تعديل')) : null,
+        x ? button({ type: 'button', className: 'abtn stop', title: 'حذف', 'aria-label': 'حذف ' + d.id, onClick: function (ev) { ev.stopPropagation(); removeDoc(d); } }, h(Icon, { name: 'trash', size: 16 }), span({ className: 'abl' }, 'حذف')) : null);
+    } }
   ];
   const n = function (s) { return list.filter(function (x) { return x.status === s; }).length; };
   const mine = list.filter(function (x) { return x.canAct; }).length;
   const unpaid = list.filter(function (x) { return x.status < 5 && x.amount; }).reduce(function (a, x) { return a + x.amount; }, 0);
   const paid = list.filter(function (x) { return x.status === 5 && x.amount; }).reduce(function (a, x) { return a + x.amount; }, 0);
-  const options = {};
-  PB_DIMS.forEach(function (d) { const seen = {}; list.forEach(function (x) { if (x[d[0]]) seen[x[d[0]]] = true; }); options[d[0]] = Object.keys(seen).sort(function (a, b) { return a.localeCompare(b, 'ar'); }); });
   const batches = {};
   list.forEach(function (x) { if (x.batch) batches[x.batch] = (batches[x.batch] || 0) + 1; });
   const batchIds = Object.keys(batches).sort().reverse();
@@ -91,10 +117,10 @@ function PaymentPage(props) {
 
   return section({ className: 'svcpanel userspage payspage' },
     div({ className: 'svchead' },
-      div(null, h2(null, 'السداد'), p({ className: 'muted small' }, 'تظهر أوامر السداد هنا تلقائياً بعد إرسال ملف المطابقة إلى المورد، وتمر بأربعة مستويات: خدمات الموردين، مدير المشتريات، المدقق، مسؤول التحويل.')),
-      div({ className: 'payhead-acts' }, batchIds.length ? select({ className: 'batchpick', 'aria-label': 'فتح ورقة دفعة', value: sheet, onChange: function (e) { setSel(null); setBatchOpen(false); setSheet(e.target.value); } }, option({ value: '' }, 'ورقة دفعة…'), batchIds.map(function (b) { return option({ key: b, value: b }, b + ' (' + batches[b] + ')'); })) : null,
-        span({ className: 'paycount' }, list.length === 1 ? 'أمر واحد' : list.length + ' أوامر'),
-        props.canBatch ? button({ type: 'button', className: 'btn primary', onClick: function () { setSel(null); setSheet(''); setBatchOpen(true); } }, h(Icon, { name: 'plus' }), 'إضافة سداد متعدد') : null)),
+      div(null, h2(null, 'السداد'), p({ className: 'muted small' }, 'أوامر السداد التي تُضاف من «إضافة سداد متعدد»، وتمر بأربعة مستويات: خدمات الموردين، مدير المشتريات، المدقق، مسؤول التحويل.')),
+      div({ className: 'payhead-acts' }, batchIds.length ? select({ className: 'batchpick', 'aria-label': 'فتح ورقة دفعة', value: sheet, onChange: function (e) { setSel(null); setBatchOpen(false); setEditDoc(''); setSheet(e.target.value); } }, option({ value: '' }, 'ورقة دفعة…'), batchIds.map(function (b) { return option({ key: b, value: b }, b + ' (' + batches[b] + ')'); })) : null,
+        span({ className: 'paycount' }, docs.length === 1 ? 'وثيقة واحدة' : docs.length + ' وثائق'),
+        props.canBatch ? button({ type: 'button', className: 'btn primary', onClick: function () { setSel(null); setSheet(''); setEditDoc(''); setBatchOpen(true); } }, h(Icon, { name: 'plus' }), 'إضافة سداد متعدد') : null)),
     mine ? div({ className: 'alertbar', role: 'status' }, h(Icon, { name: 'alert' }), span(null, mine === 1 ? 'عندك أمر سداد واحد بانتظار إجرائك.' : 'عندك ' + mine + ' أوامر سداد بانتظار إجرائك.')) : null,
     div({ className: 'paystats' },
       div({ className: 'paysteps', role: 'group', 'aria-label': 'الأوامر حسب المستوى' },
@@ -105,9 +131,9 @@ function PaymentPage(props) {
         [['مستحق غير مسدّد', unpaid], ['إجمالي المسدّد', paid]].map(function (x) {
           return div({ key: x[0], className: 'paycell on' }, h('b', null, new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(x[1]), h('small', null, 'ر.س')), span(null, x[0]));
         }))),
-    cur && f && !batchOpen ? PB_DIMS.map(function (d) { return h('datalist', { key: d[0], id: 'pb-dl-' + d[0] }, options[d[0]].map(function (v) { return h('option', { key: v, value: v }); })); }) : null,
+    editDoc && groups[editDoc] ? h(PaymentDocEdit, { key: editDoc, batch: editDoc, orders: groups[editDoc], lookups: props.lookups, onSave: function (data) { return props.onEditBatch(editDoc, data); }, onClose: function () { setEditDoc(''); }, onToast: props.onToast }) : null,
     sheet ? h(PaymentSheet, { batch: sheet, payments: list, onBulk: props.onBulk, onClose: function () { setSheet(''); }, onToast: props.onToast }) : null,
-    batchOpen && props.canBatch ? h(PaymentBatchForm, { suppliers: props.suppliers, options: options, onSubmit: props.onBatch, onClose: function () { setBatchOpen(false); }, onToast: props.onToast }) : null,
+    batchOpen && props.canBatch ? h(PaymentBatchForm, { suppliers: props.suppliers, lookups: props.lookups, onSubmit: props.onBatch, onClose: function () { setBatchOpen(false); }, onToast: props.onToast }) : null,
     cur && f ? form({ className: 'uformwrap', onSubmit: save, noValidate: true },
       div({ className: 'uformhead' }, h3(null, 'أمر السداد ' + cur.id + ' · ' + cur.supplier),
         button({ type: 'button', className: 'uformclose', 'aria-label': 'إغلاق', onClick: function () { setSel(null); } }, h(Icon, { name: 'close', size: 18 }))),
@@ -127,11 +153,11 @@ function PaymentPage(props) {
         }))),
       div({ className: 'uform' },
         fld('pf-amount', cur.status === 1 ? 'المبلغ المقترح (ر.س)' : 'المبلغ (ر.س) — يمكنك اقتراح مبلغ آخر', input({ id: 'pf-amount', type: 'text', inputMode: 'decimal', className: 'ltr', autoComplete: 'off', disabled: !editable, value: f.amount, onChange: function (e) { set('amount', e.target.value); } }), 'amount', cur.diff ? 'المقترح من فرق المطابقة: ' + payMoney(Math.abs(cur.diff)) : null),
-        fld('pf-method', 'طريقة السداد', select({ id: 'pf-method', disabled: !editable, value: f.method, onChange: function (e) { set('method', e.target.value); } }, option({ value: '' }, 'اختر…'), PAY_METHODS.map(function (m) { return option({ key: m, value: m }, m); })), 'method'),
+        fld('pf-method', 'طريقة السداد', select({ id: 'pf-method', disabled: !editable, value: f.method, onChange: function (e) { set('method', e.target.value); } }, option({ value: '' }, 'اختر…'), (function () { const ms = lkNames(props.lookups, 'method'); if (f.method && ms.indexOf(f.method) === -1) ms.unshift(f.method); return ms; }()).map(function (m) { return option({ key: m, value: m }, m); })), 'method'),
         fld('pf-dueDate', 'تاريخ الاستحقاق', input({ id: 'pf-dueDate', type: 'date', className: 'ltr', disabled: !editable, value: f.dueDate, onChange: function (e) { set('dueDate', e.target.value); } }), 'dueDate'),
         fld('pf-balance', 'الرصيد الحالي (ر.س)', input({ id: 'pf-balance', type: 'text', inputMode: 'decimal', className: 'ltr', autoComplete: 'off', disabled: !editable || cur.status !== 1, value: f.balance, onChange: function (e) { set('balance', e.target.value); } }), 'balance'),
         fld('pf-stockBalance', 'رصيد المخزون (ر.س)', input({ id: 'pf-stockBalance', type: 'text', inputMode: 'decimal', className: 'ltr', autoComplete: 'off', disabled: !editable || cur.status !== 1, value: f.stockBalance, onChange: function (e) { set('stockBalance', e.target.value); } }), 'stockBalance'),
-        PB_DIMS.map(function (d) { return fld('pf-' + d[0], d[1], input({ id: 'pf-' + d[0], type: 'text', list: 'pb-dl-' + d[0], autoComplete: 'off', disabled: !editable, value: f[d[0]], onChange: function (e) { set(d[0], e.target.value); } }), d[0]); }),
+        PB_DIMS.map(function (d) { return fld('pf-' + d[0], d[1], h(ComboPicker, { id: 'pf-' + d[0], items: lkItems(lkActive(props.lookups, d[0])), value: f[d[0]], disabled: !editable, ariaLabel: d[1], emptyText: 'لا توجد قيم. أضفها من صفحة «التهيئة».', noMatch: 'ليس في القائمة.', onText: function (v) { set(d[0], v); }, onPick: function (it) { set(d[0], it.label); } }), d[0]); }),
         editable ? fld('pf-note', cur.status === 3 ? 'ملاحظة (سبب الرفض مطلوب عند الرفض)' : 'ملاحظة على هذا الإجراء (اختياري)', textarea({ id: 'pf-note', rows: 2, value: f.note, onChange: function (e) { set('note', e.target.value); } }), 'note', null, true) : null),
       (cur.history || []).length ? div({ className: 'tablewrap', style: { marginTop: 14 } }, table({ className: 'dt' },
         thead(null, tr(null, ['الوقت', 'الدور', 'الموظف', 'الإجراء', 'المبلغ', 'ملاحظة'].map(function (t) { return th({ key: t, scope: 'col' }, t); }))),
@@ -145,6 +171,6 @@ function PaymentPage(props) {
         cur.status === 3 ? button({ type: 'button', className: 'btn ghost', disabled: busy, style: { color: 'var(--bad)' }, onClick: reject }, 'رفض وإعادة لخدمات الموردين') : null,
         button({ type: 'submit', className: 'btn ghost', disabled: busy }, 'حفظ دون إحالة'),
         button({ type: 'button', className: 'btn ghost', onClick: function () { setSel(null); } }, 'إلغاء')) : null) : null,
-    h(DataTable, { cols: cols, rows: list, dateFilter: { label: 'تاريخ الأمر', get: function (x) { return x.created ? new Date(x.created) : null; } }, exportName: 'السداد', onToast: props.onToast, onOpen: open, defaultSort: { key: 'mine', dir: 'asc' }, rowClass: function (x) { return x.canAct ? 'unread' : undefined; },
-      empty: 'لا توجد أوامر سداد بعد. تظهر هنا تلقائياً عند إرسال ملف المطابقة إلى المورد.' }));
+    h(DataTable, { cols: cols, rows: docs, dateFilter: { label: 'تاريخ الإدخال', get: function (d) { return d.created; } }, exportName: 'وثائق-السداد', inlineHead: true, onToast: props.onToast, onOpen: open, defaultSort: { key: 'created', dir: 'desc' }, rowClass: function (d) { return d.mine ? 'unread' : undefined; },
+      empty: props.canBatch ? 'لا توجد وثائق سداد بعد. أضف أول وثيقة من زر «إضافة سداد متعدد».' : 'لا توجد وثائق سداد بعد. تضيفها خدمات الموردين من «إضافة سداد متعدد».' }));
 }

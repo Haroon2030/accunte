@@ -15,7 +15,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from portal.models import SLA_DAYS, Attachment, Complaint, MatchRequest, Message, Payment, User
+from portal.models import SLA_DAYS, Attachment, Complaint, Lookup, MatchRequest, Message, Payment, User
 
 TAG = '[تجريبي]'
 
@@ -55,7 +55,7 @@ class Command(BaseCommand):
 
     # ---------------------------------------------------------------- helpers
     def pay(self, r, sent_at, status):
-        """The settlement that opens when the reconciliation file is sent, parked at one level of the chain.
+        """A demo payment added through a batch, parked at one level of the chain (taking its supplier and amount from a finished request).
         status 1..5 (5 = paid), or "rejected" = the auditor sent it back to supplier services."""
         who = {role: User.objects.filter(role=role).first() for role in ('services', 'purchasing', 'auditor', 'treasury')}
         amount = abs(r.diff) if r.diff else None
@@ -69,7 +69,7 @@ class Command(BaseCommand):
         history, level = [], 1
         for k, (role, action, factor, note) in enumerate(steps):
             at = sent_at + timedelta(days=k + 1)
-            history.append({'at': at.isoformat(), 'by': who[role].name if who[role] else role, 'role': role, 'action': action,
+            history.append({'at': at.isoformat(), 'by': who[role].name if who[role] else role, 'role': role, 'level': k + 1 if action != 'reject' else 3, 'action': action,
                             'amount': str(round(float(amount) * factor, 2)) if amount else None, 'note': note})
             level += 1 if action != 'reject' else 0
         if status == 'rejected':
@@ -81,7 +81,8 @@ class Command(BaseCommand):
         for st in range(2, level + 1):
             reached[str(st)] = (sent_at + timedelta(days=st)).isoformat()
         p = Payment.objects.create(
-            request=r, supplier=r.supplier, amount=amount, status=level, reached=reached, created_at=sent_at, history=history,
+            supplier=r.supplier, supplier_rec=r.supplier.supplier, batch='PB-DEMO', note=f'{TAG} دفعة تجريبية', amount=amount, status=level, reached=reached, created_at=sent_at, history=history,
+            balance=round(float(amount or 0) * 4, 2), stock_balance=round(float(amount or 0) * 2.5, 2), branch='الرياض', cost_center='المشتريات', bank='الراجحي', bank_sub='حساب الموردين',
             method='تحويل بنكي' if history else '', due_date=(sent_at + timedelta(days=14)).date() if history else None,
             reference=f'TRX-{r.pk:05d}' if paid else '', paid_by=who['treasury'] if paid else None)
         p.number = f'PY-{sent_at:%y%m}-{p.pk:04d}'
@@ -112,6 +113,7 @@ class Command(BaseCommand):
                 a.file.delete(save=False)
             except Exception as exc:  # a file that is already gone must not block the cleanup
                 self.stderr.write(f'could not delete {a.original_name}: {exc}')
+        Payment.objects.filter(note__startswith=TAG).delete()
         n1, n2 = comps.count(), reqs.count()
         comps.delete()
         reqs.delete()
@@ -122,6 +124,12 @@ class Command(BaseCommand):
     def handle(self, *a, **o):
         if o['clear']:
             return self.clear()
+        for kind, names in (('branch', ('الرياض', 'جدة', 'الدمام')), ('costCenter', ('المشتريات', 'المبيعات', 'المشاريع')),
+                            ('bank', ('الراجحي', 'الأهلي')), ('bankSub', ('حساب الموردين', 'حساب التشغيل'))):
+            for name in names:            # setup lists (التهيئة): never removed by --clear, they are configuration
+                if not Lookup.objects.filter(kind=kind, name=name).exists():
+                    used = [int(c) for c in Lookup.objects.filter(kind=kind).values_list('code', flat=True) if c.isdigit()]
+                    Lookup.objects.create(kind=kind, name=name, code=str(max(used, default=0) + 1))
         if MatchRequest.objects.filter(notes__startswith=TAG).exists() or Complaint.objects.filter(subject__startswith=TAG).exists():
             self.stdout.write('Demo data is already there. Run with --clear first to start over.')
             return

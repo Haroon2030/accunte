@@ -929,7 +929,190 @@ textarea.nt-in { text-align: start; resize: vertical; }
   .pbtable td[data-label="الحالة"], .pbtable td.shlvc { grid-column: auto; }
 }
 /* the entry table of a batch is wider now that balances sit beside the supplier */
-.pbform .pbtable:not(.shtable) { min-width: 1500px; }
+.pbform .pbtable:not(.shtable) { min-width: 1060px; }
 @media (max-width: 760px) { .pbform .pbtable:not(.shtable) { min-width: 0; } }
 .payspage .batchpick { flex: 0 1 auto; width: auto; max-width: 190px; }
 .payspage .payhead-acts { justify-content: flex-end; }
+
+/* supplier suggestions */
+.sugwrap { display: block; }
+.sugbox { position: fixed; z-index: 1000; max-height: 300px; overflow-y: auto; padding: 4px; background: var(--surface); border: 1px solid #B7C9E8; border-radius: 12px; box-shadow: 0 12px 32px rgba(29, 42, 68, .18); }
+.sug { display: grid; gap: 1px; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+.sug.on { background: var(--accent-soft); }
+.sug strong { font-weight: 600; font-size: .9rem; }
+.sug .sugmeta { color: var(--ink-3); font-size: .76rem; font-variant-numeric: tabular-nums; }
+.sug.none { cursor: default; color: var(--ink-3); font-size: .82rem; line-height: 1.5; }
+
+/* ---------- التهيئة: one tab per list ---------- */
+.settabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; background: var(--accent-soft); border-radius: 14px; width: fit-content; max-width: 100%; }
+.settab { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 16px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-2); font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; }
+.settab:hover { background: rgba(255, 255, 255, .6); }
+.settab.on { background: var(--accent); color: #fff; box-shadow: 0 2px 6px rgba(47, 111, 235, .3); }
+.settab-n { min-width: 22px; padding: 0 7px; border-radius: 999px; background: rgba(29, 42, 68, .1); font-size: .74rem; line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.settab.on .settab-n { background: rgba(255, 255, 255, .25); }
+.setpanel { display: grid; gap: 14px; }
+.lkadd .field { margin-bottom: 0; }
+.lkrow { display: flex; gap: 10px; align-items: stretch; }
+.lkrow input { flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid #B7C9E8; border-radius: 10px; background: #fff; font: inherit; }
+.lkrow input:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lkedit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lkedit input { flex: 1 1 180px; min-width: 0; min-height: 36px; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 8px; background: #fff; font: inherit; }
+@media (max-width: 640px) { .settabs { width: 100%; } .settab { flex: 1 1 auto; justify-content: center; } .lkrow { flex-direction: column; } }
+
+/* settings: number + name + add button on one row */
+.lkrow { align-items: flex-end; flex-wrap: wrap; }
+.lkrow .field { margin-bottom: 0; }
+.lkf-code { flex: 0 0 140px; }
+.lkf-name { flex: 1 1 260px; min-width: 0; }
+.lkf-code input, .lkf-name input { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid #B7C9E8; border-radius: 10px; background: #fff; font: inherit; }
+.lkf-code input:focus, .lkf-name input:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lkbtn { min-height: 44px; }
+.lkcode { width: 100%; min-width: 70px; min-height: 36px; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 8px; background: #fff; font: inherit; }
+.settingspage .dt td[data-col="code"], .settingspage .dt th[data-col="code"] { width: 130px; }
+@media (max-width: 640px) { .lkf-code { flex: 1 1 100%; } .lkbtn { width: 100%; } }
+
+/* approvals inside the rows */
+.pbform .pbtable:not(.shtable) { min-width: 1420px; }
+.pbtable td.pbwait { min-width: 120px; background: #F6F8FD; vertical-align: middle; }
+.pbtable td.pbwait .muted, .pbtable td.pbwait .hint { display: block; font-size: .78rem; }
+.shcell.edit { gap: 6px; min-width: 150px; }
+.shbtns { display: flex; flex-wrap: wrap; gap: 6px; }
+.shbtns .btn.sm { min-height: 32px; padding: 3px 12px; }
+.shno { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent); }
+.btn.sm.shno:not(.ghost) { background: var(--bad-soft); }
+.shin { width: 110px; min-height: 36px; padding: 4px 8px; border: 1px solid var(--accent); border-radius: 8px; background: #fff; font: inherit; font-size: .88rem; }
+.shcell.edit input[type="text"] { width: 100%; min-width: 120px; }
+.shtable { min-width: 1280px; }
+@media (max-width: 760px) { .pbtable td.pbwait { display: none; } .pbform .pbtable:not(.shtable) { min-width: 0; } .shtable { min-width: 0; } }
+
+/* approval cell: amount and the level's button(s) side by side on one line */
+.shtable td.shlvc.on { min-width: 250px; vertical-align: middle; }
+.shtable .shcell.edit { display: flex; flex-flow: row wrap; align-items: center; justify-content: flex-start; gap: 6px; min-width: 0; }
+.shtable .shcell.edit > input[type="text"]:first-child { flex: 0 0 108px; width: 108px; min-width: 0; }
+.shtable .shcell.edit > input[placeholder="سبب الرفض"] { flex: 1 1 130px; width: auto; min-width: 110px; }
+.shtable .shcell.edit .shbtns { flex-wrap: nowrap; }
+.shtable .shcell.edit .shbtns .btn { white-space: nowrap; }
+/* the auditor's column is wider: amount, reason and the two buttons of a rejection fit on one line */
+.shtable td.shlvc:nth-child(6), .shtable th.shlv:nth-child(6) { min-width: 390px; }
+.shtable .shcell.edit > input[placeholder="سبب الرفض"] { flex: 1 1 110px; min-width: 100px; }
+@media (max-width: 760px) { .shtable td.shlvc:nth-child(6), .shtable th.shlv:nth-child(6) { min-width: 0; } }
+.shtable td.shlvc:nth-child(6), .shtable th.shlv:nth-child(6) { min-width: 420px; }
+.shtable .shcell.edit > input[placeholder="سبب الرفض"] { flex: 1 1 90px; min-width: 90px; }
+@media (max-width: 760px) { .shtable td.shlvc:nth-child(6), .shtable th.shlv:nth-child(6) { min-width: 0; } }
+
+/* read-only approval cells: status, amount and who on ONE line, a size smaller */
+.shtable td.shlvc { min-width: 230px; }
+.shtable .shcell:not(.edit) { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; min-width: 0; font-size: .8rem; }
+.shtable .shcell:not(.edit) .pill { flex: none; padding: 1px 9px; font-size: .72rem; }
+.shtable .shcell:not(.edit) .mono { flex: none; font-size: .82rem; font-weight: 600; letter-spacing: 0; }
+.shtable .shcell:not(.edit) .shwho { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); font-size: .72rem; line-height: 1.4; }
+.shtable td { padding-block: 8px; }
+@media (max-width: 760px) { .shtable td.shlvc { min-width: 0; } .shtable .shcell:not(.edit) { flex-wrap: wrap; } .shtable .shcell:not(.edit) .shwho { flex-basis: 100%; white-space: normal; } }
+
+/* batch basic data: branch, cost center, main bank, account */
+.shmeta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; margin: 0; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+.shmeta-c { display: grid; gap: 1px; min-width: 0; padding: 9px 14px; background: var(--surface); }
+.shmeta-c dt { color: var(--ink-3); font-size: .74rem; }
+.shmeta-c dd { margin: 0; font-size: .9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .shmeta { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* batch table: fixed layout, every column inside the card (no sideways scrolling on desktop) */
+@media (min-width: 761px) {
+  .shsheet .pbwrap { overflow-x: visible; }
+  .shtable { width: 100%; min-width: 0; table-layout: fixed; }
+  .shtable th, .shtable td { padding: 8px 6px; overflow-wrap: anywhere; }
+  .shtable th { font-size: .74rem; line-height: 1.35; vertical-align: middle; }
+  .shtable th:nth-child(1), .shtable td:nth-child(1) { width: 15%; }   /* المورد */
+  .shtable th:nth-child(2), .shtable td:nth-child(2) { width: 7%; }    /* الرصيد الحالي */
+  .shtable th:nth-child(3), .shtable td:nth-child(3) { width: 7%; }    /* رصيد المخزون */
+  .shtable th:nth-child(4), .shtable td:nth-child(4) { width: 11%; }   /* 1 اقتراح خدمات الموردين */
+  .shtable th:nth-child(5), .shtable td:nth-child(5) { width: 15%; }   /* 2 اقتراح المشتريات */
+  .shtable th:nth-child(6), .shtable td:nth-child(6) { width: 19%; }   /* 3 المدقق */
+  .shtable th:nth-child(7), .shtable td:nth-child(7) { width: 16%; }   /* 4 الاعتماد النهائي */
+  .shtable th:nth-child(8), .shtable td:nth-child(8) { width: 10%; }   /* الحالة */
+  .shtable td.shlvc, .shtable th.shlv, .shtable td.shlvc:nth-child(6), .shtable th.shlv:nth-child(6) { min-width: 0; }
+  .shtable .pill { white-space: normal; text-align: center; line-height: 1.3; }
+  .shtable td.num .mono, .shtable .shin { font-size: .8rem; }
+  .shtable .shin { width: 100%; min-width: 0; }
+  .shtable th .shn { margin-inline-end: 4px; }
+  /* controls: the amount shrinks first, the buttons wrap under it when the cell is narrow */
+  .shtable .shcell.edit > input[type="text"]:first-child { flex: 1 1 64px; width: auto; min-width: 56px; max-width: 108px; }
+  .shtable .shcell.edit > input[placeholder="سبب الرفض"] { flex: 1 1 100%; min-width: 0; }
+  .shtable .shcell.edit .shbtns { flex-wrap: wrap; }
+  .shtable .shbtns .btn.sm { padding: 3px 10px; font-size: .8rem; }
+  .shtable .shcell:not(.edit) .shwho { max-width: 100%; }
+}
+
+/* batch table: readable headers (wrap, never overlap), one padding rhythm, everything aligned to the start edge */
+@media (min-width: 761px) {
+  .shtable th, .shtable td { padding: 9px 10px; text-align: start; vertical-align: middle; }
+  .shtable th { white-space: normal; overflow-wrap: normal; word-break: normal; font-size: .76rem; font-weight: 700; line-height: 1.35; }
+  .shtable th.shlv { display: table-cell; }
+  .shtable th .shn { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px; vertical-align: -3px; font-size: .68rem; }
+  .shtable td.shlvc { padding-inline: 8px; }
+  .shtable td.num { white-space: nowrap; }
+  .shtable td.num .mono { display: block; font-variant-numeric: tabular-nums; }
+  .shtable .pbsup strong { display: block; font-size: .88rem; line-height: 1.35; }
+  .shtable .pbsup .hint { display: block; margin: 1px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; line-height: 1.45; color: var(--ink-3); }
+  .shtable tfoot td { padding-block: 10px; }
+}
+
+/* approval cells show the whole text: the approver's name and note wrap onto a second line instead of being cut with … */
+@media (min-width: 761px) {
+  .shtable .shcell:not(.edit) { flex-wrap: wrap; align-items: baseline; row-gap: 2px; }
+  .shtable .shcell:not(.edit) .shwho { flex: 1 1 auto; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  .shtable th:nth-child(1), .shtable td:nth-child(1) { width: 15%; }
+  .shtable th:nth-child(4), .shtable td:nth-child(4) { width: 13%; }
+  .shtable th:nth-child(5), .shtable td:nth-child(5) { width: 14%; }
+  .shtable th:nth-child(6), .shtable td:nth-child(6) { width: 18%; }
+  .shtable th:nth-child(7), .shtable td:nth-child(7) { width: 17%; }
+  .shtable th:nth-child(8), .shtable td:nth-child(8) { width: 9%; }
+}
+@media (min-width: 761px) {
+  .shtable th:nth-child(6), .shtable td:nth-child(6) { width: 16%; }
+  .shtable th:nth-child(8), .shtable td:nth-child(8) { width: 11%; }
+  .shtable .pill { overflow-wrap: normal; word-break: normal; }
+}
+
+/* status column: the state, then how it will be paid and when */
+.shtable td.shstat { display: table-cell; }
+.shtable td.shstat > * { display: block; width: fit-content; max-width: 100%; }
+.shtable td.shstat .pill { display: inline-flex; }
+.shtable td.shstat .shmeth { margin-top: 3px; color: var(--ink-3); font-size: .72rem; line-height: 1.4; }
+
+/* nine columns now (payment method has its own): المورد | الرصيد | المخزون | طريقة الدفع | 1 | 2 | 3 | 4 | الحالة */
+@media (min-width: 761px) {
+  .shtable th:nth-child(1), .shtable td:nth-child(1) { width: 14%; }
+  .shtable th:nth-child(2), .shtable td:nth-child(2) { width: 7%; }
+  .shtable th:nth-child(3), .shtable td:nth-child(3) { width: 7%; }
+  .shtable th:nth-child(4), .shtable td:nth-child(4) { width: 8%; }
+  .shtable th:nth-child(5), .shtable td:nth-child(5) { width: 12%; }
+  .shtable th:nth-child(6), .shtable td:nth-child(6) { width: 14%; }
+  .shtable th:nth-child(7), .shtable td:nth-child(7) { width: 16%; }
+  .shtable th:nth-child(8), .shtable td:nth-child(8) { width: 13%; }
+  .shtable th:nth-child(9), .shtable td:nth-child(9) { width: 9%; }
+  .shtable td.shmethod { font-size: .84rem; font-weight: 600; line-height: 1.4; }
+}
+
+/* ten columns now (supplier number has its own): رقم المورد | المورد | الرصيد | المخزون | طريقة الدفع | 1 | 2 | 3 | 4 | الحالة */
+@media (min-width: 761px) {
+  .shtable th:nth-child(1), .shtable td:nth-child(1) { width: 7%; }
+  .shtable th:nth-child(2), .shtable td:nth-child(2) { width: 13%; }
+  .shtable th:nth-child(3), .shtable td:nth-child(3) { width: 7%; }
+  .shtable th:nth-child(4), .shtable td:nth-child(4) { width: 7%; }
+  .shtable th:nth-child(5), .shtable td:nth-child(5) { width: 8%; }
+  .shtable th:nth-child(6), .shtable td:nth-child(6) { width: 11%; }
+  .shtable th:nth-child(7), .shtable td:nth-child(7) { width: 13%; }
+  .shtable th:nth-child(8), .shtable td:nth-child(8) { width: 15%; }
+  .shtable th:nth-child(9), .shtable td:nth-child(9) { width: 11%; }
+  .shtable th:nth-child(10), .shtable td:nth-child(10) { width: 8%; }
+  .shtable td.shcode { font-size: .84rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+}
+
+/* table header on one row: the column title and its filter side by side (payments documents) */
+.dtbox.inlinehead .dt th { padding-block: 8px; vertical-align: middle; }
+.dtbox.inlinehead .dt th .thcell { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; }
+.dtbox.inlinehead .dt th .thbtn, .dtbox.inlinehead .dt th .thlabel { flex: none; white-space: nowrap; }
+.dtbox.inlinehead .dt th .thslot { flex: 1 1 0; width: auto; min-width: 0; }
+.dtbox.inlinehead .dt th .thslot .thf { width: 100%; min-width: 0; }
+.dtbox.inlinehead .dt th:first-child .thcell, .dtbox.inlinehead .dt th:last-child .thcell { justify-content: center; }

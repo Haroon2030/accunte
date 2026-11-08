@@ -85,6 +85,10 @@ def payment_out(p, user=None):
     }
 
 
+def lookup_out(l):
+    return {'id': l.pk, 'kind': l.kind, 'code': l.code, 'name': l.name, 'active': l.is_active}
+
+
 def notice_out(n):
     from django.conf import settings
     items = []

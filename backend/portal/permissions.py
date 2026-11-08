@@ -2,14 +2,14 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 
 from .models import User
 
-PAGE_KEYS = ('supplier', 'matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'users')
-STAFF_PAGES = ('matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'users')
+PAGE_KEYS = ('supplier', 'matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'settings', 'users')
+STAFF_PAGES = ('matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'settings', 'users')
 ROLE_PAGES = {
     User.SUPPLIER: ['supplier'],
     User.MATCHER: ['matcher', 'recon'],
     User.SUPERVISOR: ['matcher', 'recon'],      # the requests queue; only the supervisor receives and assigns
-    User.MANAGER: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers'],
-    User.ADMIN: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'users'],
+    User.MANAGER: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'settings'],
+    User.ADMIN: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'settings', 'users'],
     # the payment approval chain: each level only works on the payments page
     User.SERVICES: ['payments'],
     User.PURCHASING: ['payments'],
@@ -75,6 +75,8 @@ SupplierOrManagerPage = supplier_or_page('manager')
 IsSupplier = roles(User.SUPPLIER)
 IsNoticesPage = has_page('notices')
 IsPaymentsPage = has_page('payments')
+IsSettingsPage = has_page('settings')
+CanReadLookups = has_page('payments', 'settings')       # the payment forms read the lists; only the settings page edits them
 IsSuppliersPage = has_page('suppliers')
 CanReadSuppliers = has_page('suppliers', 'users', 'notices')   # the supplier list feeds the users form and the notices form
 SupplierOrNotices = supplier_or_page('notices')
