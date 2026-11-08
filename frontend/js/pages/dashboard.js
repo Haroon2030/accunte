@@ -29,7 +29,7 @@ function UnifiedTable(props) {
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (r) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(r), h(Badge, { n: unreadOf(r, role, props.seen) })); } },
     openCol(props.onDelete)
   ];
-  return h(DataTable, { cols: defs, rows: props.rows, onOpen: props.onOpen, exportName: 'طلبات-ومطابقات', rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
+  return h(DataTable, { cols: defs, rows: props.rows, dateFilter: { label: 'تاريخ الإنشاء', get: function (r) { return r.created; } }, onOpen: props.onOpen, exportName: 'طلبات-ومطابقات', rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
 }
 
 function Dashboard(props) {

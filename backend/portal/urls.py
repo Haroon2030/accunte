@@ -31,5 +31,10 @@ urlpatterns = [
     path('notices/', v.NoticesView.as_view()),
     path('notices/<int:pk>/', v.NoticeDetailView.as_view()),
 
+    path('payments/', v.PaymentsView.as_view()),
+    path('payments/<int:pk>/', v.PaymentDetailView.as_view()),
+    path('payments/<int:pk>/advance', v.PaymentAdvanceView.as_view()),
+    path('payments/<int:pk>/reject', v.PaymentRejectView.as_view()),
+
     path('attachments/<int:pk>/download/', v.AttachmentDownloadView.as_view()),
 ]

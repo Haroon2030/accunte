@@ -5,6 +5,7 @@ function App() {
   const [me, setMe] = useState(undefined); // undefined while the session is checked, null when signed out
   const [users, setUsers] = useState([]);
   const [notices, setNotices] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [supplierData, setSupplierData] = useState([]);
   const [matchers, setMatchers] = useState([]);
   const [reqs, setReqs] = useState([]);
@@ -57,6 +58,7 @@ function App() {
     const jobs = [];
     if (u.role === 'supplier' || has('matcher', 'manager')) jobs.push(API.get('/requests/').then(function (rs) { setReqs(rs.map(API.request)); }));
     if (u.role === 'supplier' || has('manager')) jobs.push(API.get('/complaints/').then(function (cs) { setComplaints(cs.map(API.complaint)); }));
+    if (has('payments')) jobs.push(API.get('/payments/').then(function (ps) { setPayments(ps); }));
     if (u.role === 'supplier' || has('notices')) jobs.push(API.get('/notices/').then(function (ns) { setNotices(ns); }));
     if (u.role === 'supervisor' || u.role === 'manager' || u.role === 'admin') jobs.push(API.get('/matchers/').then(function (ms) { setMatchers(ms); }));
     if (u.role !== 'supplier' && has('suppliers', 'users', 'notices')) jobs.push(API.get('/supplier-data/').then(function (ss) { setSupplierData(ss); }));
@@ -150,6 +152,30 @@ function App() {
       setToast('حُذف ' + id + ' نهائياً.');
     }).catch(fail);
   }
+  const replacePay = function (p) { setPayments(function (ps) { return ps.map(function (x) { return x.pk === p.pk ? p : x; }); }); };
+  function savePayment(pk, data) { return API.patch('/payments/' + pk + '/', data).then(function (p) { replacePay(p); return p; }); }
+  function advancePayment(pk, data) {
+    return API.post('/payments/' + pk + '/advance', data).then(function (p) {
+      replacePay(p);
+      setToast(p.status === 5 ? 'عُمّد ' + p.id + ' نهائياً وسُدّد للمورد ' + p.supplier + '.' : 'أُحيل ' + p.id + ' إلى ' + PAY_STEPS[p.status - 1].who + '.');
+      return p;
+    }, function (e) { if (e.status === 409 && me) loadAll(me).catch(function () { /* next refresh retries */ }); throw e; });
+  }
+  function rejectPayment(pk, data) {
+    return API.post('/payments/' + pk + '/reject', data).then(function (p) {
+      replacePay(p);
+      setToast('رُفض ' + p.id + ' وأُعيد إلى خدمات الموردين.');
+      return p;
+    }, function (e) { if (e.status === 409 && me) loadAll(me).catch(function () { /* next refresh retries */ }); throw e; });
+  }
+  function removePayment(id) {
+    const p = payments.filter(function (x) { return x.id === id; })[0];
+    if (!p) return;
+    API.del('/payments/' + p.pk + '/').then(function () {
+      setPayments(function (ps) { return ps.filter(function (x) { return x.pk !== p.pk; }); });
+      setToast('حُذف ' + id + ' نهائياً.');
+    }).catch(fail);
+  }
   function createNotice(data) {
     return API.post('/notices/', data).then(function (n) {
       setNotices(function (ns) { return [n].concat(ns); });
@@ -188,7 +214,7 @@ function App() {
   function changeRole(r) { if (allowed.indexOf(r) === -1) return; setRole(r); home(); }
   function logout() {
     API.post('/auth/logout').catch(function () { /* already signed out */ }).then(function () {
-      setMe(null); setReqs([]); setComplaints([]); setUsers([]); setSupplierData([]); setView({ name: 'home' }); setToast(''); goTop();
+      setMe(null); setReqs([]); setComplaints([]); setUsers([]); setSupplierData([]); setPayments([]); setView({ name: 'home' }); setToast(''); goTop();
     });
   }
   function saveUser(d) {
@@ -256,6 +282,7 @@ function App() {
   else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { suppliers: supplierData, users: users, me: user, onSave: saveUser, onToggle: toggleUser, onDelete: removeUser, onReset: resetUser, onToast: setToast });
   else if (role === 'suppliers' && allowed.indexOf('suppliers') !== -1) body = h(SuppliersPage, { suppliers: supplierData, canEdit: true, canDelete: user.role === 'admin', onSave: saveSupplier, onDelete: removeSupplier, onToast: setToast });
   else if (role === 'notices' && allowed.indexOf('notices') !== -1) body = h(NoticesPage, { notices: notices, suppliers: noticeSuppliers, canIssue: true, onCreate: createNotice, onUpdate: updateNotice, onDelete: user.role === 'admin' ? removeNotice : undefined, onToast: setToast });
+  else if (role === 'payments' && allowed.indexOf('payments') !== -1) body = h(PaymentPage, { payments: payments, onSave: savePayment, onAdvance: advancePayment, onReject: rejectPayment, onDelete: user.role === 'admin' ? removePayment : undefined, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
   else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq, onDelete: user.role === 'admin' ? removeRecord : undefined });
   else body = h(Dashboard, { onDelete: user.role === 'admin' ? removeRecord : undefined, reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });
@@ -268,6 +295,6 @@ function App() {
       })) : null,
       div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
         button({ type: 'button', onClick: logout }, 'خروج'))),
-    main({ className: 'gutter page', id: 'main', tabIndex: -1 }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'notices' ? 'إصدار الإشعارات الضريبية للموردين وتعديلها وطباعتها' : (role === 'suppliers' ? 'التهيئة الأساسية لبيانات الموردين' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))))), body),
+    main({ className: 'gutter page', id: 'main', tabIndex: -1 }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'payments' ? 'سداد مستحقات الموردين بعد إنجاز المطابقة' : role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'notices' ? 'إصدار الإشعارات الضريبية للموردين وتعديلها وطباعتها' : (role === 'suppliers' ? 'التهيئة الأساسية لبيانات الموردين' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))))), body),
     toast ? div({ className: 'toast', role: 'status' }, toast) : null);
 }

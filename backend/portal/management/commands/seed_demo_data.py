@@ -15,7 +15,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from portal.models import SLA_DAYS, Attachment, Complaint, MatchRequest, Message, User
+from portal.models import SLA_DAYS, Attachment, Complaint, MatchRequest, Message, Payment, User
 
 TAG = '[تجريبي]'
 
@@ -54,6 +54,39 @@ class Command(BaseCommand):
         p.add_argument('--clear', action='store_true', help='delete the demo records created by this command')
 
     # ---------------------------------------------------------------- helpers
+    def pay(self, r, sent_at, status):
+        """The settlement that opens when the reconciliation file is sent, parked at one level of the chain.
+        status 1..5 (5 = paid), or "rejected" = the auditor sent it back to supplier services."""
+        who = {role: User.objects.filter(role=role).first() for role in ('services', 'purchasing', 'auditor', 'treasury')}
+        amount = abs(r.diff) if r.diff else None
+        steps = []   # (role, action, amount factor, note)
+        if status == 'rejected':
+            steps = [('services', 'propose', 1, 'المبلغ حسب فرق المطابقة'), ('purchasing', 'approve', 1, ''), ('auditor', 'reject', 1, 'الفرق غير موثّق، أرفقوا إشعار الخصم وأعيدوا الرفع')]
+        elif status > 1:
+            steps = [('services', 'propose', 1, 'المبلغ حسب فرق المطابقة'), ('purchasing', 'approve', 1, ''), ('auditor', 'approve', 1, ''), ('treasury', 'pay', 1, '')][:status - 1]
+        if status in (4, 5) and steps:
+            steps = [steps[0], ('purchasing', 'approve', 0.95, 'خُفّض المبلغ بعد مراجعة المرتجعات')] + [(r_, a_, 0.95, n_) for r_, a_, _, n_ in steps[2:]]   # one level proposes another amount
+        history, level = [], 1
+        for k, (role, action, factor, note) in enumerate(steps):
+            at = sent_at + timedelta(days=k + 1)
+            history.append({'at': at.isoformat(), 'by': who[role].name if who[role] else role, 'role': role, 'action': action,
+                            'amount': str(round(float(amount) * factor, 2)) if amount else None, 'note': note})
+            level += 1 if action != 'reject' else 0
+        if status == 'rejected':
+            level = 1
+        paid = status == 5
+        if amount and history:
+            amount = round(float(amount) * (0.95 if status in (4, 5) else 1), 2)
+        reached = {'1': sent_at.isoformat()}
+        for st in range(2, level + 1):
+            reached[str(st)] = (sent_at + timedelta(days=st)).isoformat()
+        p = Payment.objects.create(
+            request=r, supplier=r.supplier, amount=amount, status=level, reached=reached, created_at=sent_at, history=history,
+            method='تحويل بنكي' if history else '', due_date=(sent_at + timedelta(days=14)).date() if history else None,
+            reference=f'TRX-{r.pk:05d}' if paid else '', paid_by=who['treasury'] if paid else None)
+        p.number = f'PY-{sent_at:%y%m}-{p.pk:04d}'
+        p.save(update_fields=['number'])
+
     def attach(self, name_key, user, **parent):
         name, data = FILES[name_key]
         data = data if data is not None else xlsx_bytes()
@@ -110,6 +143,10 @@ class Command(BaseCommand):
             ('أغسطس 2026', 3, 6, True, 5150, True, 'png'),          # dialogue and late
             ('الربع الثاني 2026', 5, 12, True, 0, True, 'pdf'),     # done and the file was sent, no difference
             ('يونيو 2026', 4, 20, True, 1250.5, True, 'csv'),       # matched, waiting for the file to be sent
+            ('مايو 2026', 5, 25, True, 3200, False, 'xlsx'),        # file sent, payment approved
+            ('أبريل 2026', 5, 40, True, 860.75, False, 'pdf'),      # file sent, payment done
+            ('مارس 2026', 5, 50, True, 4100, False, 'xlsx'),        # file sent, payment with the transfer officer
+            ('فبراير 2026', 5, 60, True, 1975.25, False, 'csv'),    # file sent, payment returned by the auditor
         ]
         reqs = []
         for i, (period, stage, age, has_m, diff, chat, kind) in enumerate(plan):
@@ -139,6 +176,8 @@ class Command(BaseCommand):
                     self.say(r, Message.SUPPLIER, 'شكراً. هذا إثبات تحويل الدفعة.', t0 + timedelta(hours=20), sup, files=['png'])
             if stage == 5:
                 self.attach('xlsx', mgr or sup, request=r, kind=Attachment.RESULT)
+            if stage == 5:
+                self.pay(r, reached['5'], {'مايو 2026': 3, 'أبريل 2026': 5, 'مارس 2026': 4, 'فبراير 2026': 'rejected'}.get(period, 1))
             reqs.append(r)
 
         # complaints: every stage, every category style, linked and unlinked, with chat and files

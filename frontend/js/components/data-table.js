@@ -53,7 +53,10 @@ function DataTable(props) {
   const [page, setPage] = useState(1);
   const [fopen, setFopen] = useState(false);
   const [q, setQ] = useState('');
+  const [dFrom, setDFrom] = useState('');
+  const [dTo, setDTo] = useState('');
   const cols = props.cols;
+  const df = props.dateFilter;   /* {label, get(row) -> Date|null}: adds a from / to date range to the table's tools */
   const fvOf = function (c) { return c.fv || function (r) { return String(c.val ? c.val(r) : ''); }; };
   const activeCols = cols.filter(function (c) { return c.filter && flt[c.key]; });
   let rows = props.rows.filter(function (r) {
@@ -62,6 +65,12 @@ function DataTable(props) {
       return c.filter === 'select' ? got === want : got.indexOf(want.trim()) !== -1;
     });
   });
+  if (df && (dFrom || dTo)) {
+    let a = dFrom, b = dTo;
+    if (a && b && a > b) { const t = a; a = b; b = t; }
+    const lo = a ? new Date(a + 'T00:00:00').getTime() : -Infinity, hi = b ? new Date(b + 'T23:59:59.999').getTime() : Infinity;
+    rows = rows.filter(function (r) { const d = df.get(r); const t = d ? new Date(d).getTime() : NaN; return !isNaN(t) && t >= lo && t <= hi; });
+  }
   const needle = q.trim().toLowerCase();
   if (needle) rows = rows.filter(function (r) { return cols.some(function (c) { return fvOf(c)(r).toLowerCase().indexOf(needle) !== -1; }); });
   if (sort) {
@@ -113,6 +122,11 @@ function DataTable(props) {
   return div({ className: 'dtbox' },
     div({ className: 'dtsearch' }, input({ type: 'search', className: 'dtq', 'aria-label': 'بحث في الجدول', placeholder: 'بحث في الجدول…', value: q,
       onChange: function (e) { setQ(e.target.value); setPage(1); } }),
+      df ? div({ className: 'dtdate', role: 'group', 'aria-label': 'تصفية بالتاريخ: ' + df.label },
+        span({ className: 'dtdate-l' }, df.label),
+        label({ className: 'dtdate-f' }, 'من', input({ type: 'date', className: 'thf' + (dFrom ? '' : ' empty'), 'aria-label': df.label + ' من', value: dFrom, max: dTo || undefined, onChange: function (e) { setDFrom(e.target.value); setPage(1); } })),
+        label({ className: 'dtdate-f' }, 'إلى', input({ type: 'date', className: 'thf' + (dTo ? '' : ' empty'), 'aria-label': df.label + ' إلى', value: dTo, min: dFrom || undefined, onChange: function (e) { setDTo(e.target.value); setPage(1); } })),
+        dFrom || dTo ? button({ type: 'button', className: 'btn ghost sm', onClick: function () { setDFrom(''); setDTo(''); setPage(1); } }, 'مسح التاريخ') : null) : null,
       button({ type: 'button', className: 'btn ghost sm dtxl', disabled: !rows.length, title: 'تصدير الصفوف الظاهرة بعد التصفية والبحث إلى Excel',
         onClick: function () { const d = new Date(); exportTableXlsx((props.exportName || 'بيانات') + '-' + xlDate(d) + '.xlsx', cols, rows).catch(function () { if (props.onToast) props.onToast('تعذّر تصدير الملف. تأكد من الاتصال بالإنترنت وأعد المحاولة.'); }); } },
         h(Icon, { name: 'download', size: 15 }), 'تصدير Excel')),
@@ -133,7 +147,7 @@ function DataTable(props) {
         }) : tr(null, td({ colSpan: allCols.length, className: 'empty' }, props.empty || 'لا توجد نتائج مطابقة للتصفية'))))),
     div({ className: 'pager' },
       span({ className: 'muted small' }, rows.length ? 'عرض ' + firstN + '–' + lastN + ' من ' + rows.length + (rows.length !== props.rows.length ? ' (من أصل ' + props.rows.length + ')' : '') : '0 نتيجة'),
-      activeCols.length ? button({ type: 'button', className: 'btn ghost sm', onClick: function () { setFlt({}); setPage(1); } }, 'مسح الفلاتر') : null,
+      activeCols.length || dFrom || dTo ? button({ type: 'button', className: 'btn ghost sm', onClick: function () { setFlt({}); setDFrom(''); setDTo(''); setPage(1); } }, 'مسح الفلاتر') : null,
       pages > 1 ? h('nav', { className: 'pgnav', 'aria-label': 'ترقيم الصفحات' },
         button({ type: 'button', className: 'pgbtn', disabled: cur === 1, onClick: function () { setPage(cur - 1); } }, 'السابق'),
         pageList(cur, pages).map(function (p) {
@@ -172,7 +186,7 @@ function ComplaintTable(props) {
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (c) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(c), h(Badge, { n: unreadOf(c, role, props.seen) })); } },
     openCol(props.onDelete, props.canDelete)
   ];
-  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (c) { return rowTone(unreadOf(c, role, props.seen), props.fresh, c); } });
+  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, dateFilter: { label: 'تاريخ الشكوى', get: function (c) { return c.created; } }, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (c) { return rowTone(unreadOf(c, role, props.seen), props.fresh, c); } });
 }
 
 function RequestTable(props) {
@@ -190,7 +204,7 @@ function RequestTable(props) {
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (r) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(r), h(Badge, { n: unreadOf(r, role, props.seen) })); } },
     openCol(props.onDelete, props.canDelete)
   ];
-  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
+  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, dateFilter: { label: 'تاريخ الطلب', get: function (r) { return r.created; } }, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
 }
 
 /* one service = header with its main action + the table (filters live in the table header) */

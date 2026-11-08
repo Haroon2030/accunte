@@ -3,3 +3,6 @@
 __pycache__/
 media/
 staticfiles/
+venv/
+logs/
+private_media/

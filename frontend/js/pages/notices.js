@@ -208,7 +208,7 @@ function NoticeTable(props) {
     { key: 'total', label: 'الإجمالي (ر.س)', val: function (n) { return n.total; }, num: true, render: function (n) { return span({ className: 'mono' }, ntNum(n.total)); } },
     openCol(props.onDelete)
   ];
-  return h(DataTable, { cols: props.hide ? defs.filter(function (c) { return props.hide.indexOf(c.key) === -1; }) : defs, rows: props.rows, onOpen: props.onOpen, defaultSort: { key: 'date', dir: 'desc' }, exportName: 'الإشعارات', empty: 'لا توجد إشعارات بعد.' });
+  return h(DataTable, { dateFilter: { label: 'تاريخ الإشعار', get: function (n) { return new Date(n.issuedAt); } }, cols: props.hide ? defs.filter(function (c) { return props.hide.indexOf(c.key) === -1; }) : defs, rows: props.rows, onOpen: props.onOpen, defaultSort: { key: 'date', dir: 'desc' }, exportName: 'الإشعارات', empty: 'لا توجد إشعارات بعد.' });
 }
 
 /* shared by the staff page and the supplier panel: the list, or one notice ready to print */

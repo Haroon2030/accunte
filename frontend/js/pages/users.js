@@ -10,7 +10,7 @@ function UsersPage(props) {
   const baseRef = useRef('');
   const users = props.users;
   const canManage = function (x) { return me.role === 'admin' || x.role !== 'admin'; };
-  const roleOpts = me.role === 'admin' ? ['supplier', 'matcher', 'supervisor', 'manager', 'admin'] : ['supplier', 'matcher', 'supervisor', 'manager'];
+  const roleOpts = me.role === 'admin' ? ['supplier', 'matcher', 'supervisor', 'manager', 'services', 'purchasing', 'auditor', 'treasury', 'admin'] : ['supplier', 'matcher', 'supervisor', 'manager', 'services', 'purchasing', 'auditor', 'treasury'];
   const count = function (f) { return users.filter(f).length; };
   const setF = function (k, v) { setFormV(function (o) { const n = Object.assign({}, o); n[k] = v; return n; }); };
   function openNew() { setTemp(null); setConfirm(null); setErrs({}); const f = Object.assign({}, EMPTY_FORM, { password: genPass() }); baseRef.current = JSON.stringify(f); setFormV(f); }
@@ -83,11 +83,11 @@ function UsersPage(props) {
       x.id === me.id ? null : ab('stop', 'trash', 'حذف', function () { setFormV(null); setTemp(null); setConfirm({ type: 'delete', id: x.id }); }));
   };
   const samePages = function (a, b) { return (a || []).slice().sort().join() === (b || []).slice().sort().join(); };
-  const STAFF_PAGE_KEYS = ['matcher', 'manager', 'recon', 'notices', 'suppliers', 'users'];
+  const STAFF_PAGE_KEYS = ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'users'];
   const togglePage = function (k, on) {
     setFormV(function (o) { const set = (o.pages || []).filter(function (p) { return p !== k; }); if (on) set.push(k); return Object.assign({}, o, { pages: STAFF_PAGE_KEYS.filter(function (p) { return set.indexOf(p) !== -1; }) }); });
   };
-  const ROLE_ORDER = { admin: 0, manager: 1, supervisor: 2, matcher: 3, supplier: 4 };
+  const ROLE_ORDER = { admin: 0, manager: 1, treasury: 2, auditor: 3, purchasing: 4, services: 5, supervisor: 6, matcher: 7, supplier: 8 };
   const statusPill = function (x) {
     return span({ className: 'pill ' + (x.active ? (x.mustChange ? 'warn' : 'ok') : 'bad') }, span({ className: 'dot' }), x.active ? (x.mustChange ? 'لم يغيّر كلمة المرور' : 'نشط') : 'موقوف');
   };
@@ -127,7 +127,7 @@ function UsersPage(props) {
       button({ className: 'btn primary', onClick: openNew }, h(Icon, { name: 'plus' }), 'مستخدم جديد')),
     div({ className: 'ustats' },
       [['الإجمالي', users.length], ['النشطون', count(function (x) { return x.active; })], ['الموقوفون', count(function (x) { return !x.active; })],
-        ['الموردون', count(function (x) { return x.role === 'supplier'; })], ['المطابقون', count(function (x) { return x.role === 'matcher'; })], ['الإدارة', count(function (x) { return x.role === 'manager' || x.role === 'admin'; })]]
+        ['الموردون', count(function (x) { return x.role === 'supplier'; })], ['المطابقون', count(function (x) { return x.role === 'matcher'; })], ['سلسلة السداد', count(function (x) { return ['services', 'purchasing', 'auditor', 'treasury'].indexOf(x.role) !== -1; })], ['الإدارة', count(function (x) { return x.role === 'manager' || x.role === 'admin'; })]]
         .map(function (s) { return div({ key: s[0], className: 'ustat' }, h('b', null, s[1]), span(null, s[0])); })),
     temp ? div({ className: 'tempbox', role: 'status' },
       span(null, 'كلمة المرور المؤقتة لـ ', strong(null, temp.name), ' (', span({ className: 'mono' }, temp.username), '):'),
@@ -149,7 +149,7 @@ function UsersPage(props) {
           roleOpts.map(function (r) { return option({ key: r, value: r }, ROLE_LABEL[r]); })), 'role', 'يصل إلى: ' + ROLE_PAGES[formV.role].map(function (k) { return PAGE_LABEL[k]; }).join('، ')),
         formV.role === 'supplier' ? fld('uf-sup', 'المورد', select({ id: 'uf-sup', value: formV.supplierId, onChange: function (e) { setF('supplierId', e.target.value); } },
           option({ value: '' }, 'اختر المورد…'), supplierChoices.map(function (x) { return option({ key: x.id, value: String(x.id) }, x.name + ' · ' + x.code + (x.active ? '' : ' (موقوف)')); })),
-          'supplierId', supplierChoices.length ? 'من بيانات الموردين. يأخذ الحساب اسم المورد ورمزه ورقمه الضريبي منها.' : 'لا يوجد موردون بعد. أضف المورد أولاً من صفحة «بيانات الموردين».', 'wide') : fld('uf-org', 'الجهة / القسم', input({ id: 'uf-org', name: 'organisation', autoComplete: 'off', type: 'text', value: formV.org, onChange: function (e) { setF('org', e.target.value); } }), 'org'),
+          'supplierId', supplierChoices.length ? 'من بيانات الموردين. يأخذ الحساب اسم المورد ورمزه ورقمه الضريبي منها.' : 'لا يوجد موردون بعد. أضف المورد أولاً من صفحة «بيانات الموردين».') : fld('uf-org', 'الجهة / القسم', input({ id: 'uf-org', name: 'organisation', autoComplete: 'off', type: 'text', value: formV.org, onChange: function (e) { setF('org', e.target.value); } }), 'org'),
         formV.role === 'supplier' && pickedSupplier ? h(SupplierInfo, { s: pickedSupplier, className: 'wide' }) : null,
         !formV.id ? fld('uf-pw', 'كلمة المرور المؤقتة', div({ className: 'pwgen' }, h(PwInput, { id: 'uf-pw', value: formV.password, onChange: function (v) { setF('password', v); }, autoComplete: 'new-password' }),
           button({ type: 'button', className: 'btn ghost', onClick: function () { setF('password', genPass()); } }, 'توليد')), 'password', 'سيُطلب من المستخدم تغييرها عند أول دخول.', 'wide') : null,
@@ -167,5 +167,5 @@ function UsersPage(props) {
       div({ className: 'formactions' },
         button({ type: 'submit', className: 'btn primary' }, formV.id ? 'حفظ التعديلات' : 'إضافة المستخدم'),
         button({ type: 'button', className: 'btn ghost', onClick: closeForm }, 'إلغاء'))) : null,
-    h(DataTable, { cols: cols, rows: users, exportName: 'المستخدمون', rowClass: function (x) { return x.active ? undefined : 'off'; }, empty: 'لا يوجد مستخدمون' }));
+    h(DataTable, { cols: cols, rows: users, dateFilter: { label: 'تاريخ الإضافة', get: function (x) { return x.created; } }, exportName: 'المستخدمون', rowClass: function (x) { return x.active ? undefined : 'off'; }, empty: 'لا يوجد مستخدمون' }));
 }

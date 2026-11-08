@@ -63,6 +63,25 @@ def complaint_out(c, messages=True):
     return out
 
 
+def payment_out(p, user=None):
+    from .models import Payment
+    from .permissions import can_act_on_payment
+    r = p.request
+    last = p.history[-1] if p.history else None
+    return {
+        'id': p.number, 'pk': p.pk, 'request': r.number, 'requestPk': r.pk, 'period': r.period,
+        'supplier': p.supplier.org or p.supplier.name, 'supplierCode': p.supplier.code or '',
+        'status': p.status, 'amount': float(p.amount) if p.amount is not None else None,
+        'diff': float(r.diff) if r.diff is not None else None,
+        'method': p.method, 'reference': p.reference, 'dueDate': p.due_date.isoformat() if p.due_date else None,
+        'paidBy': p.paid_by.name if p.paid_by else '', 'history': p.history,
+        # an auditor's rejection sends the payment back to supplier services; show why until it is proposed again
+        'rejected': bool(last and last['action'] == 'reject' and p.status == Payment.PROPOSING),
+        'canAct': bool(user and can_act_on_payment(user, p)),
+        'created': iso(p.created_at), 'reached': p.reached,
+    }
+
+
 def notice_out(n):
     from django.conf import settings
     items = []

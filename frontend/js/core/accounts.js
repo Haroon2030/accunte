@@ -5,16 +5,17 @@
    Demo only: accounts live in memory. In production the backend stores
    salted password hashes, enforces roles on every request and audits changes.
    ===================================================================== */
-const ROLE_LABEL = { supplier: 'مورد', matcher: 'مطابق', supervisor: 'مشرف الدعم', manager: 'مدير مالي', admin: 'مدير النظام' };
+const ROLE_LABEL = { supplier: 'مورد', matcher: 'مطابق', supervisor: 'مشرف الدعم', manager: 'مدير مالي', admin: 'مدير النظام', services: 'خدمات الموردين', purchasing: 'مدير المشتريات', auditor: 'المدقق', treasury: 'مسؤول التحويل' };
 const ROLE_PAGES = {
   supplier: ['supplier'],
   matcher: ['matcher', 'recon'],
   supervisor: ['matcher', 'recon'],
-  manager: ['matcher', 'manager', 'recon', 'notices', 'suppliers'],
-  admin: ['matcher', 'manager', 'recon', 'notices', 'suppliers', 'users']
+  manager: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers'],
+  admin: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'users'],
+  services: ['payments'], purchasing: ['payments'], auditor: ['payments'], treasury: ['payments']   /* the payment approval chain */
 };
-const HOME_PAGE = { supplier: 'supplier', matcher: 'matcher', supervisor: 'matcher', manager: 'manager', admin: 'manager' };
-const PAGE_LABEL = { supplier: 'صفحة المورد', matcher: 'صفحة المطابق', manager: 'لوحة المدير المالي', recon: 'مطابقة الكشوف', notices: 'إشعارات الموردين', suppliers: 'بيانات الموردين', users: 'إدارة المستخدمين' };
+const HOME_PAGE = { supplier: 'supplier', matcher: 'matcher', supervisor: 'matcher', manager: 'manager', admin: 'manager', services: 'payments', purchasing: 'payments', auditor: 'payments', treasury: 'payments' };
+const PAGE_LABEL = { supplier: 'صفحة المورد', matcher: 'صفحة المطابق', manager: 'لوحة المدير المالي', recon: 'مطابقة الكشوف', payments: 'السداد', notices: 'إشعارات الموردين', suppliers: 'بيانات الموردين', users: 'إدارة المستخدمين' };
 /* two separate entrances: suppliers use supplier.html, staff use index.html */
 const PORTAL = document.body.getAttribute('data-portal') || 'staff';
 const inPortal = function (u) { return (u.role === 'supplier') === (PORTAL === 'supplier'); };

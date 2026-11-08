@@ -42,7 +42,10 @@ class Supplier(models.Model):
 
 class User(AbstractUser):
     SUPPLIER, MATCHER, SUPERVISOR, MANAGER, ADMIN = 'supplier', 'matcher', 'supervisor', 'manager', 'admin'
-    ROLES = [(SUPPLIER, 'مورد'), (MATCHER, 'مطابق'), (SUPERVISOR, 'مشرف الدعم'), (MANAGER, 'مدير مالي'), (ADMIN, 'مدير النظام')]
+    # the four levels of the payment approval chain
+    SERVICES, PURCHASING, AUDITOR, TREASURY = 'services', 'purchasing', 'auditor', 'treasury'
+    ROLES = [(SUPPLIER, 'مورد'), (MATCHER, 'مطابق'), (SUPERVISOR, 'مشرف الدعم'), (MANAGER, 'مدير مالي'), (ADMIN, 'مدير النظام'),
+             (SERVICES, 'خدمات الموردين'), (PURCHASING, 'مدير المشتريات'), (AUDITOR, 'المدقق'), (TREASURY, 'مسؤول التحويل')]
 
     first_name = None
     last_name = None
@@ -158,6 +161,32 @@ class Notice(models.Model):
     vat = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=15)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-id']
+
+    def __str__(self):
+        return self.number or f'#{self.pk}'
+
+
+class Payment(models.Model):
+    """The settlement that follows a finished reconciliation, approved through four levels:
+    supplier services proposes -> purchasing manager approves -> auditor approves or rejects -> transfer officer gives the final approval and pays.
+    Every level may propose a different amount; the history keeps who proposed what."""
+    PROPOSING, PURCHASING, AUDIT, TREASURY, PAID = 1, 2, 3, 4, 5
+    STEP_ROLE = {PROPOSING: 'services', PURCHASING: 'purchasing', AUDIT: 'auditor', TREASURY: 'treasury'}
+    request = models.OneToOneField(MatchRequest, on_delete=models.CASCADE, related_name='payment')
+    supplier = models.ForeignKey(User, on_delete=models.PROTECT, related_name='payments')
+    number = models.CharField(max_length=20, unique=True, null=True, editable=False)
+    status = models.PositiveSmallIntegerField(default=PROPOSING)
+    amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)   # the amount as last proposed
+    method = models.CharField(max_length=40, blank=True)
+    reference = models.CharField(max_length=60, blank=True)      # transfer / cheque number, entered by the transfer officer
+    due_date = models.DateField(null=True, blank=True)
+    paid_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    history = models.JSONField(default=list)   # [{at, by, role, action: propose|approve|reject|pay, amount, note}]
+    reached = models.JSONField(default=dict)   # {"1": iso, ... "5": iso}
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

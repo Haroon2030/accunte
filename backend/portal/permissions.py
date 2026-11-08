@@ -2,14 +2,19 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 
 from .models import User
 
-PAGE_KEYS = ('supplier', 'matcher', 'manager', 'recon', 'notices', 'suppliers', 'users')
-STAFF_PAGES = ('matcher', 'manager', 'recon', 'notices', 'suppliers', 'users')
+PAGE_KEYS = ('supplier', 'matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'users')
+STAFF_PAGES = ('matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'users')
 ROLE_PAGES = {
     User.SUPPLIER: ['supplier'],
     User.MATCHER: ['matcher', 'recon'],
     User.SUPERVISOR: ['matcher', 'recon'],      # the requests queue; only the supervisor receives and assigns
-    User.MANAGER: ['matcher', 'manager', 'recon', 'notices', 'suppliers'],
-    User.ADMIN: ['matcher', 'manager', 'recon', 'notices', 'suppliers', 'users'],
+    User.MANAGER: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers'],
+    User.ADMIN: ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers', 'users'],
+    # the payment approval chain: each level only works on the payments page
+    User.SERVICES: ['payments'],
+    User.PURCHASING: ['payments'],
+    User.AUDITOR: ['payments'],
+    User.TREASURY: ['payments'],
 }
 
 
@@ -69,9 +74,16 @@ IsManagerPage = has_page('manager')
 SupplierOrManagerPage = supplier_or_page('manager')
 IsSupplier = roles(User.SUPPLIER)
 IsNoticesPage = has_page('notices')
+IsPaymentsPage = has_page('payments')
 IsSuppliersPage = has_page('suppliers')
 CanReadSuppliers = has_page('suppliers', 'users', 'notices')   # the supplier list feeds the users form and the notices form
 SupplierOrNotices = supplier_or_page('notices')
+
+
+def can_act_on_payment(user, payment):
+    """Each level works only on the payments waiting at its own step; the system admin may act at any step."""
+    step_role = payment.STEP_ROLE.get(payment.status)
+    return step_role is not None and (user.role == step_role or user.role == User.ADMIN)
 
 
 def can_view_request(user, req):

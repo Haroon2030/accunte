@@ -19,10 +19,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import SLA_DAYS, Attachment, Complaint, Message, MatchRequest, Notice, Supplier, User
-from .permissions import (supplier_or_page, IsAdmin, IsManagerPage, IsMatcherPage, IsStaff, IsSupplier, IsSuppliersPage, CanReadSuppliers, STAFF_PAGES, SupplierOrManagerPage, IsNoticesPage, SupplierOrNotices, allowed_pages,
+from .models import SLA_DAYS, Attachment, Complaint, Message, MatchRequest, Notice, Payment, Supplier, User
+from .permissions import (IsPaymentsPage, can_act_on_payment, supplier_or_page, IsAdmin, IsManagerPage, IsMatcherPage, IsStaff, IsSupplier, IsSuppliersPage, CanReadSuppliers, STAFF_PAGES, SupplierOrManagerPage, IsNoticesPage, SupplierOrNotices, allowed_pages,
                           can_view_complaint, can_view_request, roles)
-from .serializers import complaint_out, message_out, notice_out, request_out, supplier_out, user_out
+from .serializers import complaint_out, message_out, notice_out, payment_out, request_out, supplier_out, user_out
 from .validators import INLINE_TYPES, TAX_RE, MOBILE_RE, check_password_rule, extension_of, normalize_digits, normalize_mobile, validate_upload
 
 USERNAME_RE = re.compile(r'^[a-z0-9._-]{1,30}$')
@@ -405,6 +405,7 @@ class ChangesView(APIView):
             files = files.filter(Q(request__supplier=request.user) | Q(message__request__supplier=request.user) | Q(message__complaint__supplier=request.user))
         notices = Notice.objects.filter(supplier_id=request.user.supplier_id) if mine else Notice.objects.all()
         parts = [
+            Payment.objects.aggregate(n=Count('id'), m=Max('id'), s=Sum('status'), a=Sum('amount')) if not mine else None,
             notices.aggregate(n=Count('id'), m=Max('id')),
             reqs.aggregate(n=Count('id'), m=Max('id'), s=Sum('stage'), a=Sum('matcher_id'), d=Sum('diff')),
             comps.aggregate(n=Count('id'), m=Max('id'), s=Sum('stage')),
@@ -466,6 +467,8 @@ class RequestAdvanceView(APIView):
         req.stage += 1
         stamp(req, req.stage)
         req.save()
+        if req.stage == 5:
+            open_payment(req)      # the reconciliation file went out: the settlement starts
         return Response(request_out(get_request(request.user, pk)))
 
 
@@ -826,3 +829,161 @@ class NoticeDetailView(APIView):
             raise PermissionDenied('حذف الإشعارات لمدير النظام فقط.')
         get_notice(request.user, pk).delete()
         return Response(status=204)
+
+
+# ------------------------------------------------------------------ payments (four-level approval after a finished reconciliation)
+PAY_METHODS = ('تحويل بنكي', 'شيك', 'نقداً', 'خصم من الحساب')
+STEP_NAME = {Payment.PROPOSING: 'خدمات الموردين', Payment.PURCHASING: 'مدير المشتريات', Payment.AUDIT: 'المدقق', Payment.TREASURY: 'مسؤول التحويل'}
+
+
+def open_payment(req):
+    """One payment per request, created when the reconciliation file is sent. The amount starts as the reconciled difference."""
+    now = timezone.now()
+    amount = abs(req.diff) if req.diff else None
+    p, created = Payment.objects.get_or_create(
+        request=req, defaults={'supplier': req.supplier, 'amount': amount, 'reached': {'1': now.isoformat()}, 'created_at': now})
+    if created:
+        p.number = f'PY-{now:%y%m}-{p.pk:04d}'
+        p.save(update_fields=['number'])
+    return p
+
+
+def payment_qs():
+    return Payment.objects.select_related('request', 'supplier', 'paid_by')
+
+
+def get_payment(pk):
+    p = payment_qs().filter(pk=pk).first()
+    if not p:
+        raise NotFound('أمر السداد غير موجود.')
+    return p
+
+
+def pay_out(request, pk):
+    return payment_out(get_payment(pk), request.user)
+
+
+def apply_payment_fields(p, data):
+    """The level working on the payment may propose another amount, method or due date."""
+    if 'amount' in data:
+        raw = data.get('amount')
+        if raw in (None, ''):
+            p.amount = None
+        else:
+            try:
+                d = Decimal(normalize_digits(str(raw)))
+            except InvalidOperation:
+                raise ValidationError({'amount': 'المبلغ غير صحيح.'})
+            if not d.is_finite() or d <= 0 or d > Decimal('999999999'):
+                raise ValidationError({'amount': 'المبلغ يجب أن يكون أكبر من صفر.'})
+            p.amount = d.quantize(Decimal('0.01'))
+    if 'method' in data:
+        m = (data.get('method') or '').strip()
+        if m and m not in PAY_METHODS:
+            raise ValidationError({'method': 'اختر طريقة سداد من القائمة.'})
+        p.method = m
+    if 'dueDate' in data:
+        p.due_date = clean_due(data.get('dueDate'))
+
+
+def log_payment(p, user, action, note=''):
+    p.history = [*p.history, {'at': timezone.now().isoformat(), 'by': user.name, 'role': user.role, 'action': action,
+                              'amount': str(p.amount) if p.amount is not None else None, 'note': (note or '').strip()[:500]}]
+
+
+class StalePayment(Exception):
+    pass
+
+
+def lock_payment(request, pk):
+    """Lock the row, check that the page showed the current step (a stale click gets 409) and that it is the caller's turn."""
+    list(Payment.objects.select_for_update().filter(pk=pk).values_list('pk', flat=True))
+    p = get_payment(pk)
+    seen = request.data.get('fromStage')
+    if seen not in (None, '') and str(seen) != str(p.status):
+        raise StalePayment
+    if p.status == Payment.PAID:
+        raise ValidationError({'detail': 'تم سداد هذا الأمر، فلا يمكن تعديله.'})
+    if not can_act_on_payment(request.user, p):
+        raise PermissionDenied(f'هذا الأمر بانتظار {STEP_NAME[p.status]}، وليس دورك الآن.')
+    return p
+
+
+def stale_response():
+    return Response({'detail': 'تغيّرت حالة أمر السداد للتو. حُدّثت الصفحة فتأكد قبل المتابعة.'}, status=409)
+
+
+class PaymentsView(APIView):
+    permission_classes = [IsPaymentsPage]
+
+    def get(self, request):
+        return Response([payment_out(p, request.user) for p in payment_qs()[:1000]])
+
+
+class PaymentDetailView(APIView):
+    permission_classes = [IsPaymentsPage]
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        try:
+            p = lock_payment(request, pk)
+        except StalePayment:
+            return stale_response()
+        apply_payment_fields(p, request.data)
+        p.save()
+        return Response(pay_out(request, pk))
+
+    def delete(self, request, pk):
+        if request.user.role != User.ADMIN:
+            raise PermissionDenied('حذف أوامر السداد لمدير النظام فقط.')
+        get_payment(pk).delete()
+        return Response(status=204)
+
+
+class PaymentAdvanceView(APIView):
+    """Approve at the caller's level. Level 1 proposes (needs amount + method); level 4 gives the final approval, which completes the payment."""
+    permission_classes = [IsPaymentsPage]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            p = lock_payment(request, pk)
+        except StalePayment:
+            return stale_response()
+        apply_payment_fields(p, request.data)
+        if not p.amount:
+            raise ValidationError({'amount': 'حدّد مبلغ السداد.'})
+        if p.status == Payment.PROPOSING and not p.method:
+            raise ValidationError({'method': 'اختر طريقة السداد قبل رفع الاقتراح.'})
+        note = request.data.get('note')
+        if p.status == Payment.TREASURY:
+            p.paid_by = request.user
+            log_payment(p, request.user, 'pay', note)
+        else:
+            log_payment(p, request.user, 'propose' if p.status == Payment.PROPOSING else 'approve', note)
+        p.status += 1
+        stamp(p, p.status)
+        p.save()
+        return Response(pay_out(request, pk))
+
+
+class PaymentRejectView(APIView):
+    """Only the auditor may reject. The payment goes back to supplier services with the reason."""
+    permission_classes = [IsPaymentsPage]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            p = lock_payment(request, pk)
+        except StalePayment:
+            return stale_response()
+        if p.status != Payment.AUDIT:
+            raise PermissionDenied('الرفض للمدقق عند مرحلة التدقيق فقط.')
+        reason = (request.data.get('note') or '').strip()
+        if not reason:
+            raise ValidationError({'note': 'اكتب سبب الرفض.'})
+        log_payment(p, request.user, 'reject', reason)
+        p.status = Payment.PROPOSING
+        p.reached = {'1': timezone.now().isoformat()}
+        p.save()
+        return Response(pay_out(request, pk))

@@ -12,7 +12,11 @@ from django.db import connection
 from django.test import TestCase, TransactionTestCase, override_settings
 from rest_framework.test import APIClient
 
-from .models import Attachment, MatchRequest, Supplier, User
+from decimal import Decimal
+
+from django.utils import timezone
+
+from .models import Attachment, MatchRequest, Payment, Supplier, User
 
 PDF = b'%PDF-1.4\n%test\n'
 XLSX = b'PK\x03\x04' + b'0' * 40
@@ -399,7 +403,7 @@ class SeedDemoTests(TestCase):
                 'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}):
             real = MatchRequest.objects.create(supplier=User.objects.get(username='4'), period='حقيقي', notes='ملاحظة حقيقية', due_at='2030-01-01T00:00:00Z')
             call_command('seed_demo_data')
-            self.assertEqual(sorted(MatchRequest.objects.exclude(pk=real.pk).values_list('stage', flat=True)), [1, 1, 2, 2, 3, 3, 4, 5])
+            self.assertEqual(sorted(MatchRequest.objects.exclude(pk=real.pk).values_list('stage', flat=True)), [1, 1, 2, 2, 3, 3, 4, 5, 5, 5, 5, 5])
             self.assertEqual(sorted(Complaint.objects.values_list('stage', flat=True)), [1, 1, 2, 2, 3, 3])
             self.assertTrue(Attachment.objects.count() >= 15)
             before = MatchRequest.objects.count()
@@ -442,7 +446,7 @@ class PagePermissionTests(TestCase):
         created = a.post('/api/users/', {'name': 'جديد', 'username': '8', 'role': 'matcher', 'password': '1234', 'pages': ['manager', 'users']}, format='json')
         self.assertEqual((created.status_code, created.json()['pages']), (201, ['manager', 'users']))
         role_change = a.patch(f'/api/users/{self.matcher.pk}/', {'name': 'x', 'username': '3', 'role': 'manager'}, format='json')
-        self.assertEqual(role_change.json()['pages'], ['matcher', 'manager', 'recon', 'notices', 'suppliers'])   # new role, its own defaults
+        self.assertEqual(role_change.json()['pages'], ['matcher', 'manager', 'recon', 'payments', 'notices', 'suppliers'])   # new role, its own defaults
 
 
 class SupplierDataTests(TestCase):
@@ -541,3 +545,92 @@ class SupplierHostTests(TestCase):
         self.assertEqual(APIClient().post('/api/auth/login', body, format='json', HTTP_HOST='staff.example.com').status_code, 200)
         sup = {'username': '4', 'password': 'Pass1234'}
         self.assertEqual(APIClient().post('/api/auth/login', sup, format='json', HTTP_HOST='suppliers.example.com').status_code, 200)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(), STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}})
+class PaymentTests(TestCase):
+    """Four levels: supplier services proposes -> purchasing manager approves -> auditor approves / rejects -> transfer officer pays."""
+    def setUp(self):
+        cache.clear()
+        self.admin = make('1', 'admin')
+        self.manager = make('2', 'manager')
+        self.matcher = make('3', 'matcher')
+        self.sup = make('4', 'supplier', org='شركة النخبة', code='S-1')
+        self.services = make('11', 'services')
+        self.purchasing = make('12', 'purchasing')
+        self.auditor = make('13', 'auditor')
+        self.treasury = make('14', 'treasury')
+
+    def finished_request(self, diff=None):
+        """A request one step before the end: only sending the reconciliation file is left."""
+        r = MatchRequest.objects.create(supplier=self.sup, period='الربع الأول', stage=4, diff=diff, due_at=timezone.now(), matcher=self.matcher)
+        r.number = f'MT-{r.pk}'
+        r.save(update_fields=['number'])
+        return r
+
+    def payment(self, diff=None):
+        r = self.finished_request(diff)
+        resp = login(self.manager).post(f'/api/requests/{r.pk}/advance', {'fromStage': 4, 'file': SimpleUploadedFile('m.xlsx', XLSX)}, format='multipart')
+        self.assertEqual(resp.status_code, 200)
+        return Payment.objects.get(request=r)
+
+    def act(self, user, p, action='advance', **body):
+        return login(user).post(f'/api/payments/{p.pk}/{action}', body, format='json')
+
+    def test_payment_opens_when_the_file_is_sent(self):
+        p = self.payment(diff='-1250.50')
+        self.assertEqual((p.status, p.amount, p.supplier_id), (Payment.PROPOSING, Decimal('1250.50'), self.sup.pk))   # suggested from the difference
+        self.assertTrue(p.number.startswith('PY-'))
+
+    def test_each_level_acts_only_on_its_own_step(self):
+        p = self.payment()
+        for wrong in (self.purchasing, self.auditor, self.treasury, self.manager):
+            self.assertEqual(self.act(wrong, p, amount='300', method='شيك').status_code, 403, wrong.role)
+        self.assertEqual(self.act(self.services, p, amount='300').status_code, 400)                                   # no method yet
+        ok = self.act(self.services, p, fromStage=1, amount='300', method='شيك', note='حسب الكشف')
+        self.assertEqual((ok.status_code, ok.json()['status']), (200, 2))
+        self.assertEqual(self.act(self.services, p, amount='1').status_code, 403)                                     # no longer its turn
+        self.assertFalse(login(self.services).get('/api/payments/').json()[0]['canAct'])
+        self.assertTrue(login(self.purchasing).get('/api/payments/').json()[0]['canAct'])
+
+    def test_full_chain_keeps_every_proposed_amount(self):
+        p = self.payment()
+        self.act(self.services, p, amount='1000', method='تحويل بنكي')
+        self.act(self.purchasing, p, fromStage=2, amount='950', note='خصم مرتجعات')            # purchasing proposes another amount
+        self.assertEqual(self.act(self.auditor, p, fromStage=3).json()['status'], 4)
+        done = self.act(self.treasury, p, fromStage=4, amount='940')
+        body = done.json()
+        self.assertEqual((done.status_code, body['status'], body['paidBy'], body['amount']), (200, 5, self.treasury.name, 940.0))
+        self.assertEqual([(e['role'], e['action'], e['amount']) for e in body['history']],
+                         [('services', 'propose', '1000.00'), ('purchasing', 'approve', '950.00'), ('auditor', 'approve', '950.00'), ('treasury', 'pay', '940.00')])
+        self.assertEqual(self.act(self.treasury, p, amount='1').status_code, 400)             # paid: locked
+
+    def test_only_the_auditor_rejects_and_it_returns_to_services(self):
+        p = self.payment()
+        self.act(self.services, p, amount='500', method='شيك')
+        self.assertEqual(self.act(self.purchasing, p, 'reject', note='لا').status_code, 403)   # not the auditor's step
+        self.act(self.purchasing, p)
+        self.assertEqual(self.act(self.treasury, p, 'reject', note='لا').status_code, 403)     # wrong role
+        self.assertEqual(self.act(self.auditor, p, 'reject').status_code, 400)                 # a reason is required
+        back = self.act(self.auditor, p, 'reject', fromStage=3, note='الفرق غير موثّق').json()
+        self.assertEqual((back['status'], back['rejected']), (1, True))
+        self.assertEqual(back['history'][-1]['action'], 'reject')
+        again = self.act(self.services, p, fromStage=1, amount='450', method='شيك').json()    # re-proposed
+        self.assertEqual((again['status'], again['rejected']), (2, False))
+
+    def test_stale_click_and_admin_override(self):
+        p = self.payment()
+        self.act(self.services, p, amount='300', method='شيك')
+        self.assertEqual(self.act(self.services, p, fromStage=1).status_code, 409)             # the page showed an older step
+        self.assertEqual(self.act(self.admin, p, fromStage=2).json()['status'], 3)             # the system admin may act at any level
+
+    def test_who_can_see_and_delete(self):
+        p = self.payment()
+        self.assertEqual(login(self.sup, 'supplier').get('/api/payments/').status_code, 403)
+        self.assertEqual(login(self.matcher).get('/api/payments/').status_code, 403)
+        for u in (self.manager, self.services, self.purchasing, self.auditor, self.treasury):
+            self.assertEqual(login(u).get('/api/payments/').status_code, 200, u.role)
+        self.assertEqual(login(self.services).delete(f'/api/payments/{p.pk}/').status_code, 403)
+        self.assertEqual(login(self.admin).delete(f'/api/payments/{p.pk}/').status_code, 204)
