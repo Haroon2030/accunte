@@ -749,8 +749,8 @@ def _first_error(exc):
 
 class SupplierImportView(APIView):
     """Bulk add or update from the suppliers page's Excel import: code, name and an optional tax number per row.
-    Each row is checked like a hand-typed supplier, and no code is ever added twice: a code that repeats inside the file keeps
-    its first row. A code that already exists is either skipped (default) or updated (`onDuplicate: 'update'`: the name,
+    Each row is checked like a hand-typed supplier, and no code is ever added twice: a code that repeats inside the file is
+    normal and is merged into its first row (counted in `repeated`, never listed as skipped). A code that already exists is either skipped (default) or updated (`onDuplicate: 'update'`: the name,
     and the tax number when the row has one; an empty tax cell never erases the stored one)."""
     permission_classes = [IsSuppliersPage]
     MAX_ROWS = 5000
@@ -765,19 +765,19 @@ class SupplierImportView(APIView):
             raise ValidationError({'detail': 'لا توجد أسطر للاستيراد.'})
         if len(rows) > self.MAX_ROWS:
             raise ValidationError({'detail': f'الحد الأقصى {self.MAX_ROWS} سطر في المرة الواحدة.'})
-        added, updated, skipped, unchanged = [], [], [], 0
+        added, updated, skipped, unchanged, repeated, existing_n = [], [], [], 0, 0, 0
         first_row = {}                                # code (lower case) -> the file row that used it first
         for i, r in enumerate(rows, start=1):
             r = r if isinstance(r, dict) else {}
             ref = {'row': r.get('row') or i, 'code': str(r.get('code') or '').strip()[:30], 'name': str(r.get('name') or '').strip()[:200]}
             key = ref['code'].lower()
             if key and key in first_row:
-                skipped.append({**ref, 'reason': f"الرقم مكرر في الملف (أول ظهور في السطر {first_row[key]})."})
+                repeated += 1                         # a repeat inside the file is normal: merged into its first row, not an error
                 continue
             existing = Supplier.objects.filter(code__iexact=ref['code']).first() if key else None
             if existing and mode == 'skip':
                 first_row[key] = ref['row']
-                skipped.append({**ref, 'reason': 'رمز المورد موجود مسبقاً (لم يتغير).'})
+                existing_n += 1                       # already in the system (e.g. the same file uploaded again): nothing is added, not an error
                 continue
             try:
                 payload = clean_supplier_payload({'name': r.get('name'), 'code': r.get('code'), 'taxNo': r.get('taxNo')}, existing)
@@ -799,7 +799,7 @@ class SupplierImportView(APIView):
                 setattr(existing, k, v)
             existing.save()                                         # also refreshes the company details copied into its accounts
             updated.append(supplier_out(existing, existing.users.count()))
-        return Response({'added': added, 'updated': updated, 'unchanged': unchanged, 'skipped': skipped})
+        return Response({'added': added, 'updated': updated, 'unchanged': unchanged, 'existing': existing_n, 'repeated': repeated, 'skipped': skipped})
 
 
 class SupplierDataDetailView(APIView):

@@ -472,9 +472,19 @@ class SupplierDataTests(TestCase):
         self.assertEqual([x['code'] for x in out['added']], ['S-2', 'S-4'])
         self.assertEqual(Supplier.objects.get(code='S-4').tax_no, '300000000000003')
         self.assertEqual(Supplier.objects.get(code='S-1').name, 'قديم')                       # never overwritten
-        self.assertEqual({x['row'] for x in out['skipped']}, {3, 4, 6, 7, 8})
+        self.assertEqual({x['row'] for x in out['skipped']}, {4, 7, 8})            # only real errors are listed
+        self.assertEqual(out['existing'], 1)                                                    # row 3: code already in the system (not an error)
+        self.assertEqual(out['repeated'], 1)                                                   # row 6 repeats S-2 inside the file: merged, not an error
         self.assertTrue(all(x['reason'] for x in out['skipped']))
         self.assertEqual(Supplier.objects.count(), 3)
+
+    def test_uploading_the_same_file_again_adds_nothing(self):
+        rows = [{'row': 2, 'code': 'S-1', 'name': 'أول', 'taxNo': ''}, {'row': 3, 'code': 'S-2', 'name': 'ثان', 'taxNo': '300000000000003'}]
+        first = self.m.post('/api/supplier-data/import/', {'rows': rows}, format='json').json()
+        self.assertEqual((len(first['added']), first['existing']), (2, 0))
+        again = self.m.post('/api/supplier-data/import/', {'rows': rows}, format='json').json()
+        self.assertEqual((len(again['added']), len(again['updated']), again['existing'], again['skipped']), (0, 0, 2, []))
+        self.assertEqual(Supplier.objects.count(), 2)
 
     def test_excel_import_accepts_five_thousand_rows(self):
         rows = [{'row': i + 2, 'code': f'B{i}', 'name': f'مورد {i}', 'taxNo': ''} for i in range(5000)]
@@ -488,13 +498,14 @@ class SupplierDataTests(TestCase):
         rows = [{'row': 2, 'code': 's-1', 'name': 'الاسم الجديد', 'taxNo': ''},                # new name, blank tax keeps the stored one
                 {'row': 3, 'code': 'S-2', 'name': 'كما هو', 'taxNo': ''},                      # nothing changes
                 {'row': 4, 'code': 'S-3', 'name': 'جديد', 'taxNo': ''},                        # new code is added
-                {'row': 5, 'code': 'S-1', 'name': 'تكرار في الملف', 'taxNo': ''},               # repeat inside the file: first row wins
-                {'row': 6, 'code': 'S-2', 'name': 'ضريبة خاطئة', 'taxNo': '12'}]                # a bad value never updates
+                {'row': 5, 'code': 'S-1', 'name': 'تكرار في الملف', 'taxNo': ''},               # repeat inside the file: merged into the first row, not an error
+                {'row': 6, 'code': 'S-2', 'name': 'ضريبة خاطئة', 'taxNo': '12'}]                # repeats S-2: merged into its first row
         r = self.m.post('/api/supplier-data/import/', {'rows': rows, 'onDuplicate': 'update'}, format='json')
         self.assertEqual(r.status_code, 200, r.content)
         out = r.json()
         self.assertEqual(([x['code'] for x in out['added']], [x['code'] for x in out['updated']], out['unchanged']), (['S-3'], ['S-1'], 1))
-        self.assertEqual({x['row'] for x in out['skipped']}, {5, 6})
+        self.assertEqual(out['skipped'], [])
+        self.assertEqual(out['repeated'], 2)                                                   # rows 5 and 6 repeat codes of earlier rows
         keep.refresh_from_db(); same.refresh_from_db()
         self.assertEqual((keep.name, keep.tax_no), ('الاسم الجديد', '300000000000003'))
         self.assertEqual((same.name, same.tax_no), ('كما هو', ''))

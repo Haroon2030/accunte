@@ -115,6 +115,8 @@ function SuppliersPage(props) {
     if (res.added.length) parts.push('أُضيف ' + res.added.length + ' مورد');
     if (res.updated.length) parts.push('حُدِّث ' + res.updated.length + ' مورد');
     if (res.unchanged) parts.push('لم يتغير ' + res.unchanged + ' (مطابق لما هو مسجّل)');
+    if (res.existing) parts.push(res.existing + ' موجود مسبقاً (لم يُضف مرة ثانية)');
+    if (res.repeated) parts.push('دُمج ' + res.repeated + ' سطر مكرر داخل الملف');
     if (res.skipped.length) parts.push('تُخطّي ' + res.skipped.length + ' سطر');
     return parts.length ? parts.join('، ') : 'لم يتغير شيء';
   };
