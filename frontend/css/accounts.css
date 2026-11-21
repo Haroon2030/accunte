@@ -34,6 +34,8 @@ input.ltr { direction: ltr; text-align: start; }
 .tempbox { border: 1px solid var(--gold); background: var(--gold-soft); border-radius: var(--r-md); padding: 12px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .tempbox .mono { font-size: 1.05rem; font-weight: 700; padding: 4px 10px; background: var(--surface); border-radius: 8px; border: 1px solid var(--line); }
 .confirmbar { border: 1px solid var(--bad); background: var(--bad-soft); color: var(--bad); border-radius: var(--r-md); padding: 10px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-weight: 600; }
+.confirmbar.importres { border-color: var(--line, #d7deea); background: var(--surface-2, #f5f8ff); color: inherit; }
+.confirmbar.importres.warn { border-color: var(--warn, #d9822b); }
 .matrix td, .matrix th { text-align: center; }
 .matrix td:first-child, .matrix th:first-child { text-align: start; font-weight: 600; }
 .yes { color: var(--ok); font-weight: 700; } .no { color: var(--ink-3); }

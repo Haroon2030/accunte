@@ -30,6 +30,17 @@ const addressOf = function (s) {
 };
 const EMPTY_SUPPLIER = { id: null, name: '', code: '', taxNo: '', mobile: '', building: '', street: '', district: '', city: '', country: '', postal: '', active: true };
 
+/* Excel / CSV import of suppliers: «رقم المورد» + «اسم المورد» + «الرقم الضريبي» (the tax number may be left empty) */
+const SUP_HEADERS = {
+  code: ['رقم المورد', 'رمز المورد', 'كود المورد', 'الرمز', 'الكود', 'code', 'supplier code', 'supplier no', 'supplier number'],
+  name: ['اسم المورد', 'المورد', 'الاسم', 'name', 'supplier', 'supplier name'],
+  taxNo: ['الرقم الضريبي', 'رقم ضريبي', 'الرقم الضريبى', 'الرقم الضريبي للمورد', 'tax', 'tax no', 'tax number', 'vat', 'vat number', 'vat no']
+};
+/* same comparison key as the payment sheet: no diacritics, أ إ آ = ا, ى = ي, ة = ه */
+const supNorm = function (v) { return String(v == null ? '' : v).replace(/[ً-ٟـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').trim().toLowerCase(); };
+/* a cell as text: Excel gives long codes and 15-digit tax numbers as numbers */
+const supText = function (v) { if (v == null) return ''; if (typeof v === 'number') return Number.isInteger(v) ? v.toFixed(0) : String(v); return String(v).trim(); };
+
 function SuppliersPage(props) {
   const list = props.suppliers;
   const canEdit = props.canEdit;
@@ -37,6 +48,9 @@ function SuppliersPage(props) {
   const [errs, setErrs] = useState({});
   const [confirm, setConfirm] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState(null);      // {added: [...], skipped: [{row, code, name, reason}]} of the last import
+  const fileRef = useRef(null);
   const baseRef = useRef('');
   const setF = function (k, v) { setFormV(function (o) { const n = Object.assign({}, o); n[k] = v; return n; }); };
   const dirty = !!formV && JSON.stringify(formV) !== baseRef.current;
@@ -95,6 +109,44 @@ function SuppliersPage(props) {
     return input(Object.assign({ id: id, type: 'text', autoComplete: 'off', className: cls || '', value: formV[k], onChange: function (e) { setF(k, e.target.value); } }, extra || {}));
   };
 
+  function importFile(file) {
+    if (!file) return;
+    setImporting(true); setResult(null); setFormV(null);
+    rcLoad('xlsx').then(function () { return file.arrayBuffer(); }).then(function (buf) {
+      const wb = XLSX.read(buf, { type: 'array' });
+      const grid = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: true });
+      const isCol = function (cell, key) { return SUP_HEADERS[key].indexOf(supNorm(cell)) !== -1; };
+      const hi = grid.findIndex(function (r) { return r.some(function (c) { return isCol(c, 'code'); }) && r.some(function (c) { return isCol(c, 'name'); }); });
+      if (hi === -1) { props.onToast('لم أجد في الملف عمودي «رقم المورد» و«اسم المورد». حمّل القالب واستخدم عناوينه.'); return null; }
+      const at = {};
+      Object.keys(SUP_HEADERS).forEach(function (k) { at[k] = grid[hi].findIndex(function (c) { return isCol(c, k); }); });
+      const cell = function (r, k) { return at[k] === -1 ? '' : supText(r[at[k]]); };
+      const rows = [];
+      grid.slice(hi + 1).forEach(function (r, i) {
+        const code = cell(r, 'code'), name = cell(r, 'name'), tax = cell(r, 'taxNo');
+        if (code || name || tax) rows.push({ row: hi + 2 + i, code: code, name: name, taxNo: tax });   // row = the line number in the sheet
+      });
+      if (!rows.length) { props.onToast('لا توجد أسطر بيانات في الملف.'); return null; }
+      return props.onImport(rows);
+    }).then(function (res) {
+      if (!res) return;
+      setResult(res);
+      props.onToast('أُضيف ' + res.added.length + ' مورد' + (res.skipped.length ? ' وتُخطّي ' + res.skipped.length + ' سطر.' : '.'));
+    }).catch(function (ex) {
+      props.onToast(ex && ex.message ? ex.message : 'تعذّرت قراءة الملف. استخدم ملف Excel أو CSV.');
+    }).then(function () { setImporting(false); if (fileRef.current) fileRef.current.value = ''; });
+  }
+  function downloadTemplate() {
+    rcLoad('xlsx').then(function () {
+      const ws = XLSX.utils.aoa_to_sheet([['رقم المورد', 'اسم المورد', 'الرقم الضريبي'], ['S-1001', 'شركة النور للتوريد', '300000000000003'], ['S-1002', 'مؤسسة الأفق التجارية', '']]);
+      ws['!cols'] = [{ wch: 16 }, { wch: 34 }, { wch: 20 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'الموردون');
+      wb.Workbook = { Sheets: [{ RTL: true }], Views: [{ RTL: true }] };
+      XLSX.writeFile(wb, 'قالب-الموردين.xlsx');
+    }).catch(function () { props.onToast('تعذّر إنشاء القالب. تأكد من الاتصال بالإنترنت وأعد المحاولة.'); });
+  }
+
   const cols = [
     { key: 'code', label: 'الرمز', filter: 'text', val: function (s) { return s.code; }, render: function (s) { return span({ className: 'mono' }, s.code); } },
     { key: 'name', label: 'اسم المورد', filter: 'text', val: function (s) { return s.name; }, render: function (s) { return strong({ style: { fontWeight: 600 } }, s.name); } },
@@ -116,11 +168,24 @@ function SuppliersPage(props) {
   return section({ className: 'svcpanel userspage' },
     div({ className: 'svchead' },
       div(null, h2(null, 'بيانات الموردين'), p({ className: 'muted small' }, 'التهيئة الأساسية لكل مورد: الاسم والرمز والرقم الضريبي ورقم الجوال. تظهر عند ربط حساب مستخدم بالمورد وفي إشعارات الموردين.')),
-      canEdit ? button({ className: 'btn primary', onClick: function () { openForm(null); } }, h(Icon, { name: 'plus' }), 'مورد جديد') : null),
+      canEdit ? div({ className: 'svcbtns', style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+        input({ ref: fileRef, type: 'file', accept: '.xlsx,.xls,.csv', hidden: true, 'aria-label': 'ملف الموردين', onChange: function (e) { importFile(e.target.files && e.target.files[0]); } }),
+        button({ type: 'button', className: 'btn ghost', disabled: importing, onClick: function () { fileRef.current && fileRef.current.click(); } }, h(Icon, { name: 'upload', size: 16 }), importing ? 'جارٍ الاستيراد…' : 'استيراد من Excel'),
+        button({ type: 'button', className: 'btn ghost', onClick: downloadTemplate }, h(Icon, { name: 'download', size: 16 }), 'تنزيل القالب'),
+        button({ className: 'btn primary', onClick: function () { openForm(null); } }, h(Icon, { name: 'plus' }), 'مورد جديد')) : null),
     div({ className: 'ustats' },
       [['الإجمالي', list.length], ['النشطون', count(function (s) { return s.active; })], ['الموقوفون', count(function (s) { return !s.active; })],
         ['بلا حساب', count(function (s) { return !s.users; })], ['بلا رقم جوال', count(function (s) { return !s.mobile; })]]
         .map(function (x) { return div({ key: x[0], className: 'ustat' }, h('b', null, x[1]), span(null, x[0])); })),
+    result ? div({ className: 'confirmbar importres' + (result.skipped.length ? ' warn' : ''), role: 'status' },
+      span(null, 'نتيجة الاستيراد: أُضيف ' + result.added.length + ' مورد' + (result.skipped.length ? '، وتُخطّي ' + result.skipped.length + ' سطر (الأسباب أدناه).' : ' بلا أخطاء.')),
+      button({ type: 'button', className: 'btn ghost sm', onClick: function () { setResult(null); } }, 'إغلاق')) : null,
+    result && result.skipped.length ? div({ className: 'tablewrap', style: { maxHeight: '260px', overflow: 'auto', marginBottom: '12px' } },
+      table({ className: 'dt' }, thead(null, tr(null, ['السطر في الملف', 'رقم المورد', 'اسم المورد', 'سبب التخطي'].map(function (t) { return th({ key: t, scope: 'col' }, t); }))),
+        tbody(null, result.skipped.map(function (x, i) {
+          return tr({ key: i }, td({ 'data-label': 'السطر في الملف' }, x.row), td({ 'data-label': 'رقم المورد' }, x.code ? span({ className: 'mono' }, x.code) : span({ className: 'muted' }, '—')),
+            td({ 'data-label': 'اسم المورد' }, x.name || span({ className: 'muted' }, '—')), td({ 'data-label': 'سبب التخطي' }, x.reason));
+        })))) : null,
     confirm ? div({ className: 'confirmbar', role: 'alertdialog' },
       span(null, 'حذف المورد ' + confirm.name + ' (' + confirm.code + ') نهائياً؟ لا يمكن التراجع.'),
       button({ type: 'button', className: 'btn primary sm', onClick: doDelete }, 'تأكيد'),
@@ -143,6 +208,6 @@ function SuppliersPage(props) {
       div({ className: 'formactions' },
         button({ type: 'submit', className: 'btn primary', disabled: busy }, formV.id ? 'حفظ التعديلات' : 'إضافة المورد'),
         button({ type: 'button', className: 'btn ghost', onClick: closeForm }, 'إلغاء'))) : null,
-    h(DataTable, { cols: cols, rows: list, dateFilter: { label: 'تاريخ الإضافة', get: function (s) { return s.created ? new Date(s.created) : null; } }, exportName: 'بيانات-الموردين', onOpen: canEdit ? function (id) { const s = list.filter(function (x) { return x.id === id; })[0]; if (s) openForm(s); } : undefined,
+    h(DataTable, { cols: cols, rows: list, dateFilter: { label: 'تاريخ الإضافة', get: function (s) { return s.created ? new Date(s.created) : null; } }, exportName: 'بيانات-الموردين', pageSize: 10, onOpen: canEdit ? function (id) { const s = list.filter(function (x) { return x.id === id; })[0]; if (s) openForm(s); } : undefined,
       empty: 'لا يوجد موردون بعد. أضف أول مورد من زر «مورد جديد».', defaultSort: { key: 'name', dir: 'asc' } }));
 }

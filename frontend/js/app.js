@@ -280,6 +280,16 @@ function App() {
       if (me) loadAll(me).catch(function () { /* the next refresh will catch up */ });
     });
   }
+  /* Excel import: the server adds the new codes and reports the rows it skipped (existing code, bad tax number, missing field) */
+  function importSuppliers(rows) {
+    return API.post('/supplier-data/import/', { rows: rows }).then(function (res) {
+      if (res.added.length) {
+        setSupplierData(function (ss) { return ss.concat(res.added).sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); }); });
+        if (me) loadAll(me).catch(function () { /* the next refresh will catch up */ });
+      }
+      return res;
+    });
+  }
   function removeSupplier(id) {
     API.del('/supplier-data/' + id + '/').then(function () {
       setSupplierData(function (ss) { return ss.filter(function (x) { return x.id !== id; }); });
@@ -317,7 +327,7 @@ function App() {
   else if (current) body = h(Tracking, { key: current.id + role, req: current, role: role, seenAt: seenAt(seen, current.id, role), unread: unreadOf(current, role, seen), onSeen: function () { markSeen(current.id, role); }, onBack: home, userRole: user.role, matchers: matchers, onAdvance: function (extra) { if (current.stage === 2) setToast('فُتحت المراسلة. اكتب رسالتك للمورد في خانة المراسلات.'); advance(current.id, extra); }, onSend: function (m) { send(current.id, m); } });
   else if (role === 'supplier') body = h(SupplierHome, { notices: notices, onToast: setToast, onDelete: removeRecord, supplier: mySupplier, reqs: reqs, complaints: complaints, seen: seen, service: service, onService: setService, onOpen: openReq, onOpenC: openC, onNew: function () { setView({ name: 'new' }); goTop(); }, onNewC: function () { setView({ name: 'newc' }); goTop(); } });
   else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { suppliers: supplierData, users: users, me: user, onSave: saveUser, onToggle: toggleUser, onDelete: removeUser, onReset: resetUser, onToast: setToast });
-  else if (role === 'suppliers' && allowed.indexOf('suppliers') !== -1) body = h(SuppliersPage, { suppliers: supplierData, canEdit: true, canDelete: user.role === 'admin', onSave: saveSupplier, onDelete: removeSupplier, onToast: setToast });
+  else if (role === 'suppliers' && allowed.indexOf('suppliers') !== -1) body = h(SuppliersPage, { suppliers: supplierData, canEdit: true, canDelete: user.role === 'admin', onSave: saveSupplier, onDelete: removeSupplier, onImport: importSuppliers, onToast: setToast });
   else if (role === 'notices' && allowed.indexOf('notices') !== -1) body = h(NoticesPage, { notices: notices, suppliers: noticeSuppliers, canIssue: true, onCreate: createNotice, onUpdate: updateNotice, onDelete: user.role === 'admin' ? removeNotice : undefined, onToast: setToast });
   else if (role === 'payments' && allowed.indexOf('payments') !== -1) body = h(PaymentPage, { lookups: lookups, payments: payments, onSave: savePayment, onAdvance: advancePayment, onReject: rejectPayment, suppliers: paySuppliers, canBatch: user.role === 'services' || user.role === 'admin', onBatch: createPaymentBatch, onEditBatch: editPaymentBatch, onDeleteBatch: deletePaymentBatch, isAdmin: user.role === 'admin', onBulk: bulkPayments, onDelete: user.role === 'admin' ? removePayment : undefined, onToast: setToast });
   else if (role === 'settings' && allowed.indexOf('settings') !== -1) body = h(SettingsPage, { lookups: lookups, onAdd: addLookup, onUpdate: updateLookup, onRemove: removeLookup, onToast: setToast });

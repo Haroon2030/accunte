@@ -56,6 +56,7 @@ function DataTable(props) {
   const [dFrom, setDFrom] = useState('');
   const [dTo, setDTo] = useState('');
   const cols = props.cols;
+  const PS = props.pageSize || PAGE;   /* rows per page: 8 unless the page asks for another size */
   const df = props.dateFilter;   /* {label, get(row) -> Date|null}: adds a from / to date range to the table's tools */
   const fvOf = function (c) { return c.fv || function (r) { return String(c.val ? c.val(r) : ''); }; };
   const activeCols = cols.filter(function (c) { return c.filter && flt[c.key]; });
@@ -81,12 +82,12 @@ function DataTable(props) {
       return sort.dir === 'asc' ? r : -r;
     });
   }
-  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const pages = Math.max(1, Math.ceil(rows.length / PS));
   const cur = Math.min(page, pages);
-  const shown = rows.slice((cur - 1) * PAGE, cur * PAGE);
-  const firstN = rows.length ? (cur - 1) * PAGE + 1 : 0, lastN = Math.min(rows.length, cur * PAGE);
-  /* the first column numbers the rows across pages (1, 2, … 8 per page) */
-  const numCol = { key: 'num', label: '#', render: function (r) { return span({ className: 'rownum-n' }, (cur - 1) * PAGE + shown.indexOf(r) + 1); } };
+  const shown = rows.slice((cur - 1) * PS, cur * PS);
+  const firstN = rows.length ? (cur - 1) * PS + 1 : 0, lastN = Math.min(rows.length, cur * PS);
+  /* the first column numbers the rows across pages (1, 2, … per page) */
+  const numCol = { key: 'num', label: '#', render: function (r) { return span({ className: 'rownum-n' }, (cur - 1) * PS + shown.indexOf(r) + 1); } };
   const allCols = [numCol].concat(cols);
   function toggle(c) {
     setSort(function (s0) { return s0 && s0.key === c.key ? { key: c.key, dir: s0.dir === 'asc' ? 'desc' : 'asc' } : { key: c.key, dir: 'asc' }; });

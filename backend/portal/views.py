@@ -737,6 +737,42 @@ class SupplierDataView(APIView):
         return Response(supplier_out(s, 0), status=201)
 
 
+def _first_error(exc):
+    """The first message of a DRF ValidationError, as plain text."""
+    d = exc.detail
+    if isinstance(d, dict):
+        d = next(iter(d.values()), '')
+    while isinstance(d, (list, tuple)) and d:
+        d = d[0]
+    return str(d)
+
+
+class SupplierImportView(APIView):
+    """Bulk add from the suppliers page's Excel import: code, name and an optional tax number per row.
+    Each row is checked like a hand-typed supplier; a code that already exists (or repeats in the file) is skipped, never overwritten."""
+    permission_classes = [IsSuppliersPage]
+    MAX_ROWS = 2000
+
+    @transaction.atomic
+    def post(self, request):
+        rows = request.data.get('rows')
+        if not isinstance(rows, list) or not rows:
+            raise ValidationError({'detail': 'لا توجد أسطر للاستيراد.'})
+        if len(rows) > self.MAX_ROWS:
+            raise ValidationError({'detail': f'الحد الأقصى {self.MAX_ROWS} سطر في المرة الواحدة.'})
+        added, skipped = [], []
+        for i, r in enumerate(rows, start=1):
+            r = r if isinstance(r, dict) else {}
+            ref = {'row': r.get('row') or i, 'code': str(r.get('code') or '').strip()[:30], 'name': str(r.get('name') or '').strip()[:200]}
+            try:
+                payload = clean_supplier_payload({'name': r.get('name'), 'code': r.get('code'), 'taxNo': r.get('taxNo')})
+            except ValidationError as e:
+                skipped.append({**ref, 'reason': _first_error(e)})
+                continue
+            added.append(supplier_out(Supplier.objects.create(**payload), 0))
+        return Response({'added': added, 'skipped': skipped})
+
+
 class SupplierDataDetailView(APIView):
     permission_classes = [IsSuppliersPage]
 

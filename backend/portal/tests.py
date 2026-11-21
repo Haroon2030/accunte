@@ -457,6 +457,32 @@ class SupplierDataTests(TestCase):
         self.matcher = make('3', 'matcher')
         self.a, self.m = login(self.admin), login(self.manager)
 
+    def test_excel_import_adds_new_codes_skips_existing_and_bad_rows(self):
+        Supplier.objects.create(name='قديم', code='S-1')
+        rows = [{'row': 2, 'code': 'S-2', 'name': 'شركة جديدة', 'taxNo': ''},                 # tax number is optional
+                {'row': 3, 'code': 's-1', 'name': 'نفس الرمز', 'taxNo': ''},                    # exists (any letter case)
+                {'row': 4, 'code': 'S-3', 'name': 'ضريبة خاطئة', 'taxNo': '12'},
+                {'row': 5, 'code': 'S-4', 'name': 'مع ضريبة', 'taxNo': '٣٠٠٠٠٠٠٠٠٠٠٠٠٠٣'},
+                {'row': 6, 'code': 'S-2', 'name': 'مكرر في الملف', 'taxNo': ''},
+                {'row': 7, 'code': '', 'name': 'بلا رمز', 'taxNo': ''},
+                {'row': 8, 'code': 'S-5', 'name': '', 'taxNo': ''}]
+        r = self.m.post('/api/supplier-data/import/', {'rows': rows}, format='json')
+        self.assertEqual(r.status_code, 200, r.content)
+        out = r.json()
+        self.assertEqual([x['code'] for x in out['added']], ['S-2', 'S-4'])
+        self.assertEqual(Supplier.objects.get(code='S-4').tax_no, '300000000000003')
+        self.assertEqual(Supplier.objects.get(code='S-1').name, 'قديم')                       # never overwritten
+        self.assertEqual({x['row'] for x in out['skipped']}, {3, 4, 6, 7, 8})
+        self.assertTrue(all(x['reason'] for x in out['skipped']))
+        self.assertEqual(Supplier.objects.count(), 3)
+
+    def test_excel_import_needs_the_suppliers_page_and_rows(self):
+        self.assertEqual(login(self.matcher).post('/api/supplier-data/import/', {'rows': [{'code': 'X', 'name': 'x'}]}, format='json').status_code, 403)
+        self.assertEqual(self.m.post('/api/supplier-data/import/', {'rows': []}, format='json').status_code, 400)
+        self.assertEqual(self.m.post('/api/supplier-data/import/', {}, format='json').status_code, 400)
+        big = [{'code': f'B{i}', 'name': 'x'} for i in range(2001)]
+        self.assertEqual(self.m.post('/api/supplier-data/import/', {'rows': big}, format='json').status_code, 400)
+
     def test_crud_validation_and_unique_code(self):
         ok = self.m.post('/api/supplier-data/', {'name': 'شركة النخبة', 'code': 'S-9', 'taxNo': '٣٠٠٠٠٠٠٠٠٠٠٠٠٠٣', 'mobile': '+966 55 123 4567'}, format='json')
         self.assertEqual(ok.status_code, 201, ok.content)
