@@ -75,6 +75,7 @@ function PaymentPage(props) {
       mine: os.some(function (x) { return x.canAct; }), rejected: os.some(function (x) { return x.rejected; }), late: os.some(payLate) };
   });
   /* services (and the admin) may edit while nobody is past purchasing's turn; the admin may always delete */
+  const canAdd = props.canAdd !== undefined ? props.canAdd : props.canBatch;      // anyone with the payments page may add a batch
   const isBatchDoc = function (d) { return !!d.orders[0].batch; };      // only documents made by "إضافة سداد متعدد"
   const canEditDoc = function (d) { return isBatchDoc(d) && props.canBatch && d.orders.every(function (x) { return x.status <= 2; }); };
   const canDeleteDoc = function (d) { return isBatchDoc(d) && (props.isAdmin || canEditDoc(d)); };
@@ -120,7 +121,7 @@ function PaymentPage(props) {
       div(null, h2(null, 'السداد'), p({ className: 'muted small' }, 'أوامر السداد التي تُضاف من «إضافة سداد متعدد»، وتمر بأربعة مستويات: خدمات الموردين، مدير المشتريات، المدقق، مسؤول التحويل.')),
       div({ className: 'payhead-acts' }, batchIds.length ? select({ className: 'batchpick', 'aria-label': 'فتح ورقة دفعة', value: sheet, onChange: function (e) { setSel(null); setBatchOpen(false); setEditDoc(''); setSheet(e.target.value); } }, option({ value: '' }, 'ورقة دفعة…'), batchIds.map(function (b) { return option({ key: b, value: b }, b + ' (' + batches[b] + ')'); })) : null,
         span({ className: 'paycount' }, docs.length === 1 ? 'وثيقة واحدة' : docs.length + ' وثائق'),
-        props.canBatch ? button({ type: 'button', className: 'btn primary', onClick: function () { setSel(null); setSheet(''); setEditDoc(''); setBatchOpen(true); } }, h(Icon, { name: 'plus' }), 'إضافة سداد متعدد') : null)),
+        canAdd ? button({ type: 'button', className: 'btn primary', onClick: function () { setSel(null); setSheet(''); setEditDoc(''); setBatchOpen(true); } }, h(Icon, { name: 'plus' }), 'إضافة سداد متعدد') : null)),
     mine ? div({ className: 'alertbar', role: 'status' }, h(Icon, { name: 'alert' }), span(null, mine === 1 ? 'عندك أمر سداد واحد بانتظار إجرائك.' : 'عندك ' + mine + ' أوامر سداد بانتظار إجرائك.')) : null,
     div({ className: 'paystats' },
       div({ className: 'paysteps', role: 'group', 'aria-label': 'الأوامر حسب المستوى' },
@@ -133,7 +134,7 @@ function PaymentPage(props) {
         }))),
     editDoc && groups[editDoc] ? h(PaymentDocEdit, { key: editDoc, batch: editDoc, orders: groups[editDoc], lookups: props.lookups, onSave: function (data) { return props.onEditBatch(editDoc, data); }, onClose: function () { setEditDoc(''); }, onToast: props.onToast }) : null,
     sheet ? h(PaymentSheet, { batch: sheet, payments: list, onBulk: props.onBulk, onClose: function () { setSheet(''); }, onToast: props.onToast }) : null,
-    batchOpen && props.canBatch ? h(PaymentBatchForm, { suppliers: props.suppliers, lookups: props.lookups, onSubmit: props.onBatch, onClose: function () { setBatchOpen(false); }, onToast: props.onToast }) : null,
+    batchOpen && canAdd ? h(PaymentBatchForm, { suppliers: props.suppliers, lookups: props.lookups, onSubmit: props.onBatch, onClose: function () { setBatchOpen(false); }, onToast: props.onToast }) : null,
     cur && f ? form({ className: 'uformwrap', onSubmit: save, noValidate: true },
       div({ className: 'uformhead' }, h3(null, 'أمر السداد ' + cur.id + ' · ' + cur.supplier),
         button({ type: 'button', className: 'uformclose', 'aria-label': 'إغلاق', onClick: function () { setSel(null); } }, h(Icon, { name: 'close', size: 18 }))),
@@ -172,5 +173,5 @@ function PaymentPage(props) {
         button({ type: 'submit', className: 'btn ghost', disabled: busy }, 'حفظ دون إحالة'),
         button({ type: 'button', className: 'btn ghost', onClick: function () { setSel(null); } }, 'إلغاء')) : null) : null,
     h(DataTable, { cols: cols, rows: docs, dateFilter: { label: 'تاريخ الإدخال', get: function (d) { return d.created; } }, exportName: 'وثائق-السداد', inlineHead: true, onToast: props.onToast, onOpen: open, defaultSort: { key: 'created', dir: 'desc' }, rowClass: function (d) { return d.mine ? 'unread' : undefined; },
-      empty: props.canBatch ? 'لا توجد وثائق سداد بعد. أضف أول وثيقة من زر «إضافة سداد متعدد».' : 'لا توجد وثائق سداد بعد. تضيفها خدمات الموردين من «إضافة سداد متعدد».' }));
+      empty: 'لا توجد وثائق سداد بعد. أضف أول وثيقة من زر «إضافة سداد متعدد».' }));
 }

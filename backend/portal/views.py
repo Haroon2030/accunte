@@ -1023,14 +1023,12 @@ class PaymentSuppliersView(APIView):
 
 class PaymentBatchView(APIView):
     """Several suppliers in one file: every row becomes a payment order, all sharing one batch number.
-    The uploader is supplier services (the first level), so the batch goes straight to the purchasing manager. All rows or none."""
+    Any account with the payments page may add one (IsPaymentsPage); the batch goes straight to the purchasing manager. All rows or none."""
     permission_classes = [IsPaymentsPage]
     MAX_ROWS = 300
 
     @transaction.atomic
     def post(self, request):
-        if request.user.role not in (User.SERVICES, User.ADMIN):
-            raise PermissionDenied('رفع دفعة سداد لخدمات الموردين ومدير النظام فقط.')
         rows = request.data.get('rows')
         if not isinstance(rows, list) or not rows:
             raise ValidationError({'detail': 'أضف مورداً واحداً على الأقل.'})

@@ -755,13 +755,25 @@ class PaymentTests(TestCase):
         self.assertEqual(self.batch(self.services, [{'supplierId': s1.pk, 'amount': '1'}]).status_code, 400)       # no method anywhere
         self.assertEqual(self.batch(self.services, []).status_code, 400)
 
-    def test_only_services_and_admin_upload_batches(self):
+    def test_every_role_with_the_payments_page_uploads_batches(self):
         rows = [{'supplierId': self.sup.supplier.pk, 'amount': '10', 'method': 'شيك'}]
-        for u in (self.purchasing, self.auditor, self.treasury, self.manager):
-            self.assertEqual(self.batch(u, rows).status_code, 403, u.role)
-        self.assertEqual(self.batch(self.admin, rows).status_code, 201)
+        for u in (self.services, self.purchasing, self.auditor, self.treasury, self.manager, self.admin):
+            r = self.batch(u, rows)
+            self.assertEqual(r.status_code, 201, u.role)
+            self.assertTrue(all(p['status'] == Payment.PURCHASING for p in r.json()['payments']), u.role)     # always starts at purchasing
+        # an account without the payments page still cannot (the supplier, or a staff account whose page list lacks it)
+        self.assertEqual(login(self.sup, 'supplier').post('/api/payments/batch/', {'rows': rows}, format='json').status_code, 403)
+        self.purchasing.pages = ['matcher']
+        self.purchasing.save()
+        self.assertEqual(self.batch(self.purchasing, rows).status_code, 403)
         self.assertEqual(login(self.services).get('/api/payments/suppliers/').status_code, 200)
         self.assertEqual(login(self.sup, 'supplier').get('/api/payments/suppliers/').status_code, 403)
+
+    def test_adding_a_batch_does_not_open_editing_or_deleting_to_other_roles(self):
+        r = self.batch(self.treasury, [{'supplierId': self.sup.supplier.pk, 'amount': '10', 'method': 'شيك'}])
+        batch = r.json()['batch']
+        self.assertEqual(login(self.treasury).delete(f'/api/payments/batch/{batch}/').status_code, 403)   # edit/delete rules are unchanged
+        self.assertEqual(login(self.services).delete(f'/api/payments/batch/{batch}/').status_code, 204)   # services may while nobody passed purchasing
 
     # ---- batch sheet: balances, and one action on many orders
     def make_batch(self, n=3):
