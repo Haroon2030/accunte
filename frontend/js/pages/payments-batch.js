@@ -40,6 +40,7 @@ const lkActive = function (lookups, kind) { return ((lookups || {})[kind] || [])
 const lkItems = function (list) { return list.map(function (l) { return { id: l.id, label: l.name, title: l.name, meta: l.code ? 'رقم ' + l.code : '', search: [l.name, l.code || ''] }; }); };
 
 /* search box with suggestions: type, and pick from the matches (mouse, or arrows + Enter).
+   searchOnly: the list opens only while typing (never on click/focus).
    items: [{id, label (what the field shows once picked), title, meta, search: [texts to match]}].
    The list is drawn on the page (not inside a scrolling table), so it is never cut off. */
 function ComboPicker(props) {
@@ -69,7 +70,7 @@ function ComboPicker(props) {
   }, [open]);
   const pick = function (it) { props.onPick(it); setOpen(false); };
   function onKey(e) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); if (!shown) { setHi(0); openList(); } else setHi(function (h0) { return Math.min(h0 + 1, matches.length - 1); }); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (!shown) { if (!props.searchOnly || q) { setHi(0); openList(); } } else setHi(function (h0) { return Math.min(h0 + 1, matches.length - 1); }); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(function (h0) { return Math.max(h0 - 1, 0); }); }
     else if (e.key === 'Enter' && shown && matches[hi]) { e.preventDefault(); pick(matches[hi]); }
     else if (e.key === 'Escape' || e.key === 'Tab') setOpen(false);
@@ -84,7 +85,7 @@ function ComboPicker(props) {
     document.body) : null;
   return span({ className: 'sugwrap' },
     input({ id: props.id, ref: ref, type: 'text', role: 'combobox', 'aria-expanded': shown, 'aria-autocomplete': 'list', autoComplete: 'off', disabled: props.disabled, placeholder: props.placeholder || 'ابحث أو اختر', 'aria-label': props.ariaLabel, value: props.value,
-      onChange: function (e) { props.onText(e.target.value); setHi(0); openList(); }, onFocus: openList, onClick: openList, onBlur: function () { setOpen(false); }, onKeyDown: onKey }),
+      onChange: function (e) { props.onText(e.target.value); setHi(0); if (props.searchOnly && !e.target.value.trim()) setOpen(false); else openList(); }, onFocus: props.searchOnly ? undefined : openList, onClick: props.searchOnly ? undefined : openList, onBlur: function () { setOpen(false); }, onKeyDown: onKey }),
     list);
 }
 
@@ -216,7 +217,7 @@ function PaymentBatchForm(props) {
         return tr({ key: r.key, className: er ? 'bad' : undefined },
           td({ 'data-label': '#', className: 'rownum' }, i + 1),
           td({ 'data-label': 'المورد', className: 'pbsup' },
-            h(ComboPicker, { items: supItems, value: r.text, ariaLabel: 'المورد في السطر ' + (i + 1), placeholder: 'اكتب اسم المورد أو رمزه', emptyText: 'لا يوجد موردون. أضفهم من «بيانات الموردين».', noMatch: 'لا يوجد مورد مطابق. تأكد من الاسم أو الرمز، أو أضف المورد من «بيانات الموردين».', onText: function (v) { setRow(r.key, 'text', v); }, onPick: function (it) { setRow(r.key, 'text', it.label); } }),
+            h(ComboPicker, { items: supItems, value: r.text, searchOnly: true, ariaLabel: 'المورد في السطر ' + (i + 1), placeholder: 'اكتب اسم المورد أو رمزه', emptyText: 'لا يوجد موردون. أضفهم من «بيانات الموردين».', noMatch: 'لا يوجد مورد مطابق. تأكد من الاسم أو الرمز، أو أضف المورد من «بيانات الموردين».', onText: function (v) { setRow(r.key, 'text', v); }, onPick: function (it) { setRow(r.key, 'text', it.label); } }),
             er ? span({ className: 'err', role: 'alert' }, er) : (s && pbNorm(labelOf(s)) !== pbNorm(r.text) && pbNorm(s.name) !== pbNorm(r.text) ? span({ className: 'hint' }, s.name) : null)),
           td({ 'data-label': 'الرصيد الحالي' }, input({ type: 'text', inputMode: 'decimal', className: 'ltr', autoComplete: 'off', 'aria-label': 'الرصيد الحالي في السطر ' + (i + 1), value: r.balance, onChange: function (e) { setRow(r.key, 'balance', e.target.value); } })),
           td({ 'data-label': 'رصيد المخزون' }, input({ type: 'text', inputMode: 'decimal', className: 'ltr', autoComplete: 'off', 'aria-label': 'رصيد المخزون في السطر ' + (i + 1), value: r.stockBalance, onChange: function (e) { setRow(r.key, 'stockBalance', e.target.value); } })),
