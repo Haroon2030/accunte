@@ -748,29 +748,58 @@ def _first_error(exc):
 
 
 class SupplierImportView(APIView):
-    """Bulk add from the suppliers page's Excel import: code, name and an optional tax number per row.
-    Each row is checked like a hand-typed supplier; a code that already exists (or repeats in the file) is skipped, never overwritten."""
+    """Bulk add or update from the suppliers page's Excel import: code, name and an optional tax number per row.
+    Each row is checked like a hand-typed supplier, and no code is ever added twice: a code that repeats inside the file keeps
+    its first row. A code that already exists is either skipped (default) or updated (`onDuplicate: 'update'`: the name,
+    and the tax number when the row has one; an empty tax cell never erases the stored one)."""
     permission_classes = [IsSuppliersPage]
-    MAX_ROWS = 2000
+    MAX_ROWS = 5000
 
     @transaction.atomic
     def post(self, request):
         rows = request.data.get('rows')
+        mode = request.data.get('onDuplicate') or 'skip'
+        if mode not in ('skip', 'update'):
+            raise ValidationError({'detail': 'خيار التكرار غير صالح.'})
         if not isinstance(rows, list) or not rows:
             raise ValidationError({'detail': 'لا توجد أسطر للاستيراد.'})
         if len(rows) > self.MAX_ROWS:
             raise ValidationError({'detail': f'الحد الأقصى {self.MAX_ROWS} سطر في المرة الواحدة.'})
-        added, skipped = [], []
+        added, updated, skipped, unchanged = [], [], [], 0
+        first_row = {}                                # code (lower case) -> the file row that used it first
         for i, r in enumerate(rows, start=1):
             r = r if isinstance(r, dict) else {}
             ref = {'row': r.get('row') or i, 'code': str(r.get('code') or '').strip()[:30], 'name': str(r.get('name') or '').strip()[:200]}
+            key = ref['code'].lower()
+            if key and key in first_row:
+                skipped.append({**ref, 'reason': f"الرقم مكرر في الملف (أول ظهور في السطر {first_row[key]})."})
+                continue
+            existing = Supplier.objects.filter(code__iexact=ref['code']).first() if key else None
+            if existing and mode == 'skip':
+                first_row[key] = ref['row']
+                skipped.append({**ref, 'reason': 'رمز المورد موجود مسبقاً (لم يتغير).'})
+                continue
             try:
-                payload = clean_supplier_payload({'name': r.get('name'), 'code': r.get('code'), 'taxNo': r.get('taxNo')})
+                payload = clean_supplier_payload({'name': r.get('name'), 'code': r.get('code'), 'taxNo': r.get('taxNo')}, existing)
             except ValidationError as e:
                 skipped.append({**ref, 'reason': _first_error(e)})
                 continue
-            added.append(supplier_out(Supplier.objects.create(**payload), 0))
-        return Response({'added': added, 'skipped': skipped})
+            if key:
+                first_row[key] = ref['row']
+            if not existing:
+                added.append(supplier_out(Supplier.objects.create(**payload), 0))
+                continue
+            if not payload['tax_no']:
+                payload['tax_no'] = existing.tax_no                 # a blank tax cell keeps the stored number
+            changes = {k: payload[k] for k in ('name', 'tax_no') if getattr(existing, k) != payload[k]}
+            if not changes:
+                unchanged += 1
+                continue
+            for k, v in changes.items():
+                setattr(existing, k, v)
+            existing.save()                                         # also refreshes the company details copied into its accounts
+            updated.append(supplier_out(existing, existing.users.count()))
+        return Response({'added': added, 'updated': updated, 'unchanged': unchanged, 'skipped': skipped})
 
 
 class SupplierDataDetailView(APIView):

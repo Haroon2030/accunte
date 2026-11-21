@@ -476,11 +476,41 @@ class SupplierDataTests(TestCase):
         self.assertTrue(all(x['reason'] for x in out['skipped']))
         self.assertEqual(Supplier.objects.count(), 3)
 
+    def test_excel_import_accepts_five_thousand_rows(self):
+        rows = [{'row': i + 2, 'code': f'B{i}', 'name': f'مورد {i}', 'taxNo': ''} for i in range(5000)]
+        r = self.m.post('/api/supplier-data/import/', {'rows': rows}, format='json')
+        self.assertEqual(r.status_code, 200, r.content[:200])
+        self.assertEqual((len(r.json()['added']), len(r.json()['skipped'])), (5000, 0))
+
+    def test_excel_import_update_mode_updates_existing_without_duplicating(self):
+        keep = Supplier.objects.create(name='الاسم القديم', code='S-1', tax_no='300000000000003')
+        same = Supplier.objects.create(name='كما هو', code='S-2')
+        rows = [{'row': 2, 'code': 's-1', 'name': 'الاسم الجديد', 'taxNo': ''},                # new name, blank tax keeps the stored one
+                {'row': 3, 'code': 'S-2', 'name': 'كما هو', 'taxNo': ''},                      # nothing changes
+                {'row': 4, 'code': 'S-3', 'name': 'جديد', 'taxNo': ''},                        # new code is added
+                {'row': 5, 'code': 'S-1', 'name': 'تكرار في الملف', 'taxNo': ''},               # repeat inside the file: first row wins
+                {'row': 6, 'code': 'S-2', 'name': 'ضريبة خاطئة', 'taxNo': '12'}]                # a bad value never updates
+        r = self.m.post('/api/supplier-data/import/', {'rows': rows, 'onDuplicate': 'update'}, format='json')
+        self.assertEqual(r.status_code, 200, r.content)
+        out = r.json()
+        self.assertEqual(([x['code'] for x in out['added']], [x['code'] for x in out['updated']], out['unchanged']), (['S-3'], ['S-1'], 1))
+        self.assertEqual({x['row'] for x in out['skipped']}, {5, 6})
+        keep.refresh_from_db(); same.refresh_from_db()
+        self.assertEqual((keep.name, keep.tax_no), ('الاسم الجديد', '300000000000003'))
+        self.assertEqual((same.name, same.tax_no), ('كما هو', ''))
+        self.assertEqual(Supplier.objects.count(), 3)                                          # no duplicate was created
+        # a tax number in the row replaces the stored one
+        r = self.m.post('/api/supplier-data/import/', {'rows': [{'row': 2, 'code': 'S-2', 'name': 'كما هو', 'taxNo': '300000000000011'}], 'onDuplicate': 'update'}, format='json')
+        self.assertEqual([x['code'] for x in r.json()['updated']], ['S-2'])
+        same.refresh_from_db()
+        self.assertEqual(same.tax_no, '300000000000011')
+        self.assertEqual(self.m.post('/api/supplier-data/import/', {'rows': rows, 'onDuplicate': 'merge'}, format='json').status_code, 400)
+
     def test_excel_import_needs_the_suppliers_page_and_rows(self):
         self.assertEqual(login(self.matcher).post('/api/supplier-data/import/', {'rows': [{'code': 'X', 'name': 'x'}]}, format='json').status_code, 403)
         self.assertEqual(self.m.post('/api/supplier-data/import/', {'rows': []}, format='json').status_code, 400)
         self.assertEqual(self.m.post('/api/supplier-data/import/', {}, format='json').status_code, 400)
-        big = [{'code': f'B{i}', 'name': 'x'} for i in range(2001)]
+        big = [{'code': f'B{i}', 'name': 'x'} for i in range(5001)]
         self.assertEqual(self.m.post('/api/supplier-data/import/', {'rows': big}, format='json').status_code, 400)
 
     def test_crud_validation_and_unique_code(self):

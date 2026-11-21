@@ -280,11 +280,14 @@ function App() {
       if (me) loadAll(me).catch(function () { /* the next refresh will catch up */ });
     });
   }
-  /* Excel import: the server adds the new codes and reports the rows it skipped (existing code, bad tax number, missing field) */
-  function importSuppliers(rows) {
-    return API.post('/supplier-data/import/', { rows: rows }).then(function (res) {
-      if (res.added.length) {
-        setSupplierData(function (ss) { return ss.concat(res.added).sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); }); });
+  /* Excel import: the server adds the new codes, updates the existing ones when asked (mode 'update'), never makes a duplicate,
+     and reports the rows it skipped (repeated or existing code, bad tax number, missing field) */
+  function importSuppliers(rows, mode) {
+    return API.post('/supplier-data/import/', { rows: rows, onDuplicate: mode || 'skip' }).then(function (res) {
+      if (res.added.length || res.updated.length) {
+        const upd = {};
+        res.updated.forEach(function (u) { upd[u.id] = u; });
+        setSupplierData(function (ss) { return ss.map(function (x) { return upd[x.id] || x; }).concat(res.added).sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); }); });
         if (me) loadAll(me).catch(function () { /* the next refresh will catch up */ });
       }
       return res;

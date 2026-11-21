@@ -49,6 +49,7 @@ function SuppliersPage(props) {
   const [confirm, setConfirm] = useState(null);
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [dupMode, setDupMode] = useState('skip');   // a code that already exists: 'skip' it or 'update' its data
   const [result, setResult] = useState(null);      // {added: [...], skipped: [{row, code, name, reason}]} of the last import
   const fileRef = useRef(null);
   const baseRef = useRef('');
@@ -109,6 +110,14 @@ function SuppliersPage(props) {
     return input(Object.assign({ id: id, type: 'text', autoComplete: 'off', className: cls || '', value: formV[k], onChange: function (e) { setF(k, e.target.value); } }, extra || {}));
   };
 
+  const importSummary = function (res) {
+    const parts = [];
+    if (res.added.length) parts.push('أُضيف ' + res.added.length + ' مورد');
+    if (res.updated.length) parts.push('حُدِّث ' + res.updated.length + ' مورد');
+    if (res.unchanged) parts.push('لم يتغير ' + res.unchanged + ' (مطابق لما هو مسجّل)');
+    if (res.skipped.length) parts.push('تُخطّي ' + res.skipped.length + ' سطر');
+    return parts.length ? parts.join('، ') : 'لم يتغير شيء';
+  };
   function importFile(file) {
     if (!file) return;
     setImporting(true); setResult(null); setFormV(null);
@@ -127,11 +136,11 @@ function SuppliersPage(props) {
         if (code || name || tax) rows.push({ row: hi + 2 + i, code: code, name: name, taxNo: tax });   // row = the line number in the sheet
       });
       if (!rows.length) { props.onToast('لا توجد أسطر بيانات في الملف.'); return null; }
-      return props.onImport(rows);
+      return props.onImport(rows, dupMode);
     }).then(function (res) {
       if (!res) return;
       setResult(res);
-      props.onToast('أُضيف ' + res.added.length + ' مورد' + (res.skipped.length ? ' وتُخطّي ' + res.skipped.length + ' سطر.' : '.'));
+      props.onToast(importSummary(res) + '.');
     }).catch(function (ex) {
       props.onToast(ex && ex.message ? ex.message : 'تعذّرت قراءة الملف. استخدم ملف Excel أو CSV.');
     }).then(function () { setImporting(false); if (fileRef.current) fileRef.current.value = ''; });
@@ -170,6 +179,9 @@ function SuppliersPage(props) {
       div(null, h2(null, 'بيانات الموردين'), p({ className: 'muted small' }, 'التهيئة الأساسية لكل مورد: الاسم والرمز والرقم الضريبي ورقم الجوال. تظهر عند ربط حساب مستخدم بالمورد وفي إشعارات الموردين.')),
       canEdit ? div({ className: 'svcbtns', style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
         input({ ref: fileRef, type: 'file', accept: '.xlsx,.xls,.csv', hidden: true, 'aria-label': 'ملف الموردين', onChange: function (e) { importFile(e.target.files && e.target.files[0]); } }),
+        label({ className: 'dupmode', style: { display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '.85rem' } }, 'إذا كان الرقم موجوداً:',
+          select({ className: 'thf', 'aria-label': 'عند تكرار رقم المورد', value: dupMode, disabled: importing, onChange: function (e) { setDupMode(e.target.value); } },
+            option({ value: 'skip' }, 'تخطّيه (بلا تغيير)'), option({ value: 'update' }, 'تحديث بياناته'))),
         button({ type: 'button', className: 'btn ghost', disabled: importing, onClick: function () { fileRef.current && fileRef.current.click(); } }, h(Icon, { name: 'upload', size: 16 }), importing ? 'جارٍ الاستيراد…' : 'استيراد من Excel'),
         button({ type: 'button', className: 'btn ghost', onClick: downloadTemplate }, h(Icon, { name: 'download', size: 16 }), 'تنزيل القالب'),
         button({ className: 'btn primary', onClick: function () { openForm(null); } }, h(Icon, { name: 'plus' }), 'مورد جديد')) : null),
@@ -178,7 +190,7 @@ function SuppliersPage(props) {
         ['بلا حساب', count(function (s) { return !s.users; })], ['بلا رقم جوال', count(function (s) { return !s.mobile; })]]
         .map(function (x) { return div({ key: x[0], className: 'ustat' }, h('b', null, x[1]), span(null, x[0])); })),
     result ? div({ className: 'confirmbar importres' + (result.skipped.length ? ' warn' : ''), role: 'status' },
-      span(null, 'نتيجة الاستيراد: أُضيف ' + result.added.length + ' مورد' + (result.skipped.length ? '، وتُخطّي ' + result.skipped.length + ' سطر (الأسباب أدناه).' : ' بلا أخطاء.')),
+      span(null, 'نتيجة الاستيراد: ' + importSummary(result) + (result.skipped.length ? ' (أسباب التخطي أدناه).' : '.')),
       button({ type: 'button', className: 'btn ghost sm', onClick: function () { setResult(null); } }, 'إغلاق')) : null,
     result && result.skipped.length ? div({ className: 'tablewrap', style: { maxHeight: '260px', overflow: 'auto', marginBottom: '12px' } },
       table({ className: 'dt' }, thead(null, tr(null, ['السطر في الملف', 'رقم المورد', 'اسم المورد', 'سبب التخطي'].map(function (t) { return th({ key: t, scope: 'col' }, t); }))),
