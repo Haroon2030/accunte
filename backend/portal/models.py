@@ -176,12 +176,19 @@ class Payment(models.Model):
     Every level may propose a different amount; the history keeps who proposed what."""
     PROPOSING, PURCHASING, AUDIT, TREASURY, PAID = 1, 2, 3, 4, 5
     STEP_ROLE = {PROPOSING: 'services', PURCHASING: 'purchasing', AUDIT: 'auditor', TREASURY: 'treasury'}
+
+    class Priority(models.TextChoices):
+        URGENT = 'urgent', 'مستعجل'
+        MEDIUM = 'medium', 'متوسط'
+        NORMAL = 'normal', 'عادي'
+
     # a payment normally follows a reconciliation request; one added through a multi-supplier batch has no request
     request = models.OneToOneField(MatchRequest, null=True, blank=True, on_delete=models.CASCADE, related_name='payment')
     supplier = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT, related_name='payments')          # the supplier's account, if it has one
     supplier_rec = models.ForeignKey(Supplier, null=True, blank=True, on_delete=models.PROTECT, related_name='payments')  # the supplier master record
     batch = models.CharField(max_length=20, blank=True, db_index=True)   # PB-yymm-nnn: payments added together in one file
     note = models.CharField(max_length=300, blank=True)
+    priority = models.CharField('أولوية السداد', max_length=6, choices=Priority.choices, default=Priority.NORMAL)
     # accounting dimensions: where the money comes from and what it is charged to
     branch = models.CharField('الفرع', max_length=80, blank=True)
     bank = models.CharField('البنك الرئيسي', max_length=80, blank=True)

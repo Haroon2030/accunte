@@ -1069,6 +1069,10 @@ class PaymentBatchView(APIView):
             except ValidationError:
                 errors[str(i)] = 'تاريخ الاستحقاق غير صحيح.'
                 continue
+            priority = row.get('priority', Payment.Priority.NORMAL)
+            if priority not in Payment.Priority.values:
+                errors[str(i)] = 'اختر حالة السداد: مستعجل أو متوسط أو عادي.'
+                continue
             if s.pk in seen:
                 errors[str(i)] = f'المورد مكرر في الدفعة (السطر {seen[s.pk] + 1}). اجمع المبلغين في سطر واحد.'
                 continue
@@ -1084,7 +1088,7 @@ class PaymentBatchView(APIView):
                 errors[str(i)] = f'«{dims[dict(PAY_DIMS)[bad]]}» ليس في قائمة التهيئة.'
                 continue
             dims.update(balances)
-            clean.append((s, amount, method, due, (row.get('note') or '').strip()[:300], dims))
+            clean.append((s, amount, method, due, priority, (row.get('note') or '').strip()[:300], dims))
         if errors:
             raise ValidationError({'detail': f'راجع {len(errors)} سطر فيه خطأ، لم يُرفع شيء.', 'rowErrors': errors})
 
@@ -1093,10 +1097,10 @@ class PaymentBatchView(APIView):
         seq = Payment.objects.filter(batch__startswith=prefix).values('batch').distinct().count() + 1
         batch = f'{prefix}{seq:03d}'
         created = []
-        for s, amount, method, due, note, dims in clean:
+        for s, amount, method, due, priority, note, dims in clean:
             p = Payment.objects.create(
                 **dims, supplier_rec=s, supplier=s.users.filter(role=User.SUPPLIER, is_active=True).first(), batch=batch, note=note,
-                status=Payment.PURCHASING, amount=amount, method=method, due_date=due, created_at=now,
+                status=Payment.PURCHASING, priority=priority, amount=amount, method=method, due_date=due, created_at=now,
                 reached={'1': now.isoformat(), '2': now.isoformat()})
             p.number = f'PY-{now:%y%m}-{p.pk:04d}'
             log_payment(p, request.user, 'propose', note, level=Payment.PROPOSING)

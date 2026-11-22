@@ -11,6 +11,18 @@ const PAY_STEPS = [
   { who: 'مسؤول التحويل', title: 'التعميد النهائي والتحويل', desc: 'يعمّد الدفعة نهائياً فتُعدّ مسدّدة.', doneDesc: 'عُمّدت نهائياً وسُدّدت للمورد.', pill: 'عند مسؤول التحويل', act: 'تعميد نهائي' }
 ];
 const PAY_PAID = 'تم السداد';
+const PAY_PRIORITIES = [
+  { key: 'urgent', label: 'مستعجل' },
+  { key: 'medium', label: 'متوسط' },
+  { key: 'normal', label: 'عادي' }
+];
+const PAY_NORMAL_PRIORITY = PAY_PRIORITIES[2];
+const payPriority = function (payment) {
+  return PAY_PRIORITIES.find(function (level) { return level.key === payment.priority; }) || PAY_NORMAL_PRIORITY;
+};
+function PayPriorityPill(props) {
+  return span({ className: 'pay-priority-pill pay-priority-' + props.level.key }, props.level.label);
+}
 const PAY_METHODS = ['تحويل بنكي', 'شيك', 'نقداً', 'خصم من الحساب'];
 const PAY_ACTION = { propose: 'اقترح', approve: 'اعتمد', reject: 'رفض', pay: 'عمّد نهائياً وحوّل' };
 const payLabel = function (x) { return x.status === 5 ? PAY_PAID : PAY_STEPS[x.status - 1].pill; };
@@ -69,9 +81,12 @@ function PaymentPage(props) {
     const h0 = (first.history || [])[0];
     const branches = uniq(os.map(function (x) { return x.branch; }));
     const sts = uniq(os.map(function (x) { return x.status; }));
+    const priority = PAY_PRIORITIES.find(function (level) {
+      return os.some(function (x) { return x.priority === level.key; });
+    }) || PAY_NORMAL_PRIORITY;
     return { id: k, orders: os, n: os.length, names: uniq(os.map(function (x) { return x.supplier; })).sort(function (a, b) { return a.localeCompare(b, 'ar'); }), by: h0 ? h0.by : '', created: new Date(first.created),
       branch: !branches.length ? '' : (branches.length === 1 ? branches[0] : 'عدة فروع'),
-      status: sts.length === 1 ? sts[0] : 0, paid: os.filter(function (x) { return x.status === 5; }).length,
+      status: sts.length === 1 ? sts[0] : 0, priority: priority, paid: os.filter(function (x) { return x.status === 5; }).length,
       mine: os.some(function (x) { return x.canAct; }), rejected: os.some(function (x) { return x.rejected; }), late: os.some(payLate) };
   });
   /* services (and the admin) may edit while nobody is past purchasing's turn; the admin may always delete */
@@ -93,6 +108,9 @@ function PaymentPage(props) {
     { key: 'by', label: 'الشخص المدخل', filter: 'select', fv: function (d) { return d.by || '—'; }, val: function (d) { return d.by; }, render: function (d) { return d.by || span({ className: 'muted' }, '—'); } },
     { key: 'branch', label: 'الفرع', filter: 'select', fv: function (d) { return d.branch || '—'; }, val: function (d) { return d.branch; }, render: function (d) { return d.branch || span({ className: 'muted' }, '—'); } },
     { key: 'created', label: 'تاريخ الإدخال', val: function (d) { return d.created.getTime(); }, xl: function (d) { return xlDate(d.created); }, render: function (d) { return fmtDT(d.created); } },
+    { key: 'priority', label: 'الأولوية', filter: 'select',
+      fv: function (d) { return d.priority.label; }, val: function (d) { return PAY_PRIORITIES.indexOf(d.priority); }, xl: function (d) { return d.priority.label; },
+      render: function (d) { return h(PayPriorityPill, { level: d.priority }); } },
     { key: 'status', label: 'الحالة', filter: 'select', fv: function (d) { return docLabel(d); }, val: function (d) { return d.status; },
       render: function (d) { return div({ className: 'cell-status' }, span({ className: 'pill ' + docTone(d) }, span({ className: 'dot' }), docLabel(d)), d.status === 0 ? span({ className: 'muted small' }, d.paid + ' من ' + d.n + ' مسدّد') : null, d.rejected ? span({ className: 'chip-late' }, 'فيها مرفوض') : null, d.late ? h(LateChip) : null); } },
     { key: 'act', label: 'إجراءات', render: function (d) {
@@ -176,6 +194,6 @@ function PaymentPage(props) {
         button({ type: 'submit', className: 'btn ghost', disabled: busy }, 'حفظ دون إحالة'),
         button({ type: 'button', className: 'btn ghost', onClick: function () { setSel(null); } }, 'إلغاء')) : null) : null,
     div({ className: 'pay-doc-list', style: { display: batchOpen ? 'none' : undefined } },
-      h(DataTable, { cols: cols, rows: docs, dateFilter: { label: 'تاريخ الإدخال', get: function (d) { return d.created; } }, exportName: 'وثائق-السداد', inlineHead: true, onToast: props.onToast, onOpen: open, defaultSort: { key: 'created', dir: 'desc' }, rowClass: function (d) { return d.mine ? 'unread' : undefined; },
+      h(DataTable, { cols: cols, rows: docs, dateFilter: { label: 'تاريخ الإدخال', get: function (d) { return d.created; } }, exportName: 'وثائق-السداد', inlineHead: true, onToast: props.onToast, onOpen: open, defaultSort: { key: 'created', dir: 'desc' }, rowClass: function (d) { return 'pay-priority-' + d.priority.key + (d.mine ? ' unread' : ''); },
         empty: 'لا توجد وثائق سداد بعد. أضف أول وثيقة من زر «إضافة سداد متعدد».' })));
 }

@@ -85,7 +85,7 @@ function PaymentSheet(props) {
   function exportBatch() {
     setExportBusy(true);
     rcLoad('xlsx').then(function () {
-      const headers = ['رقم الدفعة', 'رمز المورد', 'اسم المورد', 'الفرع', 'مركز التكلفة', 'البنك الرئيسي', 'الحساب التحليلي', 'الرصيد الحالي', 'رصيد المخزون', 'طريقة الدفع', 'تاريخ الاستحقاق', 'حالة السداد'];
+      const headers = ['رقم الدفعة', 'رمز المورد', 'اسم المورد', 'الفرع', 'مركز التكلفة', 'البنك الرئيسي', 'الحساب التحليلي', 'الرصيد الحالي', 'رصيد المخزون', 'طريقة الدفع', 'تاريخ الاستحقاق', 'حالة السداد', 'الأولوية'];
       SHEET_LEVELS.forEach(function (l) { headers.push('نتيجة ' + l.head, 'مبلغ ' + l.head, 'الموظف', 'التاريخ', 'ملاحظة'); });
       const numeric = function (v) {
         if (v == null || String(v).trim() === '') return '';
@@ -93,7 +93,7 @@ function PaymentSheet(props) {
         return isFinite(n) ? n : String(v);
       };
       const body = rows.map(function (x) {
-        const approvals = sheetCols(x), out = [props.batch, x.supplierCode || '', x.supplier || '', x.branch || '', x.costCenter || '', x.bank || '', x.bankSub || '', numeric(val(x, 'balance', x.balance)), numeric(val(x, 'stock', x.stockBalance)), x.method || '', x.dueDate || '', payLabel(x)];
+        const approvals = sheetCols(x), out = [props.batch, x.supplierCode || '', x.supplier || '', x.branch || '', x.costCenter || '', x.bank || '', x.bankSub || '', numeric(val(x, 'balance', x.balance)), numeric(val(x, 'stock', x.stockBalance)), x.method || '', x.dueDate || '', payLabel(x), payPriority(x).label];
         SHEET_LEVELS.forEach(function (l, k) {
           const e = approvals[k];
           out.push(e ? (PAY_ACTION[e.action] || e.action) : (x.status === k + 1 ? 'بانتظار الإجراء' : '—'));
@@ -163,15 +163,17 @@ function PaymentSheet(props) {
         .concat(SHEET_LEVELS.map(function (l, k) { return th({ key: l.role, scope: 'col', className: 'shlv' }, span({ className: 'shn' }, k + 1), l.head); }))
         .concat([th({ key: 'st', scope: 'col' }, 'الحالة')]))),
       tbody(null, rows.map(function (x) {
-        const cols = sheetCols(x), er = errs[x.pk];
-        return tr({ key: x.pk, className: er ? 'bad' : (x.canAct ? 'mine' : undefined) },
+        const cols = sheetCols(x), er = errs[x.pk], priority = payPriority(x);
+        const rowClass = 'pay-priority-' + priority.key + (er ? ' bad' : x.canAct ? ' mine' : '');
+        return tr({ key: x.pk, className: rowClass },
           td({ 'data-label': 'رقم المورد', className: 'shcode' }, x.supplierCode ? span({ className: 'mono' }, x.supplierCode) : span({ className: 'muted' }, '—')),
           td({ 'data-label': 'المورد', className: 'pbsup' }, strong({ style: { fontWeight: 600 } }, x.supplier), span({ className: 'hint' }, x.id), er ? span({ className: 'err', role: 'alert' }, er) : null),
           numCell(x, 'balance', 'balance', 'الرصيد'),
           numCell(x, 'stockBalance', 'stock', 'المخزون'),
           td({ 'data-label': 'طريقة الدفع', className: 'shmethod' }, x.method ? x.method : span({ className: 'muted' }, '—')),
           SHEET_LEVELS.map(function (l, k) { return td({ key: l.role, 'data-label': l.head, className: 'shlvc' + (x.status === k + 1 && x.canAct ? ' on' : '') }, levelCell(x, k, cols)); }),
-          td({ 'data-label': 'الحالة', className: 'shstat' }, span({ className: 'pill ' + payTone(x) }, span({ className: 'dot' }), payLabel(x)), x.rejected ? span({ className: 'chip-late' }, 'أعادها المدقق') : null,
+          td({ 'data-label': 'الحالة', className: 'shstat' }, h(PayPriorityPill, { level: priority }),
+            span({ className: 'pill ' + payTone(x) }, span({ className: 'dot' }), payLabel(x)), x.rejected ? span({ className: 'chip-late' }, 'أعادها المدقق') : null,
             x.dueDate ? span({ className: 'shmeth' }, 'استحقاق ' + payDate(x.dueDate)) : null));
       })),
       h('tfoot', null, tr(null, td({ colSpan: 2, className: 'shtot', 'data-label': 'الإجمالي' }, 'الإجمالي'),

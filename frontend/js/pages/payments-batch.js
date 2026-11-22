@@ -9,6 +9,7 @@ const PB_HEADERS = {
   amount: ['المبلغ', 'القيمة', 'amount', 'value'],
   method: ['طريقة السداد', 'طريقة الدفع', 'method', 'payment method'],
   due: ['تاريخ الاستحقاق', 'الاستحقاق', 'due', 'due date'],
+  priority: ['الحالة', 'الأولوية', 'أولوية السداد', 'priority', 'urgency'],
   note: ['ملاحظة', 'ملاحظات', 'note', 'notes'],
   branch: ['الفرع', 'branch'],
   bank: ['البنك الرئيسي', 'البنك', 'bank', 'main bank'],
@@ -22,6 +23,13 @@ const PB_DIMS = [['branch', 'الفرع'], ['costCenter', 'مركز التكلف
 /* comparison key: no diacritics or tatweel, and the usual spelling variants are one letter (أ إ آ = ا, ى = ي, ة = ه), so «افق» finds «الأفق» */
 const pbNorm = function (v) { return String(v == null ? '' : v).replace(/[ً-ٟـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').trim().toLowerCase(); };
 const pbIso = function (d) { const p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
+
+function pbImportPriority(value) {
+  const key = pbNorm(value);
+  if (!key) return PAY_NORMAL_PRIORITY.key;
+  const level = PAY_PRIORITIES.find(function (item) { return item.key === key || pbNorm(item.label) === key; });
+  return level ? level.key : '';
+}
 /* a date typed in the file: a real date, an Excel serial number, yyyy-mm-dd or dd/mm/yyyy */
 function pbDate(v) {
   if (v == null || v === '') return '';
@@ -94,7 +102,7 @@ function PaymentBatchForm(props) {
   const lk = props.lookups || {};
   const names = function (k) { return lkNames(lk, k); };
   const supItems = sups.map(function (s) { return { id: s.id, label: s.code + ' · ' + s.name, title: s.name, meta: s.code + (s.taxNo ? ' · ' + s.taxNo : ''), search: [s.code, s.name, s.taxNo || ''] }; });
-  const blank = function () { return { key: Math.random().toString(36).slice(2), text: '', amount: '', method: '', dueDate: '', note: '', balance: '', stockBalance: '' }; };
+  const blank = function () { return { key: Math.random().toString(36).slice(2), text: '', amount: '', method: '', dueDate: '', priority: PAY_NORMAL_PRIORITY.key, note: '', balance: '', stockBalance: '' }; };
   const [rows, setRows] = useState([blank(), blank(), blank()]);
   const [common, setCommon] = useState({ method: lkNames(props.lookups, 'method')[0] || '', dueDate: '', branch: '', bank: '', bankSub: '', costCenter: '' });
   const [defErr, setDefErr] = useState({});    // default field -> message
@@ -124,7 +132,7 @@ function PaymentBatchForm(props) {
     rcLoad('xlsx').then(function () { return file.arrayBuffer(); }).then(function (buf) {
       const wb = XLSX.read(buf, { type: 'array', cellDates: true });
       const grid = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: true });
-      const isCol = function (cell, key) { return PB_HEADERS[key].indexOf(pbNorm(cell)) !== -1; };
+      const isCol = function (cell, key) { return PB_HEADERS[key].some(function (alias) { return pbNorm(alias) === pbNorm(cell); }); };
       const hi = grid.findIndex(function (r) { return r.some(function (c) { return isCol(c, 'amount'); }) && r.some(function (c) { return isCol(c, 'code') || isCol(c, 'name'); }); });
       if (hi === -1) { props.onToast('لم أجد في الملف عمودي «المورد» و«المبلغ». حمّل القالب واستخدم عناوينه.'); return; }
       const at = {};
@@ -135,7 +143,7 @@ function PaymentBatchForm(props) {
         const s = find(code) || find(name);
         const m = String(cell(r, 'method')).trim();
         return { key: Math.random().toString(36).slice(2), text: s ? labelOf(s) : (code || name), amount: String(cell(r, 'amount')).trim(), method: names('method').indexOf(m) !== -1 ? m : '', dueDate: pbDate(cell(r, 'due')), note: String(cell(r, 'note')).trim(),
-          balance: String(cell(r, 'balance')).trim(), stockBalance: String(cell(r, 'stockBalance')).trim() };
+          priority: pbImportPriority(cell(r, 'priority')), balance: String(cell(r, 'balance')).trim(), stockBalance: String(cell(r, 'stockBalance')).trim() };
       });
       if (!got.length) { props.onToast('لا توجد أسطر بيانات في الملف.'); return; }
       setErrs({});
@@ -146,9 +154,9 @@ function PaymentBatchForm(props) {
   function downloadTemplate() {
     rcLoad('xlsx').then(function () {
       const ex = sups[0];
-      const ws = XLSX.utils.aoa_to_sheet([['رمز المورد', 'الرصيد الحالي', 'رصيد المخزون', 'المبلغ', 'طريقة السداد', 'تاريخ الاستحقاق', 'ملاحظة'],
-        [ex ? ex.code : 'S-1001', 12500, 8300, 1500, 'تحويل بنكي', pbIso(new Date(Date.now() + 14 * DAY)), 'مثال: سداد فاتورة']]);
-      ws['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 30 }];
+      const ws = XLSX.utils.aoa_to_sheet([['رمز المورد', 'الرصيد الحالي', 'رصيد المخزون', 'المبلغ', 'طريقة السداد', 'تاريخ الاستحقاق', 'الحالة'],
+        [ex ? ex.code : 'S-1001', 12500, 8300, 1500, 'تحويل بنكي', pbIso(new Date(Date.now() + 14 * DAY)), PAY_NORMAL_PRIORITY.label]]);
+      ws['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 14 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'السداد');
       wb.Workbook = { Sheets: [{ RTL: true }], Views: [{ RTL: true }] };
@@ -168,6 +176,7 @@ function PaymentBatchForm(props) {
       else if (used[s.id]) er[r.key] = 'المورد مكرر في الدفعة، اجمع المبلغين في سطر واحد.';
       else used[s.id] = true;
       if (!er[r.key] && !(r.method || common.method)) er[r.key] = 'اختر طريقة السداد.';
+      if (!er[r.key] && !r.priority) er[r.key] = 'اختر حالة السداد: مستعجل أو متوسط أو عادي.';
     });
     if (!live.length) { props.onToast('أضف مورداً واحداً على الأقل.'); return; }
     setErrs(er); setDefErr(de);
@@ -176,7 +185,7 @@ function PaymentBatchForm(props) {
     setBusy(true);
     props.onSubmit({
       method: common.method, dueDate: common.dueDate, branch: common.branch, bank: common.bank, bankSub: common.bankSub, costCenter: common.costCenter,
-      rows: live.map(function (r) { return { supplierId: find(r.text).id, amount: r.amount, method: r.method, dueDate: r.dueDate, note: r.note, balance: r.balance, stockBalance: r.stockBalance }; })
+      rows: live.map(function (r) { return { supplierId: find(r.text).id, amount: r.amount, method: r.method, dueDate: r.dueDate, priority: r.priority, note: r.note, balance: r.balance, stockBalance: r.stockBalance }; })
     }).then(function () { setBusy(false); props.onClose(); }, function (ex) {
       setBusy(false);
       const re = ex.data && ex.data.rowErrors;
@@ -220,7 +229,7 @@ function PaymentBatchForm(props) {
           span({ className: 'pbroute-arrow', 'aria-hidden': 'true' }, '←'),
           span({ className: 'pbroute-step' }, span({ className: 'pbroute-num' }, '4'), 'الاعتماد النهائي'))),
       table({ className: 'dt pbtable' },
-      thead(null, tr(null, ['#', 'المورد', 'الرصيد الحالي', 'رصيد المخزون', 'اقتراح الدفعة (ر.س)', 'طريقة السداد', 'الاستحقاق', 'ملاحظة', ''].map(function (t, i) { return th({ key: i, scope: 'col' }, t); }))),
+      thead(null, tr(null, ['#', 'المورد', 'الرصيد الحالي', 'رصيد المخزون', 'اقتراح الدفعة (ر.س)', 'طريقة السداد', 'الاستحقاق', 'الحالة', ''].map(function (t, i) { return th({ key: i, scope: 'col' }, t); }))),
       tbody(null, rows.map(function (r, i) {
         const s = find(r.text), er = errs[r.key];
         return tr({ key: r.key, className: er ? 'bad' : undefined },
@@ -233,7 +242,10 @@ function PaymentBatchForm(props) {
           td({ 'data-label': 'اقتراح الدفعة' }, input({ type: 'text', inputMode: 'decimal', className: 'ltr', autoComplete: 'off', 'aria-label': 'المبلغ في السطر ' + (i + 1), value: r.amount, onChange: function (e) { setRow(r.key, 'amount', e.target.value); } })),
           td({ 'data-label': 'طريقة السداد' }, select({ 'aria-label': 'طريقة السداد في السطر ' + (i + 1), value: r.method, onChange: function (e) { setRow(r.key, 'method', e.target.value); } }, option({ value: '' }, 'الافتراضية'), names('method').map(function (m) { return option({ key: m, value: m }, m); }))),
           td({ 'data-label': 'الاستحقاق' }, input({ type: 'date', className: r.dueDate ? '' : 'empty', 'aria-label': 'الاستحقاق في السطر ' + (i + 1), value: r.dueDate, onChange: function (e) { setRow(r.key, 'dueDate', e.target.value); } })),
-          td({ 'data-label': 'ملاحظة' }, input({ type: 'text', autoComplete: 'off', 'aria-label': 'ملاحظة السطر ' + (i + 1), value: r.note, onChange: function (e) { setRow(r.key, 'note', e.target.value); } })),
+          td({ 'data-label': 'الحالة' },
+            select({ className: 'pay-priority-select' + (r.priority ? ' pay-priority-' + r.priority : ''), 'aria-label': 'الحالة في السطر ' + (i + 1), value: r.priority, onChange: function (e) { setRow(r.key, 'priority', e.target.value); } },
+              r.priority ? null : option({ value: '', disabled: true }, 'اختر الحالة'),
+              PAY_PRIORITIES.map(function (level) { return option({ key: level.key, value: level.key, className: 'pay-priority-' + level.key }, level.label); }))),
           td({ 'data-label': '', className: 'pbrm' }, button({ type: 'button', className: 'abtn stop', 'aria-label': 'حذف السطر ' + (i + 1), onClick: function () { removeRow(r.key); } }, h(Icon, { name: 'trash', size: 16 }))));
       })))),
     div({ className: 'pbsum', role: 'status' }, span(null, live.length + (live.length === 1 ? ' مورد' : ' موردين')), strong({ className: 'mono' }, payMoney(total))),

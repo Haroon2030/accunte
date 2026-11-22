@@ -351,13 +351,19 @@ function App() {
   const sidebarUserMeta = sidebarUserName === ROLE_LABEL[user.role]
     ? (user.username ? 'اسم الدخول: ' + user.username : 'الحساب الحالي')
     : ROLE_LABEL[user.role] + (user.username ? ' · ' + user.username : '');
+  const navIcons = {
+    manager: 'dashboard', matcher: 'clipboard', recon: 'reconcile',
+    payments: 'wallet', reports: 'chart', notices: 'bell',
+    supplier: 'building', suppliers: 'building', settings: 'sliders', users: 'users'
+  };
 
   /* the navigation sits in a column beside the content (the right side in RTL); on narrow screens it stacks above */
   return div({ className: 'appshell' },
     header({ className: 'appside' }, h(Brand),
       allowed.length > 1 ? div({ className: 'seg sidenav', role: 'group', 'aria-label': 'صفحات النظام' }, navOrder(allowed).map(function (k) {
-        const navIcons = { manager: 'check', matcher: 'search', recon: 'sort', payments: 'send', reports: 'chart', notices: 'file', suppliers: 'user', settings: 'key', users: 'user' };
-        return button({ key: k, className: 'navitem', 'aria-pressed': role === k, onClick: function () { changeRole(k); } }, h(Icon, { name: navIcons[k] || 'file', size: 17 }), span({ className: 'navlabel' }, ROLE_NAV[k] || ROLE_NAME[k]), h(Badge, { n: roleUnread[k] || 0 }));
+        return button({ key: k, className: 'navitem', 'aria-pressed': role === k, onClick: function () { changeRole(k); } },
+          span({ className: 'navicon' }, h(Icon, { name: navIcons[k] || 'file', size: 18 })),
+          span({ className: 'navlabel' }, ROLE_NAV[k] || ROLE_NAME[k]), h(Badge, { n: roleUnread[k] || 0 }));
       })) : null,
       div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, sidebarUserName.charAt(0)),
         div({ className: 'sideuser-copy', title: sidebarUserName }, span({ className: 'sideuser-name' }, sidebarUserName), span({ className: 'sideuser-meta' }, sidebarUserMeta)),

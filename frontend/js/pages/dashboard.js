@@ -64,7 +64,7 @@ function Dashboard(props) {
     newC ? div({ className: 'alertbar', role: 'status' }, h(Icon, { name: 'alert' }), newC === 1 ? 'وصلتك شكوى جديدة من مورد' : 'وصلتك ' + newC + ' شكاوى جديدة من الموردين') : null,
     h(AlertBar, { n: unrC, text: newMsgText(unrC, 'الموردين') }),
     div({ className: 'kpis dashboard-kpis' },
-      h(Kpi, { label: 'طلبات مفتوحة', value: open.length, note: 'من أصل ' + reqs.length + ' طلب', icon: 'file', colorTone: 'teal' }),
+      h(Kpi, { label: 'طلبات مفتوحة', value: open.length, note: 'من أصل ' + reqs.length + ' طلب', icon: 'file', colorTone: 'blue' }),
       h(Kpi, { label: 'طلبات متأخرة', value: late.length, note: 'تجاوزت مهلة ' + SLA_DAYS + ' أيام', icon: 'alert', colorTone: 'red' }),
       h(Kpi, { label: 'منجزة هذا الشهر', value: doneMonth.length, note: 'متوسط الإنجاز ' + avg.toFixed(1) + ' يوم', icon: 'check', colorTone: 'green' }),
       h(Kpi, { label: 'شكاوى جديدة', value: newC, note: 'بانتظار المراجعة', icon: 'chat', colorTone: 'amber' })),

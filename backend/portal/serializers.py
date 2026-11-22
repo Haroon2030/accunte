@@ -71,7 +71,7 @@ def payment_out(p, user=None):
     return {
         'id': p.number, 'pk': p.pk, 'request': r.number if r else '', 'requestPk': r.pk if r else None, 'period': r.period if r else '',
         'supplier': p.supplier_name, 'supplierCode': p.supplier_code,
-        'batch': p.batch, 'note': p.note,
+        'batch': p.batch, 'note': p.note, 'priority': p.priority,
         'balance': float(p.balance) if p.balance is not None else None, 'stockBalance': float(p.stock_balance) if p.stock_balance is not None else None,
         'branch': p.branch, 'bank': p.bank, 'bankSub': p.bank_sub, 'costCenter': p.cost_center,
         'status': p.status, 'amount': float(p.amount) if p.amount is not None else None,
