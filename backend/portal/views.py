@@ -952,7 +952,7 @@ def parse_balance(raw):
     return d.quantize(Decimal('0.01'))
 
 
-def apply_payment_fields(p, data):
+def apply_payment_fields(p, data, *, edit_proposal=False):
     """The level working on the payment may propose another amount, method or due date."""
     if 'amount' in data:
         raw = data.get('amount')
@@ -977,7 +977,7 @@ def apply_payment_fields(p, data):
             if v and v != getattr(p, attr) and v not in lookup_names(key):
                 raise ValidationError({key: 'اختر القيمة من قائمة التهيئة.'})
             setattr(p, attr, v)
-    if p.status == Payment.PROPOSING:          # the balances belong to supplier services' proposal
+    if p.status == Payment.PROPOSING or edit_proposal:
         for key, attr in (('balance', 'balance'), ('stockBalance', 'stock_balance')):
             if key in data:
                 try:
@@ -995,7 +995,7 @@ class StalePayment(Exception):
     pass
 
 
-def lock_payment(user, data, pk):
+def lock_payment(user, data, pk, *, edit_proposal=False):
     """Lock the row, check that the page showed the current step (a stale click gets 409) and that it is the caller's turn."""
     list(Payment.objects.select_for_update().filter(pk=pk).values_list('pk', flat=True))
     p = get_payment(pk)
@@ -1004,7 +1004,10 @@ def lock_payment(user, data, pk):
         raise StalePayment
     if p.status == Payment.PAID:
         raise ValidationError({'detail': 'تم سداد هذا الأمر، فلا يمكن تعديله.'})
-    if not can_act_on_payment(user, p):
+    if edit_proposal:
+        if not p.batch or p.request_id or p.status not in (Payment.PROPOSING, Payment.PURCHASING) or user.role not in (User.ADMIN, User.SERVICES):
+            raise PermissionDenied('تعديل السطر متاح لخدمات الموردين ومدير النظام قبل اعتماد المشتريات.')
+    elif not can_act_on_payment(user, p):
         raise PermissionDenied(f'هذا الأمر بانتظار {STEP_NAME[p.status]}، وليس دورك الآن.')
     return p
 
@@ -1216,6 +1219,34 @@ class PaymentDetailView(APIView):
             raise PermissionDenied('حذف أوامر السداد لمدير النظام فقط.')
         get_payment(pk).delete()
         return Response(status=204)
+
+
+class PaymentProposalView(APIView):
+    """Edit one supplier's proposal without advancing it or changing the batch's other orders."""
+    permission_classes = [IsPaymentsPage]
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        try:
+            p = lock_payment(request.user, request.data, pk, edit_proposal=True)
+        except StalePayment:
+            return stale_response()
+
+        amount_before = p.amount
+        apply_payment_fields(p, request.data, edit_proposal=True)
+        if p.amount is None:
+            raise ValidationError({'amount': 'حدّد مبلغ السداد.'})
+        if not p.method:
+            raise ValidationError({'method': 'اختر طريقة السداد.'})
+        if 'priority' in request.data:
+            priority = request.data['priority']
+            if priority not in Payment.Priority.values:
+                raise ValidationError({'priority': 'اختر أولوية السداد من القائمة.'})
+            p.priority = priority
+        if p.status == Payment.PURCHASING and p.amount != amount_before:
+            log_payment(p, request.user, 'edit', level=Payment.PROPOSING)
+        p.save()
+        return Response(payment_out(p, request.user))
 
 
 class PaymentAdvanceView(APIView):

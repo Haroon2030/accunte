@@ -38,6 +38,7 @@ urlpatterns = [
     path('payments/bulk/', v.PaymentBulkView.as_view()),
     path('payments/batch/<str:batch>/', v.PaymentDocumentView.as_view()),
     path('payments/<int:pk>/', v.PaymentDetailView.as_view()),
+    path('payments/<int:pk>/proposal/', v.PaymentProposalView.as_view()),
     path('payments/<int:pk>/advance', v.PaymentAdvanceView.as_view()),
     path('payments/<int:pk>/reject', v.PaymentRejectView.as_view()),
 

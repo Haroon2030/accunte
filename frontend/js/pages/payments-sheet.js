@@ -184,40 +184,105 @@ function PaymentSheet(props) {
         td({ className: 'sum-blank' }, ''))))));
 }
 
-/* ---------- editing a document: its basic data, applied to every order of the batch ---------- */
-function PaymentDocEdit(props) {
-  const first = props.orders[0] || {};
-  const lk = props.lookups || {};
-  const names = function (k) { return lkNames(lk, k); };
-  const [c, setC] = useState({ method: first.method || '', dueDate: first.dueDate || '', branch: first.branch || '', costCenter: first.costCenter || '', bank: first.bank || '', bankSub: first.bankSub || '' });
-  const [errs, setErrs] = useState({});
+/* Edit a supplier's proposal from its document row. */
+const PAYMENT_ROW_FIELDS = [
+  ['amount', 'المبلغ المقترح (ر.س)', 'decimal'],
+  ['balance', 'الرصيد الحالي', 'decimal'],
+  ['stockBalance', 'رصيد المخزون', 'decimal'],
+  ['priority', 'الأولوية', 'priority'],
+  ['method', 'طريقة السداد', 'lookup'],
+  ['dueDate', 'تاريخ الاستحقاق', 'date']
+].concat(PB_DIMS.map(function (dimension) { return [dimension[0], dimension[1], 'lookup']; }));
+
+function paymentRowDraft(order) {
+  const values = {};
+  PAYMENT_ROW_FIELDS.forEach(function (field) {
+    const key = field[0];
+    values[key] = key === 'priority' ? payPriority(order).key : (order[key] == null ? '' : String(order[key]));
+  });
+  return { pk: order.pk, stage: order.status, initial: values, values: values };
+}
+
+function PaymentRowEditor(props) {
+  const [draft, setDraft] = useState(function () { return paymentRowDraft(props.orders[0]); });
+  const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const set = function (k, v) { setC(function (o) { const n = Object.assign({}, o); n[k] = v; return n; }); setErrs(function (e) { const n = Object.assign({}, e); delete n[k]; return n; }); };
-  const fields = PB_DIMS.concat([['method', 'طريقة السداد']]);
-  function submit(e) {
-    e.preventDefault();
-    const er = {};
-    fields.forEach(function (d) { const v = c[d[0]].trim(); if (v && names(d[0]).indexOf(v) === -1 && v !== (first[d[0]] || '')) er[d[0]] = 'اختر ' + d[1] + ' من القائمة.'; });
-    setErrs(er);
-    if (Object.keys(er).length) { props.onToast('اختر الحقول من القوائم المعروضة.'); return; }
-    setBusy(true);
-    props.onSave(c).then(function () { setBusy(false); props.onClose(); }, function (ex) { setBusy(false); props.onToast(ex.message); });
+  const ref = useRef(null);
+  const order = props.orders.find(function (item) { return item.pk === draft.pk; });
+
+  useEffect(function () {
+    const editor = ref.current;
+    if (editor) {
+      editor.focus({ preventScroll: true });
+      editor.scrollIntoView({ block: 'start', inline: 'nearest' });
+    }
+  }, []);
+
+  function setField(key, value) {
+    setDraft(function (previous) {
+      return Object.assign({}, previous, { values: Object.assign({}, previous.values, { [key]: value }) });
+    });
+    setError(null);
   }
-  return form({ className: 'uformwrap pbform', onSubmit: submit, noValidate: true },
-    div({ className: 'uformhead' }, h3(null, 'تعديل الوثيقة ' + props.batch + ' · ' + props.orders.length + (props.orders.length === 1 ? ' مورد' : ' موردين')),
-      button({ type: 'button', className: 'uformclose', 'aria-label': 'إغلاق', onClick: props.onClose }, h(Icon, { name: 'close', size: 18 }))),
-    p({ className: 'muted small' }, 'تُطبَّق هذه البيانات على كل أوامر الوثيقة. لتعديل المبالغ والاعتماد افتح جدول الوثيقة.'),
-    div({ className: 'uform' },
-      fields.map(function (d) {
-        return div({ className: 'field', key: d[0] }, label({ htmlFor: 'de-' + d[0] }, d[1]),
-          h(ComboPicker, { id: 'de-' + d[0], items: lkItems(lkActive(lk, d[0])), value: c[d[0]], ariaLabel: d[1], emptyText: 'لا توجد قيم. أضفها من صفحة «التهيئة».', noMatch: 'ليس في القائمة.',
-            onText: function (v) { set(d[0], v); }, onPick: function (it) { set(d[0], it.label); } }),
-          errs[d[0]] ? span({ className: 'err', role: 'alert' }, errs[d[0]]) : null);
-      }),
-      div({ className: 'field' }, label({ htmlFor: 'de-due' }, 'تاريخ الاستحقاق'),
-        input({ id: 'de-due', type: 'date', className: c.dueDate ? '' : 'empty', value: c.dueDate, onChange: function (e) { set('dueDate', e.target.value); } }))),
+
+  function submit(event) {
+    event.preventDefault();
+    if (busy || !order) return;
+    const changes = { fromStage: draft.stage };
+    PAYMENT_ROW_FIELDS.forEach(function (field) {
+      const key = field[0];
+      if (draft.values[key] !== draft.initial[key]) changes[key] = draft.values[key];
+    });
+    if (Object.keys(changes).length === 1) { props.onClose(); return; }
+    setBusy(true);
+    setError(null);
+    props.onSave(draft.pk, changes).then(props.onClose, function (ex) {
+      setBusy(false);
+      setError(ex);
+    });
+  }
+
+  function renderField(field) {
+    const [key, text, type] = field;
+    const id = 'pay-row-' + draft.pk + '-' + key;
+    const value = draft.values[key];
+    const controlProps = {
+      id: id, value: value, required: key === 'amount' || key === 'method',
+      onChange: function (event) { setField(key, event.target.value); }
+    };
+    let control;
+    if (type === 'priority') {
+      control = select(controlProps, PAY_PRIORITIES.map(function (level) {
+        return option({ key: level.key, value: level.key }, level.label);
+      }));
+    } else if (type === 'lookup') {
+      const values = lkNames(props.lookups, key);
+      if (draft.initial[key] && values.indexOf(draft.initial[key]) === -1) values.unshift(draft.initial[key]);
+      control = select(controlProps, option({ value: '' }, key === 'method' ? 'اختر طريقة السداد' : 'غير محدد'),
+        values.map(function (name) { return option({ key: name, value: name }, name); }));
+    } else {
+      control = input(Object.assign(controlProps, { type: type === 'date' ? 'date' : 'text', className: 'ltr',
+        inputMode: type === 'decimal' ? 'decimal' : undefined, autoComplete: 'off' }));
+    }
+    const message = error && error.data && error.data[key];
+    return div({ className: 'field', key: key }, label({ htmlFor: id }, text), control,
+      message ? span({ className: 'err', role: 'alert' }, [].concat(message)[0]) : null);
+  }
+
+  return form({ className: 'pay-row-editor', ref: ref, tabIndex: -1, onSubmit: submit, 'aria-label': 'تعديل سطر السداد' },
+    h3(null, 'تعديل سطر السداد'),
+    props.orders.length > 1 || !order
+      ? div({ className: 'field' }, label({ htmlFor: 'pay-row-supplier' }, 'اختر سطر المورد'),
+        select({ id: 'pay-row-supplier', value: order ? order.pk : '', disabled: busy, onChange: function (event) {
+          const next = props.orders.find(function (item) { return String(item.pk) === event.target.value; });
+          if (next) { setDraft(paymentRowDraft(next)); setError(null); }
+        } }, !order ? option({ value: '', disabled: true }, 'اختر موردًا') : null,
+        props.orders.map(function (item) { return option({ key: item.pk, value: item.pk }, item.supplier + ' · ' + item.id); })))
+      : p({ className: 'muted small' }, order.supplier + ' · ' + order.id),
+    error ? p({ className: 'err', role: 'alert' }, error.message) : null,
+    order ? h('fieldset', { className: 'uform', disabled: busy, 'aria-label': 'بيانات السطر' }, PAYMENT_ROW_FIELDS.map(renderField)) : null,
     div({ className: 'formactions' },
-      button({ type: 'submit', className: 'btn primary', disabled: busy }, 'حفظ التعديلات'),
-      button({ type: 'button', className: 'btn ghost', onClick: props.onClose }, 'إلغاء')));
+      order ? button({ type: 'submit', className: 'btn primary sm', disabled: busy }, busy ? 'جارٍ الحفظ…' : 'حفظ السطر') : null,
+      button({ type: 'button', className: 'btn ghost sm', disabled: busy, onClick: props.onClose }, 'إلغاء')));
 }
 

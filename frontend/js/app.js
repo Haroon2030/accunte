@@ -172,11 +172,14 @@ function App() {
   function addLookup(kind, code, name) { return API.post('/lookups/', { kind: kind, code: code, name: name }).then(function (l) { putLookup(l); setToast('أُضيف «' + l.name + '» برقم ' + l.code + '.'); return l; }); }
   function updateLookup(id, data) { return API.patch('/lookups/' + id + '/', data).then(function (l) { putLookup(l); return l; }); }
   function removeLookup(l) { return API.del('/lookups/' + l.id + '/').then(function () { setLookups(function (o) { const n = Object.assign({}, o); n[l.kind] = (n[l.kind] || []).filter(function (x) { return x.id !== l.id; }); return n; }); setToast('حُذفت «' + l.name + '».'); }); }
-  function editPaymentBatch(batch, data) {
-    return API.patch('/payments/batch/' + encodeURIComponent(batch) + '/', data).then(function (r) {
-      r.payments.forEach(replacePay);
-      setToast('حُفظت بيانات الوثيقة ' + batch + '.');
-      return r;
+  function editPaymentRow(pk, data) {
+    return API.patch('/payments/' + pk + '/proposal/', data).then(function (payment) {
+      replacePay(payment);
+      setToast('حُفظ تعديل السطر ' + payment.id + '.');
+      return payment;
+    }, function (error) {
+      if (error.status === 409 && me) loadAll(me).catch(function () { /* next refresh retries */ });
+      throw error;
     });
   }
   function deletePaymentBatch(batch) {
@@ -334,7 +337,7 @@ function App() {
   else if (role === 'users' && allowed.indexOf('users') !== -1) body = h(UsersPage, { suppliers: supplierData, users: users, me: user, onSave: saveUser, onToggle: toggleUser, onDelete: removeUser, onReset: resetUser, onToast: setToast });
   else if (role === 'suppliers' && allowed.indexOf('suppliers') !== -1) body = h(SuppliersPage, { suppliers: supplierData, canEdit: true, canDelete: user.role === 'admin', onSave: saveSupplier, onDelete: removeSupplier, onImport: importSuppliers, onToast: setToast });
   else if (role === 'notices' && allowed.indexOf('notices') !== -1) body = h(NoticesPage, { notices: notices, suppliers: noticeSuppliers, canIssue: true, onCreate: createNotice, onUpdate: updateNotice, onDelete: user.role === 'admin' ? removeNotice : undefined, onToast: setToast });
-  else if (role === 'payments' && allowed.indexOf('payments') !== -1) body = h(PaymentPage, { lookups: lookups, payments: payments, onSave: savePayment, onAdvance: advancePayment, onReject: rejectPayment, suppliers: paySuppliers, canBatch: user.role === 'services' || user.role === 'admin', canAdd: true, onBatch: createPaymentBatch, onEditBatch: editPaymentBatch, onDeleteBatch: deletePaymentBatch, isAdmin: user.role === 'admin', onBulk: bulkPayments, onDelete: user.role === 'admin' ? removePayment : undefined, onToast: setToast });
+  else if (role === 'payments' && allowed.indexOf('payments') !== -1) body = h(PaymentPage, { lookups: lookups, payments: payments, onSave: savePayment, onAdvance: advancePayment, onReject: rejectPayment, suppliers: paySuppliers, canBatch: user.role === 'services' || user.role === 'admin', canAdd: true, onBatch: createPaymentBatch, onEditRow: editPaymentRow, onDeleteBatch: deletePaymentBatch, isAdmin: user.role === 'admin', onBulk: bulkPayments, onDelete: user.role === 'admin' ? removePayment : undefined, onToast: setToast });
   else if (role === 'reports' && allowed.indexOf('reports') !== -1) body = h(SmartReportsPage, { payments: payments, onToast: setToast });
   else if (role === 'settings' && allowed.indexOf('settings') !== -1) body = h(SettingsPage, { lookups: lookups, onAdd: addLookup, onUpdate: updateLookup, onRemove: removeLookup, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });

@@ -144,10 +144,13 @@ function DataTable(props) {
         }))),
         tbody(null, shown.length ? shown.map(function (r) {
           const open = function () { if (props.onOpen) props.onOpen(r.id); };
-          return tr(Object.assign({ key: r.id, className: props.rowClass ? props.rowClass(r) : undefined }, props.onOpen ? { tabIndex: 0, onClick: open, onKeyDown: function (e) {
+          const row = tr(Object.assign({ key: r.id, className: props.rowClass ? props.rowClass(r) : undefined }, props.onOpen ? { tabIndex: 0, onClick: open, onKeyDown: function (e) {
             if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); }
           } } : {}),
             allCols.map(function (c) { return td({ key: c.key, 'data-label': c.label, 'data-col': c.key, className: c.key === 'num' ? 'rownum' : undefined }, c.render(r, open)); }));
+          const detail = props.renderRowDetail ? props.renderRowDetail(r) : null;
+          return detail ? h(React.Fragment, { key: r.id }, row,
+            tr({ className: 'dt-row-detail noprint' }, td({ colSpan: allCols.length }, detail))) : row;
         }) : tr(null, td({ colSpan: allCols.length, className: 'empty' }, props.empty || 'لا توجد نتائج مطابقة للتصفية'))))),
     div({ className: 'pager' },
       span({ className: 'muted small' }, rows.length ? 'عرض ' + firstN + '–' + lastN + ' من ' + rows.length + (rows.length !== props.rows.length ? ' (من أصل ' + props.rows.length + ')' : '') : '0 نتيجة'),

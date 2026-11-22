@@ -1913,6 +1913,27 @@ tbody tr:hover td { background: #F4FAF9; }
   border: 1px solid var(--pay-priority-border); background: var(--pay-priority-bg);
   color: var(--pay-priority-ink); font-size: .72rem; font-weight: 700; white-space: nowrap;
 }
+.pay-doc-list { container-type: inline-size; }
+.payspage .dtbox .dt tbody .dt-row-detail > td {
+  padding: 0; min-width: 0; background: var(--surface); white-space: normal;
+}
+.pay-row-editor {
+  position: sticky; inset-inline-start: 0; max-width: 100cqi;
+  padding: 14px clamp(12px, 2vw, 20px); background: var(--surface-2);
+  border-block: 1px solid var(--accent-border); scroll-margin-block-start: 18px;
+}
+.pay-row-editor h3 { margin: 0 0 6px; font-size: 1rem; }
+.pay-row-editor > p, .pay-row-editor > .field { margin-block-end: 12px; }
+.pay-row-editor .uform { margin: 0; padding: 0; min-inline-size: 0; border: 0; }
+.pay-row-editor .formactions { margin-block-start: 8px; }
+@media screen and (max-width: 860px) {
+  .pay-row-editor { scroll-margin-block-start: 125px; }
+}
+@media screen and (max-width: 760px) {
+  .payspage .dtbox .dt tbody .dt-row-detail { display: block; padding: 0; }
+  .payspage .dtbox .dt tbody .dt-row-detail > td { display: block; }
+  .pay-row-editor { position: static; max-width: 100%; padding: 12px; }
+}
 .shsheet .shstat .pay-priority-pill { margin-block-end: 4px; }
 @media screen {
   .payspage .pay-doc-list .dtbox .dt tbody tr:is(.pay-priority-urgent, .pay-priority-medium, .pay-priority-normal) > td,
