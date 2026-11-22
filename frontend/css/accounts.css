@@ -11,25 +11,24 @@
 }
 .loginbrand {
   display: flex; flex-direction: column; justify-content: center; gap: 32px;
-  min-width: 0; padding: clamp(24px, 5vw, 56px); color: var(--accent-deep);
+  min-width: 0; padding: clamp(24px, 5vw, 56px); color: var(--accent-ink);
   background:
-    radial-gradient(ellipse at 100% 0%, #cceaff, transparent 68%),
-    repeating-linear-gradient(90deg, #ffffff75 0 1px, transparent 1px 36px),
-    repeating-linear-gradient(0deg, #ffffff75 0 1px, transparent 1px 36px), var(--accent-soft);
+    repeating-linear-gradient(90deg, #ffffff0b 0 1px, transparent 1px 36px),
+    repeating-linear-gradient(0deg, #ffffff0b 0 1px, transparent 1px 36px),
+    var(--accent);
 }
-.loginbrand .brand svg { color: var(--accent); }
+.loginbrand .brand svg { color: var(--accent-fill); }
 .loginbrand h2 { margin: 0; color: inherit; font-size: clamp(1.5rem, 3.3vw, 2.45rem); line-height: 1.28; }
-.loginbrand p { margin: 10px 0 0; color: var(--ink-2); font-size: .93rem; }
+.loginbrand p { margin: 10px 0 0; color: var(--accent-soft); font-size: .93rem; }
 .loginservices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
 .loginservices li {
   display: grid; align-content: start; gap: 9px; padding: 12px;
-  border: 1px solid var(--accent-border); border-radius: 13px; background: #ffffff80; font-size: .85rem;
+  border: 1px solid #ffffff40; border-radius: 13px; background: #ffffff15; font-size: .85rem;
 }
 .loginservice-icon {
   display: grid; width: 46px; height: 46px; place-items: center;
-  border-radius: 10px; background: var(--accent-hover); color: var(--accent-deep);
+  border-radius: 10px; background: #ffffff22; color: var(--accent-fill);
 }
-.loginservices li:nth-child(2) .loginservice-icon { background: #e0f2fc; color: #145980; }
 .loginservice-icon .ic { color: inherit; }
 .logincard { display: grid; align-content: center; min-width: 0; padding: clamp(24px, 5vw, 54px); color: var(--ink); }
 .logincard h1 { margin: 0; font-size: clamp(1.4rem, 2.7vw, 1.85rem); }
