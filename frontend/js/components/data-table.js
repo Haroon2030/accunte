@@ -128,22 +128,24 @@ function DataTable(props) {
         label({ className: 'dtdate-f' }, 'من', input({ type: 'date', className: 'thf' + (dFrom ? '' : ' empty'), 'aria-label': df.label + ' من', value: dFrom, max: dTo || undefined, onChange: function (e) { setDFrom(e.target.value); setPage(1); } })),
         label({ className: 'dtdate-f' }, 'إلى', input({ type: 'date', className: 'thf' + (dTo ? '' : ' empty'), 'aria-label': df.label + ' إلى', value: dTo, min: dFrom || undefined, onChange: function (e) { setDTo(e.target.value); setPage(1); } })),
         dFrom || dTo ? button({ type: 'button', className: 'btn ghost sm', onClick: function () { setDFrom(''); setDTo(''); setPage(1); } }, 'مسح التاريخ') : null) : null,
-      button({ type: 'button', className: 'btn ghost sm dtxl', disabled: !rows.length, title: 'تصدير الصفوف الظاهرة بعد التصفية والبحث إلى Excel',
+      props.hideExport ? null : button({ type: 'button', className: 'btn ghost sm dtxl', disabled: !rows.length, title: 'تصدير الصفوف الظاهرة بعد التصفية والبحث إلى Excel',
         onClick: function () { const d = new Date(); exportTableXlsx((props.exportName || 'بيانات') + '-' + xlDate(d) + '.xlsx', cols, rows).catch(function () { if (props.onToast) props.onToast('تعذّر تصدير الملف. تأكد من الاتصال بالإنترنت وأعد المحاولة.'); }); } },
         h(Icon, { name: 'download', size: 15 }), 'تصدير Excel')),
     phoneTools,
-    div({ className: 'tablewrap' },
+    div({ className: 'tablewrap', tabIndex: 0, role: 'region', 'aria-label': props.label || props.exportName || 'جدول البيانات' },
       table({ className: 'dt' },
         thead(null, tr(null, allCols.map(function (c) {
           const on = sort && sort.key === c.key;
-          return th({ key: c.key, scope: 'col', 'aria-sort': c.val ? (on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined },
+          return th({ key: c.key, scope: 'col', 'data-col': c.key, 'aria-sort': c.val ? (on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined },
             div({ className: 'thcell' },
               c.val ? button({ type: 'button', className: 'thbtn', onClick: function () { toggle(c); } }, c.label, h(Icon, { name: on ? (sort.dir === 'asc' ? 'up' : 'down') : 'sort', size: 14 })) : span({ className: 'thlabel' }, c.label),
               anyFilter ? div({ className: 'thslot' }, filterCell(c)) : null));
         }))),
         tbody(null, shown.length ? shown.map(function (r) {
           const open = function () { if (props.onOpen) props.onOpen(r.id); };
-          return tr(Object.assign({ key: r.id, className: props.rowClass ? props.rowClass(r) : undefined }, props.onOpen ? { tabIndex: 0, onClick: open, onKeyDown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } } : {}),
+          return tr(Object.assign({ key: r.id, className: props.rowClass ? props.rowClass(r) : undefined }, props.onOpen ? { tabIndex: 0, onClick: open, onKeyDown: function (e) {
+            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); }
+          } } : {}),
             allCols.map(function (c) { return td({ key: c.key, 'data-label': c.label, 'data-col': c.key, className: c.key === 'num' ? 'rownum' : undefined }, c.render(r, open)); }));
         }) : tr(null, td({ colSpan: allCols.length, className: 'empty' }, props.empty || 'لا توجد نتائج مطابقة للتصفية'))))),
     div({ className: 'pager' },
@@ -164,7 +166,7 @@ function colsFor(defs, hide) { return defs.filter(function (c) { return !hide ||
 function openCol(onDelete, canDelete) {
   return { key: 'open', label: 'إجراء', render: function (r, open) {
     /* the labels are hidden in the tables (icons with a title), so the action column stays narrow */
-    const openBtn = button({ type: 'button', className: 'btn ghost sm', title: 'فتح', 'aria-label': 'فتح ' + r.id, onClick: function (e) { e.stopPropagation(); open(); } }, span({ className: 'abl' }, 'فتح'), h(Icon, { name: 'chevL', size: 14 }));
+    const openBtn = button({ type: 'button', className: 'btn ghost sm preview-btn', title: 'استعراض', 'aria-label': 'استعراض ' + r.id, onClick: function (e) { e.stopPropagation(); open(); } }, span({ className: 'abl' }, 'استعراض'), h(Icon, { name: 'eye', size: 16 }));
     if (!onDelete || (canDelete && !canDelete(r))) return openBtn;
     return div({ className: 'rowacts' }, openBtn,
       button({ type: 'button', className: 'abtn stop', title: 'حذف', 'aria-label': 'حذف ' + r.id, onClick: function (e) {
@@ -187,7 +189,7 @@ function ComplaintTable(props) {
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (c) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(c), h(Badge, { n: unreadOf(c, role, props.seen) })); } },
     openCol(props.onDelete, props.canDelete)
   ];
-  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, dateFilter: { label: 'تاريخ الشكوى', get: function (c) { return c.created; } }, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (c) { return rowTone(unreadOf(c, role, props.seen), props.fresh, c); } });
+  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, pageSize: props.pageSize, dateFilter: { label: 'تاريخ الشكوى', get: function (c) { return c.created; } }, onOpen: props.onOpen, defaultSort: props.defaultSort, hideExport: props.hideExport, rowClass: function (c) { return rowTone(unreadOf(c, role, props.seen), props.fresh, c); } });
 }
 
 function RequestTable(props) {
@@ -205,7 +207,7 @@ function RequestTable(props) {
     { key: 'msgs', label: 'المراسلات', val: chatCount, render: function (r) { return span({ className: 'msgcount' }, h(Icon, { name: 'chat', size: 15 }), chatCount(r), h(Badge, { n: unreadOf(r, role, props.seen) })); } },
     openCol(props.onDelete, props.canDelete)
   ];
-  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, dateFilter: { label: 'تاريخ الطلب', get: function (r) { return r.created; } }, onOpen: props.onOpen, defaultSort: props.defaultSort, rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
+  return h(DataTable, { cols: colsFor(defs, props.hide), rows: props.rows, pageSize: props.pageSize, label: props.label, dateFilter: { label: 'تاريخ الطلب', get: function (r) { return r.created; } }, onOpen: props.onOpen, defaultSort: props.defaultSort, hideExport: props.hideExport, rowClass: function (r) { return rowTone(unreadOf(r, role, props.seen), props.fresh, r); } });
 }
 
 /* one service = header with its main action + the table (filters live in the table header) */

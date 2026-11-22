@@ -11,7 +11,12 @@ function UsersPage(props) {
   const users = props.users;
   const canManage = function (x) { return me.role === 'admin' || x.role !== 'admin'; };
   const roleOpts = me.role === 'admin' ? ['supplier', 'matcher', 'supervisor', 'manager', 'services', 'purchasing', 'auditor', 'treasury', 'admin'] : ['supplier', 'matcher', 'supervisor', 'manager', 'services', 'purchasing', 'auditor', 'treasury'];
-  const count = function (f) { return users.filter(f).length; };
+  const activeCount = users.filter(function (user) { return user.active; }).length;
+  const accountStats = [
+    { key: 'total', label: 'إجمالي الحسابات', value: users.length, icon: 'user' },
+    { key: 'active', label: 'الحسابات النشطة', value: activeCount, icon: 'check' },
+    { key: 'paused', label: 'الحسابات الموقوفة', value: users.length - activeCount, icon: 'ban' }
+  ];
   const setF = function (k, v) { setFormV(function (o) { const n = Object.assign({}, o); n[k] = v; return n; }); };
   function openNew() { setTemp(null); setConfirm(null); setErrs({}); const f = Object.assign({}, EMPTY_FORM, { password: genPass() }); baseRef.current = JSON.stringify(f); setFormV(f); }
   function openEdit(x) { setTemp(null); setConfirm(null); setErrs({}); const f = { id: x.id, name: x.name, username: x.username, role: x.role, supplierId: x.supplierId ? String(x.supplierId) : '', org: x.org, taxNo: x.taxNo || '', code: x.code || '', password: '', mustChange: false, active: x.active, pages: (x.pages || ROLE_PAGES[x.role] || []).slice() }; baseRef.current = JSON.stringify(f); setFormV(f); }
@@ -125,10 +130,13 @@ function UsersPage(props) {
     div({ className: 'svchead' },
       div(null, h2(null, 'إدارة المستخدمين'), p({ className: 'muted small' }, 'إضافة الحسابات وتعديلها وإيقافها وإعادة تعيين كلمات المرور، وتحديد دور كل مستخدم.')),
       button({ className: 'btn primary', onClick: openNew }, h(Icon, { name: 'plus' }), 'مستخدم جديد')),
-    div({ className: 'ustats' },
-      [['الإجمالي', users.length], ['النشطون', count(function (x) { return x.active; })], ['الموقوفون', count(function (x) { return !x.active; })],
-        ['الموردون', count(function (x) { return x.role === 'supplier'; })], ['المطابقون', count(function (x) { return x.role === 'matcher'; })], ['سلسلة السداد', count(function (x) { return ['services', 'purchasing', 'auditor', 'treasury'].indexOf(x.role) !== -1; })], ['الإدارة', count(function (x) { return x.role === 'manager' || x.role === 'admin'; })]]
-        .map(function (s) { return div({ key: s[0], className: 'ustat' }, h('b', null, s[1]), span(null, s[0])); })),
+    ul({ className: 'account-stats', 'aria-label': 'ملخص حسابات المستخدمين' },
+      accountStats.map(function (stat) {
+        return li({ key: stat.key, className: 'account-stat is-' + stat.key },
+          span({ className: 'account-stat-icon' }, h(Icon, { name: stat.icon, size: 20 })),
+          span({ className: 'account-stat-label' }, stat.label),
+          strong({ className: 'account-stat-value' }, stat.value));
+      })),
     temp ? div({ className: 'tempbox', role: 'status' },
       span(null, 'كلمة المرور المؤقتة لـ ', strong(null, temp.name), ' (', span({ className: 'mono' }, temp.username), '):'),
       span({ className: 'mono' }, temp.pw),

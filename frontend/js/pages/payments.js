@@ -3,7 +3,7 @@
 /* ---------- السداد: four-level approval of the settlement that follows a finished reconciliation ----------
    1 supplier services proposes the payment  ->  2 purchasing manager approves (may propose another amount)
    ->  3 auditor approves or rejects (a rejection returns it to level 1)  ->  4 transfer officer gives the final approval and pays.
-   A payment appears by itself once the reconciliation file was sent to the supplier. */
+   Payment orders are added manually through the multi-supplier form; completing a reconciliation does not create one. */
 const PAY_STEPS = [
   { who: 'خدمات الموردين', title: 'اقتراح الدفعة', desc: 'تقترح خدمات الموردين المبلغ وطريقة السداد وترفعه للاعتماد.', doneDesc: 'رُفع الاقتراح إلى مدير المشتريات.', pill: 'عند خدمات الموردين', act: 'رفع الاقتراح لمدير المشتريات' },
   { who: 'مدير المشتريات', title: 'اعتماد مدير المشتريات', desc: 'يعتمد الدفعة أو يقترح مبلغاً مختلفاً ثم يحيلها للمدقق.', doneDesc: 'اعتمدها مدير المشتريات.', pill: 'عند مدير المشتريات', act: 'اعتماد وإحالة للمدقق' },
@@ -118,11 +118,14 @@ function PaymentPage(props) {
 
   return section({ className: 'svcpanel userspage payspage' },
     div({ className: 'svchead' },
-      div(null, h2(null, 'السداد'), p({ className: 'muted small' }, 'أوامر السداد التي تُضاف من «إضافة سداد متعدد»، وتمر بأربعة مستويات: خدمات الموردين، مدير المشتريات، المدقق، مسؤول التحويل.')),
+      div(null, h2(null, 'السداد')),
       div({ className: 'payhead-acts' }, batchIds.length ? select({ className: 'batchpick', 'aria-label': 'فتح ورقة دفعة', value: sheet, onChange: function (e) { setSel(null); setBatchOpen(false); setEditDoc(''); setSheet(e.target.value); } }, option({ value: '' }, 'ورقة دفعة…'), batchIds.map(function (b) { return option({ key: b, value: b }, b + ' (' + batches[b] + ')'); })) : null,
         span({ className: 'paycount' }, docs.length === 1 ? 'وثيقة واحدة' : docs.length + ' وثائق'),
-        canAdd ? button({ type: 'button', className: 'btn primary', onClick: function () { setSel(null); setSheet(''); setEditDoc(''); setBatchOpen(true); } }, h(Icon, { name: 'plus' }), 'إضافة سداد متعدد') : null)),
-    mine ? div({ className: 'alertbar', role: 'status' }, h(Icon, { name: 'alert' }), span(null, mine === 1 ? 'عندك أمر سداد واحد بانتظار إجرائك.' : 'عندك ' + mine + ' أوامر سداد بانتظار إجرائك.')) : null,
+        canAdd ? button({ type: 'button', className: 'btn primary', onClick: function () {
+          setSel(null); setSheet(''); setEditDoc(''); setBatchOpen(true);
+          setTimeout(function () { const el = document.querySelector('.pbform'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 80);
+        } }, h(Icon, { name: 'plus' }), 'إضافة سداد متعدد') : null)),
+    mine ? div({ className: 'alertbar pay-action-alert', role: 'status' }, h(Icon, { name: 'alert' }), span(null, mine === 1 ? 'عندك أمر سداد واحد بانتظار إجرائك.' : 'عندك ' + mine + ' أوامر سداد بانتظار إجرائك.')) : null,
     div({ className: 'paystats' },
       div({ className: 'paysteps', role: 'group', 'aria-label': 'الأوامر حسب المستوى' },
         PAY_STEPS.map(function (st, k) { return [st.who, n(k + 1)]; }).concat([[PAY_PAID, n(5)]]).map(function (x) {
@@ -172,6 +175,7 @@ function PaymentPage(props) {
         cur.status === 3 ? button({ type: 'button', className: 'btn ghost', disabled: busy, style: { color: 'var(--bad)' }, onClick: reject }, 'رفض وإعادة لخدمات الموردين') : null,
         button({ type: 'submit', className: 'btn ghost', disabled: busy }, 'حفظ دون إحالة'),
         button({ type: 'button', className: 'btn ghost', onClick: function () { setSel(null); } }, 'إلغاء')) : null) : null,
-    h(DataTable, { cols: cols, rows: docs, dateFilter: { label: 'تاريخ الإدخال', get: function (d) { return d.created; } }, exportName: 'وثائق-السداد', inlineHead: true, onToast: props.onToast, onOpen: open, defaultSort: { key: 'created', dir: 'desc' }, rowClass: function (d) { return d.mine ? 'unread' : undefined; },
-      empty: 'لا توجد وثائق سداد بعد. أضف أول وثيقة من زر «إضافة سداد متعدد».' }));
+    div({ className: 'pay-doc-list', style: { display: batchOpen ? 'none' : undefined } },
+      h(DataTable, { cols: cols, rows: docs, dateFilter: { label: 'تاريخ الإدخال', get: function (d) { return d.created; } }, exportName: 'وثائق-السداد', inlineHead: true, onToast: props.onToast, onOpen: open, defaultSort: { key: 'created', dir: 'desc' }, rowClass: function (d) { return d.mine ? 'unread' : undefined; },
+        empty: 'لا توجد وثائق سداد بعد. أضف أول وثيقة من زر «إضافة سداد متعدد».' })));
 }

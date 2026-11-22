@@ -299,7 +299,7 @@ function RcSheet(props) {
         option({ value: '' }, 'كل الحالات (' + props.items.length + ')'),
         Object.keys(RC_STATUS).map(function (k) { const n = props.items.filter(function (i) { return i.status === k; }).length; return n ? option({ key: k, value: k }, RC_STATUS[k].label + ' (' + n + ')') : null; })),
       span({ className: 'muted small' }, list.length + ' صف')),
-    div({ className: 'rc-grid' }, table(null,
+    div({ className: 'rc-grid', tabIndex: 0, role: 'region', 'aria-label': 'تفاصيل بنود المطابقة' }, table(null,
       thead(null, tr(null, HEAD.map(function (t, i) { return th({ key: i, scope: 'col', className: i >= 7 && i <= 10 ? 'n' : (i === 0 ? 'rn' : '') }, t); }))),
       tbody(null, shown.length ? shown.map(function (r, i) {
         return tr({ key: r.id, className: 's-' + r.status },

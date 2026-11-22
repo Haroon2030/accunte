@@ -53,23 +53,30 @@ function Login(props) {
     API.post('/auth/change-password', { password: np }).then(function (d) { setBusy(false); props.onLogin(d.user); })
       .catch(function (ex) { setBusy(false); setErr(ex.message); });
   }
-  return div({ className: 'loginwrap' },
-    div({ className: 'logincard' },
-      h(Brand),
+  return main({ className: 'loginwrap' },
+    div({ className: 'loginshell' },
+      section({ className: 'loginbrand', 'aria-label': 'مطابقة الموردين والسداد' },
+        h(Brand),
+        div({ className: 'loginbrand-copy' }, h2(null, 'من المطابقة إلى السداد'),
+          p(null, 'طابق كشوف الموردين وتابع اعتماد دفعاتهم في مكان واحد.')),
+        ul({ className: 'loginservices' },
+          li(null, span({ className: 'loginservice-icon' }, h(Icon, { name: 'reconcile', size: 27 })), strong(null, 'مطابقة الكشوف')),
+          li(null, span({ className: 'loginservice-icon' }, h(Icon, { name: 'wallet', size: 27 })), strong(null, 'سداد الموردين')))),
+      section({ className: 'logincard', 'aria-labelledby': 'login-title' },
       pending
         ? form({ onSubmit: change, noValidate: true },
-          h1(null, 'تعيين كلمة مرور جديدة'),
+          h1({ id: 'login-title' }, 'تعيين كلمة مرور جديدة'),
           p({ className: 'sub' }, 'هذه أول مرة تدخل فيها بكلمة مرور مؤقتة، اختر كلمة مرور خاصة بك للمتابعة.'),
           err ? div({ className: 'loginerr', role: 'alert' }, err) : null,
           div({ className: 'field' }, label({ htmlFor: 'np' }, 'كلمة المرور الجديدة'), h(PwInput, { id: 'np', name: 'new-password', value: np, onChange: setNp, autoComplete: 'new-password' }), span({ className: 'hint' }, '4 خانات على الأقل، تكفي الأرقام.')),
           div({ className: 'field' }, label({ htmlFor: 'np2' }, 'تأكيد كلمة المرور'), h(PwInput, { id: 'np2', name: 'confirm-password', value: np2, onChange: setNp2, autoComplete: 'new-password' })),
-          button({ type: 'submit', className: 'btn primary', style: { width: '100%' } }, 'حفظ والدخول'))
+          button({ type: 'submit', className: 'btn primary login-submit', disabled: busy }, busy ? 'جارٍ الحفظ…' : 'حفظ والدخول'))
         : form({ onSubmit: submit, noValidate: true },
-          h1(null, 'تسجيل الدخول'),
+          h1({ id: 'login-title' }, 'تسجيل الدخول'),
           p({ className: 'sub' }, 'أدخل بيانات حسابك للوصول إلى النظام'),
           err ? div({ className: 'loginerr', role: 'alert' }, err, left > 0 ? ' (' + left + ' ث)' : '') : null,
           div({ className: 'field' }, label({ htmlFor: 'lg-u' }, 'رقم المستخدم'),
             input({ id: 'lg-u', name: 'username', type: 'text', inputMode: 'numeric', className: 'ltr', autoComplete: 'username', autoCapitalize: 'none', spellCheck: false, value: u, onChange: function (e) { setU(e.target.value); } })),
           div({ className: 'field' }, label({ htmlFor: 'lg-p' }, 'كلمة المرور'), h(PwInput, { id: 'lg-p', value: pw, onChange: setPw, autoComplete: 'current-password' })),
-          button({ type: 'submit', className: 'btn primary', style: { width: '100%' }, disabled: left > 0 || busy }, 'دخول'))));
+          button({ type: 'submit', className: 'btn primary login-submit', disabled: left > 0 || busy }, busy ? 'جارٍ تسجيل الدخول…' : 'دخول')))));
 }

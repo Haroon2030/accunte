@@ -7,8 +7,14 @@ function MatcherHome(props) {
     .sort(function (a, b) { return b.created - a.created; });
   const unr = unreadSum(rows.filter(function (r) { return r.matcher === props.meName; }), 'matcher', props.seen);
   const late = rows.filter(isLate).length;
-  return div({ className: 'stack' },
-    div({ className: 'sechead' }, h2(null, 'طابور المطابقة'), span({ className: 'muted small' }, rows.length + ' طلب مفتوح' + (late ? ' · ' + late + ' متأخر' : ''))),
+  return section({ className: 'stack matcher-queue', 'aria-labelledby': 'matcher-queue-title' },
+    header({ className: 'matcher-queue-head' },
+      div({ className: 'matcher-queue-title' },
+        span({ className: 'matcher-queue-icon' }, h(Icon, { name: 'reconcile', size: 22 })),
+        h2({ id: 'matcher-queue-title' }, 'طابور المطابقة')),
+      div({ className: 'matcher-queue-counts' },
+        span({ className: 'matcher-queue-count' }, h(Icon, { name: 'file', size: 15 }), 'الطلبات المفتوحة', strong(null, rows.length)),
+        span({ className: 'matcher-queue-count' + (late ? ' has-late' : '') }, h(Icon, { name: 'alert', size: 15 }), 'المتأخرة', strong(null, late)))),
     h(AlertBar, { n: unr, text: newMsgText(unr, 'الموردين') }),
-    h(RequestTable, { rows: rows, role: 'matcher', seen: props.seen, fresh: props.fresh, onOpen: props.onOpen, onDelete: props.onDelete }));
+    h(RequestTable, { rows: rows, role: 'matcher', seen: props.seen, fresh: props.fresh, onOpen: props.onOpen, onDelete: props.onDelete, label: 'طلبات طابور المطابقة' }));
 }

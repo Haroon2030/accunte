@@ -29,6 +29,7 @@ function PaymentSheet(props) {
   const [rejecting, setRejecting] = useState({});   // pk -> reason text while the auditor is writing it
   const [errs, setErrs] = useState({});        // pk -> message
   const [busy, setBusy] = useState({});        // pk -> true while a request is on its way
+  const [exportBusy, setExportBusy] = useState(false);
   const val = function (x, k, fallback) { const e = edit[x.pk]; return e && e[k] != null ? e[k] : (fallback == null ? '' : String(fallback)); };
   const flag = function (setter, x, v) { setter(function (o) { const n = Object.assign({}, o); if (v == null) delete n[x.pk]; else n[x.pk] = v; return n; }); };
   const setVal = function (x, k, v) {
@@ -81,6 +82,62 @@ function PaymentSheet(props) {
 
   const sum = function (f) { return rows.reduce(function (a, x) { const v = f(x); return a + (v == null ? 0 : v); }, 0); };
   const lvSum = function (k) { return sum(function (x) { const e = sheetCols(x)[k]; return e && e.amount != null && e.action !== 'reject' ? +e.amount : 0; }); };
+  function exportBatch() {
+    setExportBusy(true);
+    rcLoad('xlsx').then(function () {
+      const headers = ['رقم الدفعة', 'رمز المورد', 'اسم المورد', 'الفرع', 'مركز التكلفة', 'البنك الرئيسي', 'الحساب التحليلي', 'الرصيد الحالي', 'رصيد المخزون', 'طريقة الدفع', 'تاريخ الاستحقاق', 'حالة السداد'];
+      SHEET_LEVELS.forEach(function (l) { headers.push('نتيجة ' + l.head, 'مبلغ ' + l.head, 'الموظف', 'التاريخ', 'ملاحظة'); });
+      const numeric = function (v) {
+        if (v == null || String(v).trim() === '') return '';
+        const n = Number(String(v).replace(/,/g, '').trim());
+        return isFinite(n) ? n : String(v);
+      };
+      const body = rows.map(function (x) {
+        const approvals = sheetCols(x), out = [props.batch, x.supplierCode || '', x.supplier || '', x.branch || '', x.costCenter || '', x.bank || '', x.bankSub || '', numeric(val(x, 'balance', x.balance)), numeric(val(x, 'stock', x.stockBalance)), x.method || '', x.dueDate || '', payLabel(x)];
+        SHEET_LEVELS.forEach(function (l, k) {
+          const e = approvals[k];
+          out.push(e ? (PAY_ACTION[e.action] || e.action) : (x.status === k + 1 ? 'بانتظار الإجراء' : '—'));
+          out.push(e && e.amount != null ? +e.amount : (x.status === k + 1 ? numeric(val(x, 'amount', x.amount)) : ''));
+          out.push(e ? e.by || '' : '');
+          out.push(e && e.at ? fmtDT(new Date(e.at)) : '');
+          out.push(e ? e.note || '' : '');
+        });
+        return out;
+      });
+      const aoa = [headers].concat(body), ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = headers.map(function (_, ci) {
+        const longest = aoa.reduce(function (n, row) { return Math.max(n, String(row[ci] == null ? '' : row[ci]).length); }, 0);
+        return { wch: Math.min(Math.max(longest + 2, 12), 34) };
+      });
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: headers.length - 1 } }) };
+      headers.forEach(function (head, ci) {
+        if (head.indexOf('مبلغ ') !== 0 && ['الرصيد الحالي', 'رصيد المخزون'].indexOf(head) === -1) return;
+        for (let ri = 1; ri < aoa.length; ri++) {
+          const cell = XLSX.utils.encode_cell({ r: ri, c: ci });
+          if (ws[cell] && typeof ws[cell].v === 'number') ws[cell].z = '#,##0.00';
+        }
+      });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'الدفعة');
+      wb.Workbook = { Sheets: [{ RTL: true }], Views: [{ RTL: true }] };
+      const safeBatch = String(props.batch).replace(/[<>:"/\\|?*]/g, '-');
+      XLSX.writeFile(wb, 'دفعة-' + safeBatch + '.xlsx');
+      setExportBusy(false);
+    }).catch(function (ex) {
+      setExportBusy(false);
+      props.onToast(ex && ex.message ? ex.message : 'تعذّر تصدير الدفعة إلى Excel.');
+    });
+  }
+  function printBatch() {
+    try {
+      const body = document.body;
+      const cleanup = function () { body.classList.remove('printing-batch'); window.removeEventListener('afterprint', cleanup); };
+      body.classList.add('printing-batch');
+      window.addEventListener('afterprint', cleanup, { once: true });
+      window.print();
+      setTimeout(cleanup, 1500);
+    } catch (e) { document.body.classList.remove('printing-batch'); props.onToast('تعذّرت الطباعة في هذا المتصفح.'); }
+  }
   /* the two balances: typed in the row while supplier services holds it, read-only otherwise */
   const numCell = function (x, key, k, label) {
     if (x.status === 1 && x.canAct) return td({ key: key, 'data-label': label, className: 'num' }, input({ type: 'text', inputMode: 'decimal', className: 'ltr shin', autoComplete: 'off', 'aria-label': label + ': ' + x.supplier, value: val(x, k, x[key]), onChange: function (ev) { setVal(x, k, ev.target.value); } }));
@@ -98,6 +155,9 @@ function PaymentSheet(props) {
     dl({ className: 'shmeta', 'aria-label': 'البيانات الأساسية للدفعة' }, baseData.map(function (d) {
       return div({ key: d.key, className: 'shmeta-c' }, dt(null, d.label), dd({ title: d.title || undefined }, d.text || span({ className: 'muted' }, '—')));
     })),
+    div({ className: 'sh-actions noprint' },
+      button({ type: 'button', className: 'btn ghost sm', onClick: printBatch }, h(Icon, { name: 'print', size: 15 }), 'طباعة'),
+      button({ type: 'button', className: 'btn ghost sm', disabled: exportBusy, onClick: exportBatch }, h(Icon, { name: 'download', size: 15 }), exportBusy ? 'جارٍ تجهيز Excel…' : 'تصدير Excel')),
     div({ className: 'tablewrap pbwrap' }, table({ className: 'dt pbtable shtable' },
       thead(null, tr(null, ['رقم المورد', 'المورد', 'الرصيد', 'المخزون', 'طريقة الدفع'].map(function (t, i) { return th({ key: 'h' + i, scope: 'col' }, t); })
         .concat(SHEET_LEVELS.map(function (l, k) { return th({ key: l.role, scope: 'col', className: 'shlv' }, span({ className: 'shn' }, k + 1), l.head); }))
@@ -114,12 +174,12 @@ function PaymentSheet(props) {
           td({ 'data-label': 'الحالة', className: 'shstat' }, span({ className: 'pill ' + payTone(x) }, span({ className: 'dot' }), payLabel(x)), x.rejected ? span({ className: 'chip-late' }, 'أعادها المدقق') : null,
             x.dueDate ? span({ className: 'shmeth' }, 'استحقاق ' + payDate(x.dueDate)) : null));
       })),
-      h('tfoot', null, tr(null, td({ colSpan: 2, className: 'shtot' }, 'الإجمالي'),
-        td({ className: 'num' }, span({ className: 'mono' }, shNum(sum(function (x) { return x.balance; })))),
-        td({ className: 'num' }, span({ className: 'mono' }, shNum(sum(function (x) { return x.stockBalance; })))),
-        td(null, ''),
-        [0, 1, 2, 3].map(function (k) { return td({ key: k, className: 'num' }, k === 2 ? null : span({ className: 'mono' }, shNum(lvSum(k)))); }),
-        td(null, ''))))));
+      h('tfoot', null, tr(null, td({ colSpan: 2, className: 'shtot', 'data-label': 'الإجمالي' }, 'الإجمالي'),
+        td({ className: 'num', 'data-label': 'إجمالي الرصيد' }, span({ className: 'mono' }, shNum(sum(function (x) { return x.balance; })))),
+        td({ className: 'num', 'data-label': 'إجمالي المخزون' }, span({ className: 'mono' }, shNum(sum(function (x) { return x.stockBalance; })))),
+        td({ className: 'sum-blank' }, ''),
+        [0, 1, 2, 3].map(function (k) { return td({ key: k, className: 'num' + (k === 2 ? ' sum-blank' : ''), 'data-label': k === 2 ? undefined : 'إجمالي ' + SHEET_LEVELS[k].head }, k === 2 ? null : span({ className: 'mono' }, shNum(lvSum(k)))); }),
+        td({ className: 'sum-blank' }, ''))))));
 }
 
 /* ---------- editing a document: its basic data, applied to every order of the batch ---------- */

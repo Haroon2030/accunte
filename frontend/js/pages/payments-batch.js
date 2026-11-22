@@ -188,7 +188,6 @@ function PaymentBatchForm(props) {
   return form({ className: 'uformwrap pbform', onSubmit: submit, noValidate: true },
     div({ className: 'uformhead' }, h3(null, 'إضافة سداد متعدد'),
       button({ type: 'button', className: 'uformclose', 'aria-label': 'إغلاق', onClick: props.onClose }, h(Icon, { name: 'close', size: 18 }))),
-    p({ className: 'muted small' }, 'أضف عدة موردين في ملف واحد، يدوياً أو باستيراد ملف Excel / CSV. تُرفع كل الأسطر معاً برقم دفعة واحد، وتنتقل مباشرة إلى مدير المشتريات للاعتماد.'),
     div({ className: 'uform' },
       PB_DIMS.map(function (d) {
         return div({ className: 'field', key: d[0] }, label({ htmlFor: 'pb-' + d[0] }, d[1] + ' (افتراضي)'),
@@ -210,8 +209,18 @@ function PaymentBatchForm(props) {
       button({ type: 'button', className: 'btn ghost sm', onClick: function () { fileRef.current && fileRef.current.click(); } }, h(Icon, { name: 'upload', size: 15 }), 'استيراد من ملف'),
       button({ type: 'button', className: 'btn ghost sm', onClick: downloadTemplate }, h(Icon, { name: 'download', size: 15 }), 'تنزيل القالب'),
       fileName ? span({ className: 'muted small' }, h(Icon, { name: 'file', size: 14 }), ' ' + fileName) : null),
-    div({ className: 'tablewrap pbwrap' }, table({ className: 'dt pbtable' },
-      thead(null, tr(null, ['#', 'المورد', 'الرصيد الحالي', 'رصيد المخزون', 'اقتراح الدفعة (ر.س)', 'طريقة السداد', 'الاستحقاق', 'ملاحظة', '2 المشتريات', '3 المدقق', '4 الاعتماد النهائي', ''].map(function (t, i) { return th({ key: i, scope: 'col' }, t); }))),
+    div({ className: 'tablewrap pbwrap' },
+      div({ className: 'pbtable-topbar' },
+        button({ type: 'button', className: 'btn sm pb-add-row', onClick: addRow }, h(Icon, { name: 'plus', size: 14 }), 'إضافة سطر'),
+        div({ className: 'pbapproval-route', role: 'note', 'aria-label': 'مسار الاعتماد بعد الرفع' },
+          span({ className: 'pbroute-title' }, 'مسار الاعتماد بعد الرفع'),
+          span({ className: 'pbroute-step' }, span({ className: 'pbroute-num' }, '2'), 'المشتريات'),
+          span({ className: 'pbroute-arrow', 'aria-hidden': 'true' }, '←'),
+          span({ className: 'pbroute-step' }, span({ className: 'pbroute-num' }, '3'), 'المدقق'),
+          span({ className: 'pbroute-arrow', 'aria-hidden': 'true' }, '←'),
+          span({ className: 'pbroute-step' }, span({ className: 'pbroute-num' }, '4'), 'الاعتماد النهائي'))),
+      table({ className: 'dt pbtable' },
+      thead(null, tr(null, ['#', 'المورد', 'الرصيد الحالي', 'رصيد المخزون', 'اقتراح الدفعة (ر.س)', 'طريقة السداد', 'الاستحقاق', 'ملاحظة', ''].map(function (t, i) { return th({ key: i, scope: 'col' }, t); }))),
       tbody(null, rows.map(function (r, i) {
         const s = find(r.text), er = errs[r.key];
         return tr({ key: r.key, className: er ? 'bad' : undefined },
@@ -225,12 +234,8 @@ function PaymentBatchForm(props) {
           td({ 'data-label': 'طريقة السداد' }, select({ 'aria-label': 'طريقة السداد في السطر ' + (i + 1), value: r.method, onChange: function (e) { setRow(r.key, 'method', e.target.value); } }, option({ value: '' }, 'الافتراضية'), names('method').map(function (m) { return option({ key: m, value: m }, m); }))),
           td({ 'data-label': 'الاستحقاق' }, input({ type: 'date', className: r.dueDate ? '' : 'empty', 'aria-label': 'الاستحقاق في السطر ' + (i + 1), value: r.dueDate, onChange: function (e) { setRow(r.key, 'dueDate', e.target.value); } })),
           td({ 'data-label': 'ملاحظة' }, input({ type: 'text', autoComplete: 'off', 'aria-label': 'ملاحظة السطر ' + (i + 1), value: r.note, onChange: function (e) { setRow(r.key, 'note', e.target.value); } })),
-          [['المشتريات', 'يعتمد ويقترح'], ['المدقق', 'يقبل أو يرفض'], ['الاعتماد النهائي', 'يعتمد نهائياً']].map(function (c) {
-            return td({ key: c[0], 'data-label': c[0], className: 'pbwait' }, span({ className: 'muted' }, 'بعد الرفع'), span({ className: 'hint' }, c[1]));
-          }),
           td({ 'data-label': '', className: 'pbrm' }, button({ type: 'button', className: 'abtn stop', 'aria-label': 'حذف السطر ' + (i + 1), onClick: function () { removeRow(r.key); } }, h(Icon, { name: 'trash', size: 16 }))));
       })))),
-    button({ type: 'button', className: 'btn ghost sm', onClick: addRow }, h(Icon, { name: 'plus', size: 14 }), 'إضافة سطر'),
     div({ className: 'pbsum', role: 'status' }, span(null, live.length + (live.length === 1 ? ' مورد' : ' موردين')), strong({ className: 'mono' }, payMoney(total))),
     div({ className: 'formactions' },
       button({ type: 'submit', className: 'btn primary', disabled: busy || !live.length }, busy ? 'جارٍ الرفع…' : 'رفع الدفعة وإحالتها لمدير المشتريات'),

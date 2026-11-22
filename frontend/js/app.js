@@ -55,7 +55,8 @@ function App() {
   const fail = function (e) { setToast(e.message); if (e.status === 401) setMe(null); };
 
   function loadAll(u) {
-    const pages = u.pages || ROLE_PAGES[u.role] || [];
+    const pages = (u.pages || ROLE_PAGES[u.role] || []).slice();
+    if ((u.role === 'manager' || u.role === 'admin') && pages.indexOf('payments') === -1) pages.push('payments');
     const has = function () { return [].slice.call(arguments).some(function (p) { return pages.indexOf(p) !== -1; }); };
     const jobs = [];
     if (u.role === 'supplier' || has('matcher', 'manager')) jobs.push(API.get('/requests/').then(function (rs) { setReqs(rs.map(API.request)); }));
@@ -245,7 +246,8 @@ function App() {
   }
   const user = me || null;
   const isFresh = function (rec) { return !!(user && user.role !== 'supplier' && opened && rec.created && rec.created.getTime() > opened.since && !opened.ids[rec.id]); };
-  const allowed = user ? (user.pages || ROLE_PAGES[user.role] || []) : [];
+  const userPages = user ? (user.pages || ROLE_PAGES[user.role] || []) : [];
+  const allowed = user && (user.role === 'manager' || user.role === 'admin') && userPages.indexOf('reports') === -1 ? userPages.concat(['reports']) : userPages;
   /* the dashboard (finance manager's page) is always the first item in the side navigation */
   const navOrder = function (pages) { return pages.slice().sort(function (a, b) { return (b === 'manager') - (a === 'manager'); }); };
   function changeRole(r) { if (allowed.indexOf(r) === -1) return; setRole(r); home(); }
@@ -333,19 +335,33 @@ function App() {
   else if (role === 'suppliers' && allowed.indexOf('suppliers') !== -1) body = h(SuppliersPage, { suppliers: supplierData, canEdit: true, canDelete: user.role === 'admin', onSave: saveSupplier, onDelete: removeSupplier, onImport: importSuppliers, onToast: setToast });
   else if (role === 'notices' && allowed.indexOf('notices') !== -1) body = h(NoticesPage, { notices: notices, suppliers: noticeSuppliers, canIssue: true, onCreate: createNotice, onUpdate: updateNotice, onDelete: user.role === 'admin' ? removeNotice : undefined, onToast: setToast });
   else if (role === 'payments' && allowed.indexOf('payments') !== -1) body = h(PaymentPage, { lookups: lookups, payments: payments, onSave: savePayment, onAdvance: advancePayment, onReject: rejectPayment, suppliers: paySuppliers, canBatch: user.role === 'services' || user.role === 'admin', canAdd: true, onBatch: createPaymentBatch, onEditBatch: editPaymentBatch, onDeleteBatch: deletePaymentBatch, isAdmin: user.role === 'admin', onBulk: bulkPayments, onDelete: user.role === 'admin' ? removePayment : undefined, onToast: setToast });
+  else if (role === 'reports' && allowed.indexOf('reports') !== -1) body = h(SmartReportsPage, { payments: payments, onToast: setToast });
   else if (role === 'settings' && allowed.indexOf('settings') !== -1) body = h(SettingsPage, { lookups: lookups, onAdd: addLookup, onUpdate: updateLookup, onRemove: removeLookup, onToast: setToast });
   else if (role === 'recon') body = h(ReconTool, { onToast: setToast, by: user.name });
   else if (role === 'matcher') body = h(MatcherHome, { reqs: reqs, seen: seen, fresh: isFresh, meName: user.name, userRole: user.role, onOpen: openReq, onDelete: user.role === 'admin' ? removeRecord : undefined });
   else body = h(Dashboard, { onDelete: user.role === 'admin' ? removeRecord : undefined, reqs: reqs, complaints: complaints, seen: seen, fresh: isFresh, onOpen: openReq, onOpenC: openC });
 
+  const whoMessages = { recon: 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد', settings: 'القوائم التي تقرأ منها نماذج السداد', payments: 'سداد مستحقات الموردين بعد إنجاز المطابقة', users: 'إدارة الحسابات والصلاحيات', notices: 'إصدار الإشعارات الضريبية للموردين وتعديلها وطباعتها', suppliers: 'التهيئة الأساسية لبيانات الموردين' };
+  const whoName = user.role === role ? user.name : (ME[role] || '');
+  const whoDescription = role === 'supplier' ? user.org + ' · ' + user.name : (whoMessages[role] || 'تعرض النظام بصفة ' + ROLE_NAME[role] + (whoName ? ' · ' + whoName : ''));
+  const who = role === 'manager'
+    ? div({ className: 'who who-manager noprint' }, h(Icon, { name: 'user', size: 20 }), div({ className: 'who-copy' }, strong(null, 'مرحباً، ' + (user.role === role ? user.name : ME[role])), span(null, 'إليك موجز المطابقات والطلبات وأداء الفريق.')), span({ className: 'who-role' }, 'المدير المالي'))
+    : div({ className: 'who noprint' }, whoDescription);
+  const sidebarUserName = user.name || user.username || 'مستخدم';
+  const sidebarUserMeta = sidebarUserName === ROLE_LABEL[user.role]
+    ? (user.username ? 'اسم الدخول: ' + user.username : 'الحساب الحالي')
+    : ROLE_LABEL[user.role] + (user.username ? ' · ' + user.username : '');
+
   /* the navigation sits in a column beside the content (the right side in RTL); on narrow screens it stacks above */
   return div({ className: 'appshell' },
     header({ className: 'appside' }, h(Brand),
       allowed.length > 1 ? div({ className: 'seg sidenav', role: 'group', 'aria-label': 'صفحات النظام' }, navOrder(allowed).map(function (k) {
-        return button({ key: k, 'aria-pressed': role === k, onClick: function () { changeRole(k); } }, ROLE_NAV[k] || ROLE_NAME[k], h(Badge, { n: roleUnread[k] || 0 }));
+        const navIcons = { manager: 'check', matcher: 'search', recon: 'sort', payments: 'send', reports: 'chart', notices: 'file', suppliers: 'user', settings: 'key', users: 'user' };
+        return button({ key: k, className: 'navitem', 'aria-pressed': role === k, onClick: function () { changeRole(k); } }, h(Icon, { name: navIcons[k] || 'file', size: 17 }), span({ className: 'navlabel' }, ROLE_NAV[k] || ROLE_NAME[k]), h(Badge, { n: roleUnread[k] || 0 }));
       })) : null,
-      div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, user.name.charAt(0)), div({ className: 'un' }, span(null, user.name), h('small', null, ROLE_LABEL[user.role])),
-        button({ type: 'button', onClick: logout }, 'خروج'))),
-    main({ className: 'gutter page', id: 'main', tabIndex: -1 }, div({ className: 'who noprint' }, role === 'recon' ? 'أداة داخلية لفريق المطابقة والمدير المالي، ولا تظهر للمورد' : (role === 'settings' ? 'القوائم التي تقرأ منها نماذج السداد' : role === 'payments' ? 'سداد مستحقات الموردين بعد إنجاز المطابقة' : role === 'users' ? 'إدارة الحسابات والصلاحيات' : (role === 'notices' ? 'إصدار الإشعارات الضريبية للموردين وتعديلها وطباعتها' : (role === 'suppliers' ? 'التهيئة الأساسية لبيانات الموردين' : (role === 'supplier' ? user.org + ' · ' + user.name : 'تعرض النظام بصفة ' + ROLE_NAME[role] + ' · ' + (user.role === role ? user.name : ME[role])))))), body),
+      div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, sidebarUserName.charAt(0)),
+        div({ className: 'sideuser-copy', title: sidebarUserName }, span({ className: 'sideuser-name' }, sidebarUserName), span({ className: 'sideuser-meta' }, sidebarUserMeta)),
+        button({ type: 'button', className: 'sideuser-logout', onClick: logout, 'aria-label': 'تسجيل الخروج' }, h(Icon, { name: 'logout', size: 16 }), span(null, 'خروج')))),
+    main({ className: 'gutter page', id: 'main', tabIndex: -1 }, role === 'reports' ? null : who, body),
     toast ? div({ className: 'toast', role: 'status' }, toast) : null);
 }
