@@ -30,6 +30,9 @@ const payTone = function (x) { return x.status === 5 ? 'ok' : (x.rejected ? 'bad
 const payLate = function (x) { return x.status < 5 && !!x.dueDate && new Date(x.dueDate + 'T23:59:59') < new Date(); };
 const payMoney = function (n) { return n == null ? '—' : new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + ' ر.س'; };
 const payDate = function (s) { return s ? fmtDate(new Date(s.length > 10 ? s : s + 'T00:00:00')) : '—'; };
+const canEditPaymentRow = function (payment, canBatch) {
+  return canBatch && !!payment.batch && !payment.requestPk && (payment.status === 1 || payment.status === 2);
+};
 
 function PaymentPage(props) {
   const list = props.payments;
@@ -39,15 +42,17 @@ function PaymentPage(props) {
   const [busy, setBusy] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [sheet, setSheet] = useState('');      // batch number whose sheet is open
-  const [editDoc, setEditDoc] = useState('');  // batch whose supplier-row editor is expanded
+  const [editRow, setEditRow] = useState(null);  // payment row open for editing in the batch sheet
+  const [editDoc, setEditDoc] = useState('');  // document row expanded in the payments list
   const cur = sel ? list.filter(function (x) { return x.pk === sel; })[0] : null;
   const set = function (k, v) { setF(function (o) { const n = Object.assign({}, o); n[k] = v; return n; }); };
   /* a document opens its table: every supplier of the batch, the approvals inside each row */
   function open(id) {
-    const d = list.filter(function (x) { return (x.batch || x.id) === id; })[0];
-    if (!d) return;
-    setBatchOpen(false); setEditDoc(''); setSel(null); setSheet(d.batch || '');
-    if (d.batch) setTimeout(function () { const el = document.querySelector('.shsheet'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }, 60);
+    const ordersInDocument = groups[id];
+    if (!ordersInDocument) return;
+    const batch = ordersInDocument[0].batch;
+    setBatchOpen(false); setEditRow(null); setEditDoc(''); setSel(null); setSheet(batch || '');
+    if (batch) setTimeout(function () { const el = document.querySelector('.shsheet'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }, 60);
   }
   function fail(ex) {
     setBusy(false);
@@ -92,11 +97,13 @@ function PaymentPage(props) {
   /* services (and the admin) may edit while nobody is past purchasing's turn; the admin may always delete */
   const canAdd = props.canAdd !== undefined ? props.canAdd : props.canBatch;      // anyone with the payments page may add a batch
   const isBatchDoc = function (d) { return !!d.orders[0].batch; };      // only documents made by "إضافة سداد متعدد"
-  const editableOrders = function (d) { return isBatchDoc(d) && props.canBatch ? d.orders.filter(function (x) { return x.status <= 2; }) : []; };
   const canDeleteDoc = function (d) { return isBatchDoc(d) && (props.isAdmin || (props.canBatch && d.orders.every(function (x) { return x.status <= 2; }))); };
   function removeDoc(d) {
     if (!window.confirm('حذف الوثيقة ' + d.id + ' مع ' + (d.n === 1 ? 'أمرها' : 'أوامرها الـ ' + d.n) + ' نهائياً؟ لا يمكن التراجع عن الحذف.')) return;
-    props.onDeleteBatch(d.id).then(function () { if (sheet === d.id) setSheet(''); if (editDoc === d.id) setEditDoc(''); }, function (ex) { props.onToast(ex.message); });
+    props.onDeleteBatch(d.id).then(function () {
+      if (sheet === d.id) { setSheet(''); setEditRow(null); }
+      setEditDoc(function (current) { return current === d.id ? '' : current; });
+    }, function (ex) { props.onToast(ex.message); });
   }
   /* the state of a document: one step when all its orders are there, otherwise "in approval" with how many are paid */
   const docLabel = function (d) { return d.status === 5 ? PAY_PAID : (d.status ? PAY_STEPS[d.status - 1].pill : 'قيد الاعتماد'); };
@@ -114,14 +121,15 @@ function PaymentPage(props) {
     { key: 'status', label: 'الحالة', filter: 'select', fv: function (d) { return docLabel(d); }, val: function (d) { return d.status; },
       render: function (d) { return div({ className: 'cell-status' }, span({ className: 'pill ' + docTone(d) }, span({ className: 'dot' }), docLabel(d)), d.status === 0 ? span({ className: 'muted small' }, d.paid + ' من ' + d.n + ' مسدّد') : null, d.rejected ? span({ className: 'chip-late' }, 'فيها مرفوض') : null, d.late ? h(LateChip) : null); } },
     { key: 'act', label: 'إجراءات', render: function (d) {
-      const e = editableOrders(d).length > 0, x = canDeleteDoc(d);
+      const e = d.orders.some(function (x) { return canEditPaymentRow(x, props.canBatch); }), x = canDeleteDoc(d);
       if (!e && !x) return span({ className: 'muted' }, '—');
       return div({ className: 'rowacts' },
-        e ? button({ type: 'button', className: 'abtn edit', title: 'تعديل سطر', 'aria-label': 'تعديل سطر في ' + d.id, 'aria-expanded': editDoc === d.id,
+        e ? button({ type: 'button', className: 'abtn edit', title: 'تعديل السطر', 'aria-label': 'تعديل سطر في ' + d.id,
+          'aria-expanded': editDoc === d.id,
           onClick: function (ev) {
             ev.stopPropagation();
-            setBatchOpen(false); setSheet(''); setSel(null);
-            setEditDoc(function (id) { return id === d.id ? '' : d.id; });
+            setSheet(''); setEditRow(null); setSel(null);
+            setEditDoc(function (current) { return current === d.id ? '' : d.id; });
           } }, h(Icon, { name: 'pencil', size: 16 }), span({ className: 'abl' }, 'تعديل')) : null,
         x ? button({ type: 'button', className: 'abtn stop', title: 'حذف', 'aria-label': 'حذف ' + d.id, onClick: function (ev) { ev.stopPropagation(); removeDoc(d); } }, h(Icon, { name: 'trash', size: 16 }), span({ className: 'abl' }, 'حذف')) : null);
     } }
@@ -142,10 +150,10 @@ function PaymentPage(props) {
   return section({ className: 'svcpanel userspage payspage' },
     div({ className: 'svchead' },
       div(null, h2(null, 'السداد')),
-      div({ className: 'payhead-acts' }, batchIds.length ? select({ className: 'batchpick', 'aria-label': 'فتح ورقة دفعة', value: sheet, onChange: function (e) { setSel(null); setBatchOpen(false); setEditDoc(''); setSheet(e.target.value); } }, option({ value: '' }, 'ورقة دفعة…'), batchIds.map(function (b) { return option({ key: b, value: b }, b + ' (' + batches[b] + ')'); })) : null,
+      div({ className: 'payhead-acts' }, batchIds.length ? select({ className: 'batchpick', 'aria-label': 'فتح ورقة دفعة', value: sheet, onChange: function (e) { setSel(null); setBatchOpen(false); setEditRow(null); setEditDoc(''); setSheet(e.target.value); } }, option({ value: '' }, 'ورقة دفعة…'), batchIds.map(function (b) { return option({ key: b, value: b }, b + ' (' + batches[b] + ')'); })) : null,
         span({ className: 'paycount' }, docs.length === 1 ? 'وثيقة واحدة' : docs.length + ' وثائق'),
         canAdd ? button({ type: 'button', className: 'btn primary', onClick: function () {
-          setSel(null); setSheet(''); setEditDoc(''); setBatchOpen(true);
+          setSel(null); setSheet(''); setEditRow(null); setEditDoc(''); setBatchOpen(true);
           setTimeout(function () { const el = document.querySelector('.pbform'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 80);
         } }, h(Icon, { name: 'plus' }), 'إضافة سداد متعدد') : null)),
     mine ? div({ className: 'alertbar pay-action-alert', role: 'status' }, h(Icon, { name: 'alert' }), span(null, mine === 1 ? 'عندك أمر سداد واحد بانتظار إجرائك.' : 'عندك ' + mine + ' أوامر سداد بانتظار إجرائك.')) : null,
@@ -158,7 +166,12 @@ function PaymentPage(props) {
         [['مستحق غير مسدّد', unpaid], ['إجمالي المسدّد', paid]].map(function (x) {
           return div({ key: x[0], className: 'paycell on' }, h('b', null, new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(x[1]), h('small', null, 'ر.س')), span(null, x[0]));
         }))),
-    sheet ? h(PaymentSheet, { batch: sheet, payments: list, onBulk: props.onBulk, onClose: function () { setSheet(''); }, onToast: props.onToast }) : null,
+    sheet ? h(PaymentSheet, {
+      key: sheet, batch: sheet, payments: list, lookups: props.lookups,
+      canEditProposal: props.canBatch, editingPk: editRow, onSelectEditRow: setEditRow, onSaveRow: props.onEditRow,
+      onCloseRowEdit: function (pk) { setEditRow(function (current) { return current === pk ? null : current; }); },
+      onBulk: props.onBulk, onClose: function () { setSheet(''); setEditRow(null); }, onToast: props.onToast
+    }) : null,
     batchOpen && canAdd ? h(PaymentBatchForm, { suppliers: props.suppliers, lookups: props.lookups, onSubmit: props.onBatch, onClose: function () { setBatchOpen(false); }, onToast: props.onToast }) : null,
     cur && f ? form({ className: 'uformwrap', onSubmit: save, noValidate: true },
       div({ className: 'uformhead' }, h3(null, 'أمر السداد ' + cur.id + ' · ' + cur.supplier),
@@ -201,9 +214,9 @@ function PaymentPage(props) {
       h(DataTable, { cols: cols, rows: docs, dateFilter: { label: 'تاريخ الإدخال', get: function (d) { return d.created; } }, exportName: 'وثائق-السداد', inlineHead: true, onToast: props.onToast, onOpen: open, defaultSort: { key: 'created', dir: 'desc' }, rowClass: function (d) { return 'pay-priority-' + d.priority.key + (d.mine ? ' unread' : ''); },
         renderRowDetail: function (d) {
           if (d.id !== editDoc) return null;
-          const orders = editableOrders(d);
+          const orders = d.orders.filter(function (x) { return canEditPaymentRow(x, props.canBatch); });
           return orders.length ? h(PaymentRowEditor, { orders: orders, lookups: props.lookups, onSave: props.onEditRow,
-            onClose: function () { setEditDoc(function (id) { return id === d.id ? '' : id; }); } }) : null;
+            onClose: function () { setEditDoc(function (current) { return current === d.id ? '' : current; }); } }) : null;
         },
         empty: 'لا توجد وثائق سداد بعد. أضف أول وثيقة من زر «إضافة سداد متعدد».' })));
 }

@@ -30,6 +30,8 @@ function PaymentSheet(props) {
   const [errs, setErrs] = useState({});        // pk -> message
   const [busy, setBusy] = useState({});        // pk -> true while a request is on its way
   const [exportBusy, setExportBusy] = useState(false);
+  const canEdit = function (x) { return canEditPaymentRow(x, props.canEditProposal); };
+  const isEditing = function (x) { return props.editingPk === x.pk && canEdit(x); };
   const val = function (x, k, fallback) { const e = edit[x.pk]; return e && e[k] != null ? e[k] : (fallback == null ? '' : String(fallback)); };
   const flag = function (setter, x, v) { setter(function (o) { const n = Object.assign({}, o); if (v == null) delete n[x.pk]; else n[x.pk] = v; return n; }); };
   const setVal = function (x, k, v) {
@@ -55,7 +57,7 @@ function PaymentSheet(props) {
   /* one level's cell in one row */
   function levelCell(x, k, cols) {
     const lv = k + 1, e = cols[k];
-    if (x.status === lv && x.canAct) {
+    if (x.status === lv && x.canAct && !isEditing(x)) {
       const rj = rejecting[x.pk];
       return div({ className: 'shcell edit' },
         input({ type: 'text', inputMode: 'decimal', className: 'ltr', autoComplete: 'off', 'aria-label': 'المبلغ: ' + x.supplier, value: val(x, 'amount', x.amount), onChange: function (ev) { setVal(x, 'amount', ev.target.value); } }),
@@ -140,7 +142,7 @@ function PaymentSheet(props) {
   }
   /* the two balances: typed in the row while supplier services holds it, read-only otherwise */
   const numCell = function (x, key, k, label) {
-    if (x.status === 1 && x.canAct) return td({ key: key, 'data-label': label, className: 'num' }, input({ type: 'text', inputMode: 'decimal', className: 'ltr shin', autoComplete: 'off', 'aria-label': label + ': ' + x.supplier, value: val(x, k, x[key]), onChange: function (ev) { setVal(x, k, ev.target.value); } }));
+    if (x.status === 1 && x.canAct && !isEditing(x)) return td({ key: key, 'data-label': label, className: 'num' }, input({ type: 'text', inputMode: 'decimal', className: 'ltr shin', autoComplete: 'off', 'aria-label': label + ': ' + x.supplier, value: val(x, k, x[key]), onChange: function (ev) { setVal(x, k, ev.target.value); } }));
     return td({ key: key, 'data-label': label, className: 'num' }, x[key] == null ? span({ className: 'muted' }, '—') : span({ className: 'mono' }, shNum(x[key])));
   };
 
@@ -164,10 +166,17 @@ function PaymentSheet(props) {
         .concat([th({ key: 'st', scope: 'col' }, 'الحالة')]))),
       tbody(null, rows.map(function (x) {
         const cols = sheetCols(x), er = errs[x.pk], priority = payPriority(x);
+        const editing = isEditing(x);
         const rowClass = 'pay-priority-' + priority.key + (er ? ' bad' : x.canAct ? ' mine' : '');
-        return tr({ key: x.pk, className: rowClass },
+        const row = tr({ className: rowClass },
           td({ 'data-label': 'رقم المورد', className: 'shcode' }, x.supplierCode ? span({ className: 'mono' }, x.supplierCode) : span({ className: 'muted' }, '—')),
-          td({ 'data-label': 'المورد', className: 'pbsup' }, strong({ style: { fontWeight: 600 } }, x.supplier), span({ className: 'hint' }, x.id), er ? span({ className: 'err', role: 'alert' }, er) : null),
+          td({ 'data-label': 'المورد', className: 'pbsup' },
+            strong({ style: { fontWeight: 600 } }, x.supplier), span({ className: 'hint' }, x.id),
+            canEdit(x) ? button({ type: 'button', className: 'btn ghost sm sh-edit-line noprint',
+              disabled: !!busy[x.pk], 'aria-expanded': editing, 'aria-label': 'تعديل سطر ' + x.supplier,
+              onClick: function () { props.onSelectEditRow(editing ? null : x.pk); } },
+              h(Icon, { name: 'pencil', size: 15 }), 'تعديل السطر') : null,
+            er ? span({ className: 'err', role: 'alert' }, er) : null),
           numCell(x, 'balance', 'balance', 'الرصيد'),
           numCell(x, 'stockBalance', 'stock', 'المخزون'),
           td({ 'data-label': 'طريقة الدفع', className: 'shmethod' }, x.method ? x.method : span({ className: 'muted' }, '—')),
@@ -175,6 +184,13 @@ function PaymentSheet(props) {
           td({ 'data-label': 'الحالة', className: 'shstat' }, h(PayPriorityPill, { level: priority }),
             span({ className: 'pill ' + payTone(x) }, span({ className: 'dot' }), payLabel(x)), x.rejected ? span({ className: 'chip-late' }, 'أعادها المدقق') : null,
             x.dueDate ? span({ className: 'shmeth' }, 'استحقاق ' + payDate(x.dueDate)) : null));
+        return h(React.Fragment, { key: x.pk }, row,
+          editing ? tr({ className: 'sh-row-detail noprint' }, td({ colSpan: 6 + SHEET_LEVELS.length },
+            h(PaymentRowEditor, { order: x, lookups: props.lookups,
+              onSave: function (pk, changes) {
+                return props.onSaveRow(pk, changes).then(function () { flag(setEdit, x, null); flag(setErrs, x, null); });
+              },
+              onClose: function () { props.onCloseRowEdit(x.pk); } }))) : null);
       })),
       h('tfoot', null, tr(null, td({ colSpan: 2, className: 'shtot', 'data-label': 'الإجمالي' }, 'الإجمالي'),
         td({ className: 'num', 'data-label': 'إجمالي الرصيد' }, span({ className: 'mono' }, shNum(sum(function (x) { return x.balance; })))),
@@ -204,11 +220,12 @@ function paymentRowDraft(order) {
 }
 
 function PaymentRowEditor(props) {
-  const [draft, setDraft] = useState(function () { return paymentRowDraft(props.orders[0]); });
+  const orders = props.orders || [props.order];
+  const [draft, setDraft] = useState(function () { return paymentRowDraft(orders[0]); });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const ref = useRef(null);
-  const order = props.orders.find(function (item) { return item.pk === draft.pk; });
+  const order = orders.find(function (item) { return item.pk === draft.pk; });
 
   useEffect(function () {
     const editor = ref.current;
@@ -271,13 +288,13 @@ function PaymentRowEditor(props) {
 
   return form({ className: 'pay-row-editor', ref: ref, tabIndex: -1, onSubmit: submit, 'aria-label': 'تعديل سطر السداد' },
     h3(null, 'تعديل سطر السداد'),
-    props.orders.length > 1 || !order
+    orders.length > 1 || !order
       ? div({ className: 'field' }, label({ htmlFor: 'pay-row-supplier' }, 'اختر سطر المورد'),
         select({ id: 'pay-row-supplier', value: order ? order.pk : '', disabled: busy, onChange: function (event) {
-          const next = props.orders.find(function (item) { return String(item.pk) === event.target.value; });
+          const next = orders.find(function (item) { return String(item.pk) === event.target.value; });
           if (next) { setDraft(paymentRowDraft(next)); setError(null); }
         } }, !order ? option({ value: '', disabled: true }, 'اختر موردًا') : null,
-        props.orders.map(function (item) { return option({ key: item.pk, value: item.pk }, item.supplier + ' · ' + item.id); })))
+        orders.map(function (item) { return option({ key: item.pk, value: item.pk }, item.supplier + ' · ' + item.id); })))
       : p({ className: 'muted small' }, order.supplier + ' · ' + order.id),
     error ? p({ className: 'err', role: 'alert' }, error.message) : null,
     order ? h('fieldset', { className: 'uform', disabled: busy, 'aria-label': 'بيانات السطر' }, PAYMENT_ROW_FIELDS.map(renderField)) : null,

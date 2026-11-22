@@ -1913,9 +1913,15 @@ tbody tr:hover td { background: #F4FAF9; }
   border: 1px solid var(--pay-priority-border); background: var(--pay-priority-bg);
   color: var(--pay-priority-ink); font-size: .72rem; font-weight: 700; white-space: nowrap;
 }
-.pay-doc-list { container-type: inline-size; }
+.pay-doc-list, .shsheet .pbwrap { container-type: inline-size; }
+.shsheet .shtable .sh-edit-line { margin-block-start: 5px; white-space: nowrap; }
+.shsheet .shtable .sh-edit-line[aria-expanded="true"],
+.payspage .dtbox .dt td .abtn.edit[aria-expanded="true"] {
+  border-color: var(--accent); background: var(--accent-soft); color: var(--accent-deep);
+}
+.shsheet .shtable tbody .sh-row-detail > td,
 .payspage .dtbox .dt tbody .dt-row-detail > td {
-  padding: 0; min-width: 0; background: var(--surface); white-space: normal;
+  padding: 0; width: auto; min-width: 0; max-width: none; background: var(--surface); white-space: normal;
 }
 .pay-row-editor {
   position: sticky; inset-inline-start: 0; max-width: 100cqi;
@@ -1930,8 +1936,8 @@ tbody tr:hover td { background: #F4FAF9; }
   .pay-row-editor { scroll-margin-block-start: 125px; }
 }
 @media screen and (max-width: 760px) {
-  .payspage .dtbox .dt tbody .dt-row-detail { display: block; padding: 0; }
-  .payspage .dtbox .dt tbody .dt-row-detail > td { display: block; }
+  .shsheet .shtable tbody .sh-row-detail, .payspage .dtbox .dt tbody .dt-row-detail { display: block; padding: 0; }
+  .shsheet .shtable tbody .sh-row-detail > td, .payspage .dtbox .dt tbody .dt-row-detail > td { display: block; }
   .pay-row-editor { position: static; max-width: 100%; padding: 12px; }
 }
 .shsheet .shstat .pay-priority-pill { margin-block-end: 4px; }
