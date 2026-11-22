@@ -183,8 +183,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--gold); box-shado
 
 .dtbox { display: grid; gap: 10px; }
 .thcell { display: grid; gap: 6px; min-width: 0; }
-.thslot { min-height: 0; }
-.thslot:empty { display: none; }
 .thf { min-height: 34px !important; padding: 3px 8px !important; font-size: .82rem; font-weight: 400; border-radius: 8px !important; min-width: 0; width: 100%; background: var(--surface) !important; color: var(--ink); }
 .thlabel { font-weight: 600; }
 .pager { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }

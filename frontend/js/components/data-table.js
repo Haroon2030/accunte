@@ -106,20 +106,18 @@ function DataTable(props) {
     }
     return null;
   }
-  const anyFilter = cols.some(function (c) { return c.filter; });
+  const filterable = cols.filter(function (c) { return c.filter; });
   const sortable = cols.filter(function (c) { return c.val; });
-  /* phones: the header row is hidden and rows become cards, so filters and sorting live in this panel */
-  const phoneTools = (anyFilter || sortable.length) ? div({ className: 'dtm' },
-    button({ type: 'button', className: 'btn ghost sm dtm-toggle', 'aria-expanded': fopen, onClick: function () { setFopen(!fopen); } },
-      h(Icon, { name: 'sliders', size: 16 }), 'تصفية وترتيب', activeCols.length ? span({ className: 'dtm-n' }, activeCols.length) : null),
-    fopen ? div({ className: 'dtm-panel' },
-      sortable.length ? div({ className: 'tfield' }, label(null, 'ترتيب حسب'),
+  const toolsLabel = filterable.length ? (sortable.length ? 'تصفية وترتيب' : 'تصفية') : 'ترتيب';
+  const mobileOnly = filterable.length ? '' : ' dtm-mobile-only';
+  const toolsPanel = fopen ? div({ className: 'dtm-panel noprint' + mobileOnly, role: 'group', 'aria-label': toolsLabel },
+      sortable.length ? label({ className: 'tfield' }, 'ترتيب حسب',
         select({ className: 'thf', 'aria-label': 'ترتيب حسب', value: sort ? sort.key + ':' + sort.dir : '', onChange: function (e) {
           const v = e.target.value.split(':'); setSort(v[0] ? { key: v[0], dir: v[1] } : null);
         } }, option({ value: '' }, 'بدون ترتيب'), sortable.map(function (c) {
           return [option({ key: c.key + 'a', value: c.key + ':asc' }, c.label + ' (تصاعدي)'), option({ key: c.key + 'd', value: c.key + ':desc' }, c.label + ' (تنازلي)')];
         }))) : null,
-      cols.filter(function (c) { return c.filter; }).map(function (c) { return div({ key: c.key, className: 'tfield' }, label(null, c.label), filterCell(c)); })) : null) : null;
+      filterable.map(function (c) { return label({ key: c.key, className: 'tfield' }, c.label, filterCell(c)); })) : null;
   return div({ className: 'dtbox' + (props.inlineHead ? ' inlinehead' : '') },
     div({ className: 'dtsearch' },
       div({ className: 'dt-query' }, h(Icon, { name: 'search', size: 17 }),
@@ -130,18 +128,19 @@ function DataTable(props) {
         label({ className: 'dtdate-f' }, 'من', input({ type: 'date', className: 'thf' + (dFrom ? '' : ' empty'), 'aria-label': df.label + ' من', value: dFrom, max: dTo || undefined, onChange: function (e) { setDFrom(e.target.value); setPage(1); } })),
         label({ className: 'dtdate-f' }, 'إلى', input({ type: 'date', className: 'thf' + (dTo ? '' : ' empty'), 'aria-label': df.label + ' إلى', value: dTo, min: dFrom || undefined, onChange: function (e) { setDTo(e.target.value); setPage(1); } })),
         dFrom || dTo ? button({ type: 'button', className: 'btn ghost sm', onClick: function () { setDFrom(''); setDTo(''); setPage(1); } }, 'مسح التاريخ') : null) : null,
+      filterable.length || sortable.length ? button({ type: 'button', className: 'btn ghost sm dtm-toggle' + mobileOnly, 'aria-expanded': fopen, onClick: function () { setFopen(!fopen); } },
+        h(Icon, { name: 'sliders', size: 16 }), toolsLabel, activeCols.length ? span({ className: 'dtm-n' }, activeCols.length) : null) : null,
       props.hideExport ? null : button({ type: 'button', className: 'btn ghost sm dtxl', disabled: !rows.length, title: 'تصدير الصفوف الظاهرة بعد التصفية والبحث إلى Excel',
         onClick: function () { const d = new Date(); exportTableXlsx((props.exportName || 'بيانات') + '-' + xlDate(d) + '.xlsx', cols, rows).catch(function () { if (props.onToast) props.onToast('تعذّر تصدير الملف. تأكد من الاتصال بالإنترنت وأعد المحاولة.'); }); } },
         h(Icon, { name: 'download', size: 16 }), 'تصدير Excel')),
-    phoneTools,
+    toolsPanel,
     div({ className: 'tablewrap', tabIndex: 0, role: 'region', 'aria-label': props.label || props.exportName || 'جدول البيانات' },
       table({ className: 'dt' },
         thead(null, tr(null, allCols.map(function (c) {
           const on = sort && sort.key === c.key;
           return th({ key: c.key, scope: 'col', 'data-col': c.key, 'aria-sort': c.val ? (on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined },
             div({ className: 'thcell' },
-              c.val ? button({ type: 'button', className: 'thbtn', onClick: function () { toggle(c); } }, c.label, h(Icon, { name: on ? (sort.dir === 'asc' ? 'up' : 'down') : 'sort', size: 14 })) : span({ className: 'thlabel' }, c.label),
-              anyFilter ? div({ className: 'thslot' }, filterCell(c)) : null));
+              c.val ? button({ type: 'button', className: 'thbtn', onClick: function () { toggle(c); } }, c.label, h(Icon, { name: on ? (sort.dir === 'asc' ? 'up' : 'down') : 'sort', size: 14 })) : span({ className: 'thlabel' }, c.label)));
         }))),
         tbody(null, shown.length ? shown.map(function (r) {
           const open = function () { if (props.onOpen) props.onOpen(r.id); };

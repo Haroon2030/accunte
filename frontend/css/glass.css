@@ -1,0 +1,174 @@
+/* Screen materials. Printed reports and documents use their own styles. */
+@media screen {
+  :root {
+    --glass-inset: 16px;
+    --glass-canvas: #dce6f6;
+    --glass-paper: #ffffffdc;
+    --glass-nav: #f5f8ffed;
+    --glass-edge: #ffffffc9;
+    --glass-divider: #173e7624;
+    --glass-blue: #e0ebfd;
+    --glass-lift: 0 12px 32px #24386419, inset 0 1px 0 #ffffffdc;
+  }
+
+  body {
+    background-color: var(--glass-canvas);
+    background-image:
+      radial-gradient(ellipse at 12% 8%, #f2f4ff 0%, transparent 39%),
+      radial-gradient(ellipse at 94% 14%, #8da9d9 0%, transparent 52%),
+      radial-gradient(ellipse at 8% 86%, #ac9fcd 0%, transparent 43%),
+      radial-gradient(ellipse at 72% 100%, #ece5f6 0%, transparent 48%),
+      linear-gradient(140deg, #bac9e8, #dce6f6 56%, #aebee1);
+    background-attachment: fixed;
+  }
+
+  .appshell { grid-template-columns: clamp(218px, 19vw, 264px) minmax(0, 1fr); min-height: 100svh; }
+  .appshell > .page {
+    padding-block-start: var(--glass-inset);
+    padding-inline: clamp(14px, 2.4vw, 36px);
+    gap: 16px;
+  }
+  .appshell > .appside {
+    top: var(--glass-inset);
+    height: calc(100vh - 2 * var(--glass-inset));
+    height: calc(100dvh - 2 * var(--glass-inset));
+    margin-block: var(--glass-inset);
+    margin-inline-start: var(--glass-inset);
+    padding: 17px 12px 12px;
+    gap: 14px;
+    border: 1px solid var(--glass-edge);
+    border-radius: 22px;
+    background: var(--glass-nav);
+    box-shadow: var(--glass-lift);
+  }
+  .appside .brand { border-block-end-color: var(--glass-divider); }
+  .appside .sidenav button:hover { background: #ffffff9c; }
+  .appside .sidenav button[aria-pressed="true"] {
+    background: linear-gradient(135deg, #e8f1ff, #ccdff9);
+    border-inline-start-color: var(--accent);
+    box-shadow: inset 0 1px 0 #fff, 0 3px 9px #173e7612;
+    color: var(--accent-deep);
+  }
+  .appside .sidenav .navitem[aria-pressed="true"] .navicon {
+    background: #ffffff96; color: var(--accent);
+  }
+  .appside .sidenav button[aria-pressed="true"] .rbadge { box-shadow: 0 0 0 2px var(--glass-blue); }
+  .appside .sideuser {
+    background: linear-gradient(145deg, #244d82, var(--accent-deep));
+    border-color: #ffffff46;
+  }
+
+  :is(.page, .loginwrap) :is(.panel, .uformwrap, .account-stat, .report-kpi, .rc-bar, .loginshell),
+  .page :is(.manager-dashboard .dashboard-head, .matcher-queue-head, .svcpanel > .svchead, .dtbox) {
+    background: var(--glass-paper);
+    border: 1px solid var(--glass-edge);
+    box-shadow: var(--glass-lift);
+  }
+  .page :is(.manager-dashboard .dashboard-head, .matcher-queue-head, .svcpanel > .svchead) {
+    min-width: 0; padding: 15px 18px; border-radius: 16px; color: var(--ink);
+  }
+  .page :is(.dashboard-head, .svchead) h2 { color: var(--accent-deep); }
+  .page .settingspage > .svchead h2 { color: var(--accent-ink); }
+  .page :is(.who:not(.who-manager), .dashboard-period) { color: #263c56; }
+  .page .matcher-queue-title h2 { color: var(--accent-deep); }
+  .page .matcher-queue-icon { background: var(--glass-blue); }
+  .page .manager-dashboard .dashboard-kpis .kpi {
+    background: var(--glass-paper);
+    border-color: var(--glass-edge) !important;
+    box-shadow: var(--glass-lift);
+  }
+  .page .manager-dashboard .dashboard-insights .panel {
+    background: var(--glass-paper);
+    border-color: var(--glass-edge);
+    box-shadow: var(--glass-lift);
+  }
+  .page :is(.manager-dashboard .dashboard-kpis .kpi.color-blue, .account-stat.is-total) {
+    background: linear-gradient(145deg, #f4f8ffda, #d9e6fbdc);
+  }
+  .page :is(.who-manager, .smart-reports .report-head, .smart-reports .tone-navy) {
+    background: linear-gradient(135deg, #28518a, var(--accent-deep));
+    border-color: #ffffff58;
+    box-shadow: var(--glass-lift);
+  }
+  .page .smart-reports .tone-navy { color: var(--accent-ink); }
+  .page .payspage :is(.paysteps, .paymoney) {
+    background: var(--glass-divider); border-color: var(--glass-edge); box-shadow: var(--glass-lift);
+  }
+  .page .payspage .paycell { background: var(--glass-paper); }
+  .page .settabs { background: #ffffffad; border: 1px solid var(--glass-edge); }
+
+  /* Frosted framing and controls, with higher opacity in the reading area. */
+  .page .manager-dashboard .dashboard-list .dtbox { background: transparent; border: 0; box-shadow: none; }
+  .page .dtbox .dtsearch { background: #ffffff36; }
+  .page .dtbox > .tablewrap { border-block-color: var(--glass-divider); }
+  .page .dtbox .tablewrap, .page :is(.pbwrap, .rc-grid) { background-color: #fcfdff; }
+  .page :is(.dtbox .dt-query .dtq, .dtbox .dtdate, .report-field input, .report-field select) {
+    background: #fff; border-color: #c6d4e9;
+  }
+  .page .dtbox > .dtm-panel { background: #f5f8ff; }
+  .page .dtbox .dt thead th { background-color: #1c4277; }
+  .page .dtbox .dt tbody td { border-block-end-color: #dce5f1; }
+
+  .loginwrap { background: transparent; }
+  .loginwrap .loginshell { border-radius: 24px; }
+  .loginwrap .loginbrand {
+    border-inline-end: 1px solid #ffffff80;
+    background:
+      radial-gradient(ellipse at 100% 0%, #ffffffba, transparent 60%),
+      linear-gradient(150deg, #e2edffde, #c9d9f5dc 68%, #ded6eee6);
+    color: var(--accent-deep);
+  }
+  .loginwrap .loginbrand .brand svg { color: var(--accent); }
+  .loginwrap .loginbrand p { color: #344c67; }
+  .loginwrap .loginservices li { background: #ffffff78; border-color: var(--glass-edge); }
+  .loginwrap .loginservice-icon { background: #f2f6ff; color: var(--accent); }
+  .loginwrap .logincard .field input[type] { background: #fff; border-color: #c6d4e9; }
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .appshell > .appside {
+      background: #f7faffaf;
+      -webkit-backdrop-filter: blur(24px) saturate(135%);
+      backdrop-filter: blur(24px) saturate(135%);
+    }
+    .loginwrap .loginshell {
+      -webkit-backdrop-filter: blur(18px) saturate(125%);
+      backdrop-filter: blur(18px) saturate(125%);
+    }
+  }
+}
+
+@media screen and (max-width: 860px) {
+  :root { --glass-inset: 8px; }
+  body { background-attachment: scroll; }
+  .appshell { grid-template-columns: minmax(0, 1fr); }
+  .appshell > .appside {
+    height: auto; margin: var(--glass-inset); padding: 9px 10px; gap: 7px 10px;
+    border-radius: 16px;
+  }
+  .appside .sidenav {
+    flex-wrap: nowrap; min-width: 0; overflow-x: auto; padding: 2px;
+    scrollbar-width: thin; overscroll-behavior-inline: contain;
+  }
+  .appside .sidenav button.navitem { flex: 0 0 auto; min-height: 44px; padding: 6px 10px; white-space: nowrap; }
+  .appside .sidenav button[aria-pressed="true"] { box-shadow: inset 0 -2px var(--accent); }
+  .appshell > .page { padding-block-start: 12px; }
+}
+
+@media screen and (max-width: 760px) {
+  .page .dtbox .tablewrap { background: transparent; }
+  .page :is(.manager-dashboard .dashboard-head, .matcher-queue-head, .svcpanel > .svchead) { padding: 12px; }
+}
+
+@media screen and (max-width: 700px) {
+  .loginwrap .loginbrand { border-inline-end: 0; border-block-end: 1px solid var(--glass-edge); }
+}
+
+@media screen and (prefers-reduced-transparency: reduce) {
+  :root { --glass-paper: #fff; --glass-nav: #f5f8ff; }
+  body { background-image: none; }
+  .appshell > .appside, .loginwrap .loginshell {
+    background: var(--glass-nav);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
