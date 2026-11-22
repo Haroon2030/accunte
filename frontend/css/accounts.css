@@ -2,7 +2,7 @@
 .loginwrap {
   min-height: 100vh; min-height: 100svh; display: grid; place-items: center;
   padding: clamp(12px, 4vw, 48px);
-  background: radial-gradient(ellipse at 86% 14%, var(--accent-soft), transparent 58%), var(--bg);
+  background: var(--bg);
 }
 .loginshell {
   display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); width: min(100%, 940px);
@@ -1030,6 +1030,10 @@ textarea.nt-in { text-align: start; resize: vertical; }
 .lkbtn { min-height: 44px; }
 .lkcode { width: 100%; min-width: 70px; min-height: 36px; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 8px; background: #fff; font: inherit; }
 .settingspage .dt td[data-col="code"], .settingspage .dt th[data-col="code"] { width: 130px; }
+.settingspage > .svchead h2 {
+  display: inline-flex; align-items: center; min-height: 44px; margin-block-end: 8px;
+  padding: 8px 16px; border-radius: 10px; background: var(--accent); color: var(--accent-ink);
+}
 @media (max-width: 640px) { .lkf-code { flex: 1 1 100%; } .lkbtn { width: 100%; } }
 
 /* approvals inside the rows */
@@ -1222,10 +1226,10 @@ body { background: var(--bg); letter-spacing: -.01em; }
   --sidebar-icon: var(--accent);
   --sidebar-active: var(--accent);
   --sidebar-active-ink: var(--accent-ink);
-  --sidebar-line: #d4e6f2;
+  --sidebar-line: var(--line);
   --sidebar-marker: var(--accent);
   --sidebar-text: #111;
-  background: linear-gradient(180deg, #edf8ff, #f6fbff);
+  background: #e9ebee;
   color: var(--sidebar-text); border: 0; border-inline-end: 1px solid var(--sidebar-line);
   box-shadow: 0 4px 20px #172b3a08; padding: 24px 16px; gap: 20px;
 }
@@ -1236,7 +1240,7 @@ body { background: var(--bg); letter-spacing: -.01em; }
   color: var(--sidebar-text); min-height: 46px; padding: 10px 12px; border-inline-start: 3px solid transparent;
   transition: background .16s, color .16s;
 }
-.appside .sidenav button:hover { background: #e5f3fc; }
+.appside .sidenav button:hover { background: #dee2e7; }
 .appside .sidenav button[aria-pressed="true"] {
   color: var(--sidebar-active-ink); background: var(--sidebar-active); font-weight: 700;
   border-inline-start-color: var(--accent-fill); box-shadow: none;
@@ -1711,8 +1715,8 @@ tbody tr:hover td { background: #F4FAF9; }
 .appside .sideuser .sideuser-copy { display: grid; min-width: 0; gap: 4px; line-height: 1.2; }
 .appside .sideuser .sideuser-name { overflow: hidden; color: var(--accent-ink); font-size: .8rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .appside .sideuser .sideuser-meta { overflow: hidden; color: var(--accent-soft); font-size: .67rem; text-overflow: ellipsis; white-space: nowrap; }
-.appside .sideuser .sideuser-logout { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 5px 9px; border: 1px solid #ffffff50; border-radius: 9px; background: #ffffff1f; color: var(--accent-ink); font-size: .72rem; font-weight: 700; white-space: nowrap; }
-.appside .sideuser .sideuser-logout:hover { border-color: #F0C2BE; background: #FFF0EE; color: #B42318; }
+.appside .sideuser .sideuser-logout { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 5px 9px; border: 1px solid #efaaa4; border-radius: 9px; background: var(--bad); color: #fff; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+.appside .sideuser .sideuser-logout:hover { background: #922018; }
 .appside .sideuser .sideuser-logout:focus-visible { outline-color: var(--accent-fill); }
 .appside .sideuser .sideuser-logout .ic { color: currentColor; }
 @media (max-width: 860px) {

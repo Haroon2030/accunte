@@ -3,8 +3,8 @@
    and every request opens the same tracking page: a vertical stepper beside a documented conversation. */
 :root {
   color-scheme: light;
-  --bg: #f3f8fc; --surface: #fff; --surface-2: #f7fbfe;
-  --ink: #172b3a; --ink-2: #465e70; --ink-3: #5d7385; --line: #dde8f0;
+  --bg: #f3f4f6; --surface: #fff; --surface-2: #f8f9fa;
+  --ink: #172b3a; --ink-2: #465e70; --ink-3: #5d7385; --line: #dfe3e8;
   --accent: #173e76; --accent-ink: #fff; --accent-deep: #102f5d;
   --accent-soft: #e7f4fe; --accent-hover: #d9edfb; --accent-fill: #cde9fc; --accent-border: #b8d9ef;
   --gold: var(--accent); --gold-soft: var(--accent-soft); --navy-deep: #fff;

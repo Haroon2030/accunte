@@ -365,7 +365,7 @@ function App() {
           span({ className: 'navicon' }, h(Icon, { name: navIcons[k] || 'file', size: 18 })),
           span({ className: 'navlabel' }, ROLE_NAV[k] || ROLE_NAME[k]), h(Badge, { n: roleUnread[k] || 0 }));
       })) : null,
-      div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, sidebarUserName.charAt(0)),
+      div({ className: 'uchip sideuser' }, span({ className: 'av ' + user.role, 'aria-hidden': 'true' }, h(Icon, { name: 'user', size: 20 })),
         div({ className: 'sideuser-copy', title: sidebarUserName }, span({ className: 'sideuser-name' }, sidebarUserName), span({ className: 'sideuser-meta' }, sidebarUserMeta)),
         button({ type: 'button', className: 'sideuser-logout', onClick: logout, 'aria-label': 'تسجيل الخروج' }, h(Icon, { name: 'logout', size: 16 }), span(null, 'خروج')))),
     main({ className: 'gutter page', id: 'main', tabIndex: -1 }, role === 'reports' ? null : who, body),
