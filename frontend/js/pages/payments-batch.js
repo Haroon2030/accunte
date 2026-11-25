@@ -47,53 +47,162 @@ const lkNames = function (lookups, kind) { return ((lookups || {})[kind] || []).
 const lkActive = function (lookups, kind) { return ((lookups || {})[kind] || []).filter(function (l) { return l.active; }); };
 const lkItems = function (list) { return list.map(function (l) { return { id: l.id, label: l.name, title: l.name, meta: l.code ? 'رقم ' + l.code : '', search: [l.name, l.code || ''] }; }); };
 
-/* search box with suggestions: type, and pick from the matches (mouse, or arrows + Enter).
-   searchOnly: the list opens only while typing (never on click/focus).
-   items: [{id, label (what the field shows once picked), title, meta, search: [texts to match]}].
-   The list is drawn on the page (not inside a scrolling table), so it is never cut off. */
+/* Configuration fields show all options on focus. Supplier fields require a query.
+   The list is rendered outside scrollable form tables. */
 function ComboPicker(props) {
   const [open, setOpen] = useState(false);
-  const [hi, setHi] = useState(0);
+  const [query, setQuery] = useState('');
+  const [hi, setHi] = useState(-1);
   const [box, setBox] = useState(null);
   const ref = useRef(null);
-  const q = pbNorm(props.value);
-  const exact = props.items.some(function (it) { return pbNorm(it.label) === q; });     // already chosen: no list
-  const matches = props.items.filter(function (it) { return !q || it.search.some(function (t) { return pbNorm(t).indexOf(q) !== -1; }); }).slice(0, 8);
-  const shown = open && !exact && !props.disabled;
-  function openList() {
-    if (!ref.current || props.disabled) return;
-    const r = ref.current.getBoundingClientRect();
-    setBox({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 260) });
+  const popup = useRef(null);
+  const listId = React.useId();
+  const active = open && !props.disabled;
+  const shown = active && !!box;
+  const matches = React.useMemo(function () {
+    if (!active) return [];
+    if (!query) return props.items;
+    const results = [];
+    for (const it of props.items) {
+      if (it.search.some(function (t) { return pbNorm(t).includes(query); }) || (props.searchOnly && pbNorm(it.label) === query)) results.push(it);
+      if (props.searchOnly && results.length === 8) break;
+    }
+    return results;
+  }, [active, query, props.items, props.searchOnly]);
+
+  React.useLayoutEffect(function () {
+    if (!active) return undefined;
+    const viewport = window.visualViewport;
+    let frame = 0;
+    function position() {
+      frame = 0;
+      const bounds = ref.current.getBoundingClientRect();
+      const top = viewport ? viewport.offsetTop : 0;
+      const left = viewport ? viewport.offsetLeft : 0;
+      const right = left + (viewport ? viewport.width : document.documentElement.clientWidth);
+      const bottom = top + (viewport ? viewport.height : document.documentElement.clientHeight);
+      if (bounds.bottom <= top || bounds.top >= bottom || bounds.right <= left || bounds.left >= right) {
+        setBox(null);
+        return;
+      }
+      const below = bottom - bounds.bottom - 8;
+      const above = bounds.top - top - 8;
+      const opensUp = below < 300 && above > below;
+      const width = Math.min(Math.max(bounds.width, 260), right - left - 8);
+      const nextBox = {
+        top: opensUp ? 'auto' : bounds.bottom + 4,
+        bottom: opensUp ? document.documentElement.clientHeight - bounds.top + 4 : 'auto',
+        left: Math.max(left + 4, Math.min(bounds.right - width, right - width - 4)),
+        width: width,
+        maxHeight: Math.min(300, opensUp ? above : below)
+      };
+      setBox(function (previous) {
+        return previous && Object.keys(nextBox).every(function (key) { return previous[key] === nextBox[key]; }) ? previous : nextBox;
+      });
+    }
+    function reposition(e) {
+      if (popup.current && e.target instanceof Node && popup.current.contains(e.target)) return;
+      if (!frame) frame = requestAnimationFrame(position);
+    }
+    function closeOutside(e) {
+      if (ref.current === e.target || (popup.current && popup.current.contains(e.target))) return;
+      setOpen(false);
+    }
+    position();
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    if (viewport) {
+      viewport.addEventListener('resize', reposition);
+      viewport.addEventListener('scroll', reposition);
+    }
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('focusin', closeOutside);
+    return function () {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+      if (viewport) {
+        viewport.removeEventListener('resize', reposition);
+        viewport.removeEventListener('scroll', reposition);
+      }
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('focusin', closeOutside);
+    };
+  }, [active]);
+
+  React.useLayoutEffect(function () {
+    const menu = popup.current;
+    if (!menu) return;
+    const option = menu.children[hi];
+    if (!option) {
+      menu.scrollTop = 0;
+      return;
+    }
+    const bounds = option.getBoundingClientRect();
+    const top = menu.getBoundingClientRect().top + menu.clientTop;
+    const bottom = top + menu.clientHeight;
+    if (bounds.top < top) menu.scrollTop += bounds.top - top;
+    else if (bounds.bottom > bottom) menu.scrollTop += bounds.bottom - bottom;
+  }, [shown, matches, hi]);
+
+  function openList(fromEnd) {
+    if (active || props.disabled) return;
+    const value = pbNorm(props.value);
+    if (props.searchOnly && !value) return;
+    const selected = !props.searchOnly && value ? props.items.findIndex(function (it) { return pbNorm(it.label) === value; }) : -1;
+    setQuery(props.searchOnly ? value : '');
+    setHi(props.searchOnly ? 0 : selected === -1 && fromEnd ? props.items.length - 1 : selected);
     setOpen(true);
   }
-  useEffect(function () {
-    if (!open) return undefined;
-    const close = function () { setOpen(false); };
-    /* a click anywhere outside this box and its list closes it, even when the field never got a blur event */
-    const outside = function (e) { if (!(ref.current && ref.current.contains(e.target)) && !(e.target.closest && e.target.closest('.sugbox'))) setOpen(false); };
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    document.addEventListener('mousedown', outside);
-    return function () { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close); document.removeEventListener('mousedown', outside); };
-  }, [open]);
-  const pick = function (it) { props.onPick(it); setOpen(false); };
-  function onKey(e) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); if (!shown) { if (!props.searchOnly || q) { setHi(0); openList(); } } else setHi(function (h0) { return Math.min(h0 + 1, matches.length - 1); }); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(function (h0) { return Math.max(h0 - 1, 0); }); }
-    else if (e.key === 'Enter' && shown && matches[hi]) { e.preventDefault(); pick(matches[hi]); }
-    else if (e.key === 'Escape' || e.key === 'Tab') setOpen(false);
+  function pick(it) {
+    ref.current.focus({ preventScroll: true });
+    props.onPick(it);
+    setOpen(false);
   }
-  const list = shown && box ? ReactDOM.createPortal(
-    div({ className: 'sugbox', role: 'listbox', style: { top: box.top, left: box.left, width: box.width } },
+  function onKey(e) {
+    if (e.nativeEvent.isComposing) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!active && props.searchOnly && !props.value.trim()) return;
+      e.preventDefault();
+      const up = e.key === 'ArrowUp';
+      if (!active) openList(up);
+      else if (matches.length) setHi(function (index) {
+        if (index < 0) return up ? matches.length - 1 : 0;
+        return Math.max(0, Math.min(index + (up ? -1 : 1), matches.length - 1));
+      });
+    } else if (active && e.key === 'Enter') {
+      e.preventDefault();
+      if (matches[hi]) pick(matches[hi]);
+    } else if (active && (e.key === 'Escape' || e.key === 'Tab')) {
+      if (e.key === 'Escape') e.preventDefault();
+      setOpen(false);
+    }
+  }
+  const list = shown ? ReactDOM.createPortal(
+    div({ id: listId, ref: popup, className: 'sugbox', role: 'listbox', 'aria-label': props.ariaLabel, style: box },
       matches.length ? matches.map(function (it, i) {
-        return div({ key: it.id, role: 'option', 'aria-selected': i === hi, className: 'sug' + (i === hi ? ' on' : ''),
-          onMouseDown: function (e) { e.preventDefault(); pick(it); }, onMouseEnter: function () { setHi(i); } },
+        const selected = it.label === props.value;
+        return div({ key: it.id, id: listId + '-' + i, role: 'option', 'aria-selected': selected,
+          className: 'sug' + (i === hi ? ' on' : '') + (selected ? ' selected' : ''),
+          onMouseDown: function (e) { e.preventDefault(); }, onClick: function () { pick(it); } },
           strong(null, it.title), it.meta ? span({ className: 'sugmeta' }, it.meta) : null);
-      }) : div({ className: 'sug none' }, props.items.length ? (props.noMatch || 'لا يوجد ما يطابق بحثك.') : (props.emptyText || 'القائمة فارغة.'))),
+      }) : div({ className: 'sug none', role: 'status' }, props.items.length ? (props.noMatch || 'لا يوجد ما يطابق بحثك.') : (props.emptyText || 'القائمة فارغة.'))),
     document.body) : null;
   return span({ className: 'sugwrap' },
-    input({ id: props.id, ref: ref, type: 'text', role: 'combobox', 'aria-expanded': shown, 'aria-autocomplete': 'list', autoComplete: 'off', disabled: props.disabled, placeholder: props.placeholder || 'ابحث أو اختر', 'aria-label': props.ariaLabel, value: props.value,
-      onChange: function (e) { props.onText(e.target.value); setHi(0); if (props.searchOnly && !e.target.value.trim()) setOpen(false); else openList(); }, onFocus: props.searchOnly ? undefined : openList, onClick: props.searchOnly ? undefined : openList, onBlur: function () { setOpen(false); }, onKeyDown: onKey }),
+    input({ id: props.id, ref: ref, type: 'text', role: 'combobox', 'aria-expanded': shown, 'aria-autocomplete': 'list',
+      'aria-controls': shown ? listId : undefined, 'aria-activedescendant': shown && matches[hi] ? listId + '-' + hi : undefined,
+      autoComplete: 'off', disabled: props.disabled, placeholder: props.placeholder || 'ابحث أو اختر', 'aria-label': props.ariaLabel, value: props.value,
+      onChange: function (e) {
+        const value = e.target.value;
+        const search = pbNorm(value);
+        props.onText(value);
+        setQuery(search);
+        setHi(search ? 0 : -1);
+        setOpen(!props.searchOnly || !!search);
+      },
+      onFocus: props.searchOnly ? undefined : function () { openList(false); },
+      onClick: props.searchOnly ? undefined : function () { openList(false); },
+      onKeyDown: onKey }),
     list);
 }
 
@@ -101,7 +210,9 @@ function PaymentBatchForm(props) {
   const sups = props.suppliers || [];
   const lk = props.lookups || {};
   const names = function (k) { return lkNames(lk, k); };
-  const supItems = sups.map(function (s) { return { id: s.id, label: s.code + ' · ' + s.name, title: s.name, meta: s.code + (s.taxNo ? ' · ' + s.taxNo : ''), search: [s.code, s.name, s.taxNo || ''] }; });
+  const supItems = React.useMemo(function () {
+    return sups.map(function (s) { return { id: s.id, label: s.code + ' · ' + s.name, title: s.name, meta: s.code + (s.taxNo ? ' · ' + s.taxNo : ''), search: [s.code, s.name, s.taxNo || ''] }; });
+  }, [sups]);
   const blank = function () { return { key: Math.random().toString(36).slice(2), text: '', amount: '', method: '', dueDate: '', priority: PAY_NORMAL_PRIORITY.key, note: '', balance: '', stockBalance: '' }; };
   const [rows, setRows] = useState([blank(), blank(), blank()]);
   const [common, setCommon] = useState({ method: lkNames(props.lookups, 'method')[0] || '', dueDate: '', branch: '', bank: '', bankSub: '', costCenter: '' });
@@ -116,7 +227,7 @@ function PaymentBatchForm(props) {
   const find = function (text) {
     const t = pbNorm(text);
     if (!t) return null;
-    return sups.filter(function (s) { return pbNorm(labelOf(s)) === t || pbNorm(s.code) === t || pbNorm(s.name) === t; })[0] || null;
+    return sups.find(function (s) { return pbNorm(labelOf(s)) === t || pbNorm(s.code) === t || pbNorm(s.name) === t; }) || null;
   };
   const isBlank = function (r) { return !r.text.trim() && !String(r.amount).trim(); };
   const setRow = function (key, k, v) { setRows(function (rs) { return rs.map(function (r) { if (r.key !== key) return r; const n = Object.assign({}, r); n[k] = v; return n; }); }); setErrs(function (e) { if (!e[key]) return e; const n = Object.assign({}, e); delete n[key]; return n; }); };
